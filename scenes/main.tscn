@@ -82,8 +82,8 @@ colors = PackedColorArray(1, 0.72, 0.68, 0, 1, 0.72, 0.68, 0.85, 1, 0.66, 0.66, 
 shader = ExtResource("15_water")
 shader_parameter/wobble = 0.012
 shader_parameter/speed = 2.5
-shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.32)
-shader_parameter/fade_length = 0.6
+shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.2)
+shader_parameter/fade_length = 0.3
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0

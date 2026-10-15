@@ -54,7 +54,9 @@ RAIL_BLOCK = 3                      # railway trees/viaduct: 3x3 game pixels per
 TRAIN_BLOCK = 2                     # train: 2x2 game pixels per art pixel
 SUN_X, SUN_Y = 248, 150             # sun centre in the sky layer (its sprite sits at x -48)
 MIRROR = 1.6                        # reflection squash: we look down at the road
-ROAD_TOP = 258                      # first row of road in screen space
+ROAD_TOP = 258                      # first row of the ground (sidewalk) in screen space; reflections mirror here
+KERB_Y = 292                        # sidewalk ends: kerb face from here down to the street
+STREET_TOP = 300                    # first row of asphalt
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
 rng = random.Random(5)
 
@@ -420,6 +422,7 @@ def build_road(sky, city, fill, back):
 
     road = road_surface()
     img = road
+    img.alpha_composite(sidewalk())
     img.alpha_composite(hedge())
     d = ImageDraw.Draw(img)
     # Far curb + low fence under the trees, kerb highlight, edge line, cracks, a manhole
@@ -431,9 +434,9 @@ def build_road(sky, city, fill, back):
     d.line([(0, ROAD_TOP - 18), (TILE, ROAD_TOP - 18)], fill=(56, 50, 88, 255))
     d.line([(0, ROAD_TOP - 13), (TILE, ROAD_TOP - 13)], fill=(56, 50, 88, 255))
     for x in range(0, TILE, 36):  # dashed edge line (720 / 36 = 20 per tile)
-        d.line([(x, ROAD_TOP + 6), (x + 20, ROAD_TOP + 6)], fill=(200, 190, 210, 255))
+        d.line([(x, STREET_TOP + 8), (x + 20, STREET_TOP + 8)], fill=(190, 180, 200, 255))
     for _ in range(16):  # cracks, some branching
-        x, y = rng.randint(20, TILE - 60), rng.randint(ROAD_TOP + 14, 350)
+        x, y = rng.randint(20, TILE - 60), rng.randint(STREET_TOP + 12, 350)
         pts = [(x, y)]
         for _k in range(rng.randint(3, 7)):
             x += rng.randint(2, 8)
@@ -443,8 +446,8 @@ def build_road(sky, city, fill, back):
         if rng.random() < 0.5:
             bx, by = pts[len(pts) // 2]
             d.line([(bx, by), (bx + rng.randint(-4, 4), by + rng.choice((-2, 2)))], fill=(26, 22, 46, 255))
-    d.ellipse((520, 300, 566, 309), fill=(40, 36, 66, 255), outline=(20, 16, 36, 255))
-    d.ellipse((526, 302, 560, 307), outline=(70, 64, 100, 255))
+    d.ellipse((520, 324, 566, 333), fill=(40, 36, 66, 255), outline=(20, 16, 36, 255))
+    d.ellipse((526, 326, 560, 331), outline=(70, 64, 100, 255))
     img.save(OUT / "road.png")
 
 
@@ -463,6 +466,54 @@ def tile_noise(h, w, cell, nrng):
     return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
 
 
+def sidewalk(block=2):
+    """Thai sidewalk where the hero walks: rows of concrete paving slabs (smaller far
+    away), worn and patched, then a kerb painted red and white down to the street.
+    Mostly opaque: damp slabs only let a little reflection through."""
+    sr = random.Random(17)
+    w, h = TILE // block, 360 // block
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    grout, moss = (72, 60, 92, 245), (58, 86, 70, 245)
+    y = ROAD_TOP // block
+    rows = []
+    for k, rh in enumerate((5, 6, 6)):                 # slab rows, far to near
+        rows.append((y, y + rh - 1, k))
+        y += rh
+    for y0, y1, k in rows:
+        shift = (k % 2) * 6                            # staggered like bricks
+        for x0 in range(-12 + shift, w, 12):
+            tone = sr.uniform(-9, 9) - k * 6
+            base = (int(128 + tone), int(112 + tone), int(138 + tone))
+            damp = sr.random() < 0.18
+            a = 205 if damp else 245
+            if damp:
+                base = tuple(int(c * 0.8) for c in base)
+            xs = [(x % w) for x in range(x0, x0 + 12)]
+            for x in xs:
+                d.line([(x, y0), (x, y1)], fill=base + (a,))
+                d.point((x, y0), fill=(min(255, base[0] + 26), min(255, base[1] + 18), min(255, base[2] + 22), a))
+            d.line([(xs[0], y0), (xs[0], y1)], fill=grout)           # grout between slabs
+            if sr.random() < 0.15:                                    # cracked slab
+                cx = xs[0] + sr.randint(3, 8)
+                d.line([((cx) % w, y0 + 1), ((cx + 2) % w, y1)], fill=grout)
+            if sr.random() < 0.12:                                    # stain
+                d.point(((xs[0] + sr.randint(2, 10)) % w, sr.randint(y0 + 1, y1)), fill=(84, 70, 96, 245))
+            if sr.random() < 0.3:                                     # moss in the joint
+                d.point((xs[0], sr.randint(y0, y1)), fill=moss)
+        d.line([(0, y1), (w, y1)], fill=grout)
+    ky = KERB_Y // block
+    d.line([(0, ky - 1), (w, ky - 1)], fill=(176, 154, 172, 250))    # kerb top edge catches the light
+    for x0 in range(0, w, 18):                                       # red / white kerb paint
+        red = (x0 // 18) % 2 == 0
+        col = (172, 58, 68, 255) if red else (196, 186, 204, 255)
+        d.rectangle((x0, ky, x0 + 17, STREET_TOP // block - 2), fill=col)
+        for _ in range(3):                                            # chipped paint
+            d.point((x0 + sr.randint(0, 17), sr.randint(ky, STREET_TOP // block - 2)), fill=(110, 96, 120, 255))
+    d.line([(0, STREET_TOP // block - 1), (w, STREET_TOP // block - 1)], fill=(30, 24, 44, 255))
+    return img.resize((TILE, 360), Image.NEAREST)
+
+
 def road_surface(block=2):
     """Asphalt for the road layer, drawn at 1/block resolution (chunky pixels) and
     semi-transparent where it is wet, so the reflection layers below show through.
@@ -471,7 +522,7 @@ def road_surface(block=2):
     The surface has aggregate grain, patches, repairs, oil stains and tyre tracks."""
     nrng = np.random.default_rng(12)
     h, w = 360 // block, TILE // block
-    top = ROAD_TOP // block
+    top = STREET_TOP // block
     yy, xx = np.mgrid[0:h, 0:w]
     t = np.clip((yy - top) / (h - top), 0, 1)            # 0 at the far kerb, 1 at the bottom
     dither = BAYER[yy % 4, xx % 4]
