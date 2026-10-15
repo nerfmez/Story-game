@@ -1,4 +1,4 @@
-[gd_scene load_steps=58 format=3]
+[gd_scene load_steps=59 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -45,6 +45,7 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hero_idle_video.png" id="44_idle"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_phone.png" id="45_phone"]
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/train_glow.png" id="51_train_glow"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -200,6 +201,13 @@ speed = 90.0
 auto_interval = 12.0
 across_screen = true
 sound = NodePath("Sound")
+
+[node name="Glow" type="Sprite2D" parent="TrainLayer/Train"]
+texture_filter = 2
+material = SubResource("CanvasItemMaterial_add")
+position = Vector2(-6, -6)
+texture = ExtResource("51_train_glow")
+centered = false
 
 [node name="Sound" type="AudioStreamPlayer" parent="TrainLayer/Train"]
 stream = ExtResource("28_train_snd")

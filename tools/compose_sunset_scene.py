@@ -14,7 +14,8 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
                     least visible cut (width printed at the end = RAIL_TILE in the scene)
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
   train.png         a 4-car skytrain (white / blue / red livery) drawn in pixel art,
-                    wheels on the near rail
+                    wheels on the near rail; side in shade, cabin lights on
+  train_glow.png    warm light spilling from its windows (additive, 6 px padding)
   sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
   city_reflect.png  the city mirrored in the wet road (moves with the city)
   rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
@@ -239,27 +240,33 @@ def build_railway():
     fill.save(OUT / "railway_fill.png")
 
     # --- Train: drawn in pixel art at game scale (4 commuter cars)
-    train = make_train()
+    train, lit = make_train()
     train.save(OUT / "train.png")
+    make_train_glow(lit).save(OUT / "train_glow.png")
     return back, fill, city, train, deck_top
 
 
 def make_train(cars=4, car_w=56, gap=2):
     """Side view of a Bangkok-skytrain-style train at dusk (no logos), drawn at
-    1/TRAIN_BLOCK resolution and scaled up so its pixels are chunky. Light grey roof,
-    red line, white upper body with a black glass window band, royal-blue lower body,
-    black cab faces outlined in red. The side is in shade (sun behind); the roof edge
-    catches the sunset. Wheels on the bottom row. Moves right; cab at both ends."""
+    1/TRAIN_BLOCK resolution and scaled up so its pixels are chunky. Grey roof, red
+    line, white upper body, royal-blue lower body, black cab faces outlined in red.
+    The sun is behind it, so the whole side is in shade (dusky white and blue) and
+    only the roof edge catches the sunset. The cabin lights are on: the window band
+    glows warm yellow between the window pillars, with a few passengers against it
+    (train_glow.png adds the light spilling out). Wheels on the bottom row. Moves
+    right; cab at both ends. Returns (train, light mask at art scale)."""
     H = 12
     W = cars * car_w + (cars - 1) * gap
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     ink = (20, 18, 36, 255)
-    rim, roof = (250, 184, 136, 255), (150, 150, 174, 255)
-    red = (206, 46, 58, 255)
-    white, white_lo = (206, 208, 226, 255), (164, 168, 198, 255)
-    glass, glow = (26, 26, 40, 255), (112, 90, 74, 255)
-    blue, blue_lo = (40, 70, 168, 255), (28, 48, 128, 255)
+    rim, roof = (250, 184, 136, 255), (78, 72, 104, 255)
+    red = (118, 34, 58, 255)
+    white, white_lo = (94, 88, 124, 255), (74, 68, 102, 255)       # white paint in shade (haze lifts it)
+    glass = (26, 24, 42, 255)
+    light, light_lo = (255, 214, 150, 255), (236, 170, 104, 255)    # cabin light through glass
+    pillar, rider = (44, 36, 58, 255), (92, 58, 62, 255)
+    blue, blue_lo = (24, 34, 84, 255), (18, 24, 62, 255)
     bogie, wheel = (30, 28, 46, 255), (14, 12, 26, 255)
     trng = random.Random(3)
     for c in range(cars):
@@ -269,17 +276,23 @@ def make_train(cars=4, car_w=56, gap=2):
         d.line([(x0, 1), (x1, 1)], fill=roof)
         d.line([(x0, 2), (x1, 2)], fill=red)                    # red line under the roof
         d.rectangle((x0, 3, x1, 6), fill=white)
-        d.rectangle((x0 + 1, 4, x1 - 1, 5), fill=glass)         # black window band
-        for wx in range(x0 + 2, x1 - 1, 5):
-            if trng.random() < 0.5:
-                d.point((wx + 2, 5), fill=glow)                 # dim cabin light
+        d.line([(x0 + 1, 4), (x1 - 1, 4)], fill=light)           # lit window band
+        d.line([(x0 + 1, 5), (x1 - 1, 5)], fill=light_lo)
+        for wx in range(x0 + 1, x1, 5):
+            d.line([(wx, 4), (wx, 5)], fill=pillar)               # window pillars
+            for k in range(1, 5):                                 # seated / standing riders
+                r = trng.random()
+                if r < 0.18:
+                    d.point((wx + k, 5), fill=rider)
+                elif r < 0.24:
+                    d.line([(wx + k, 4), (wx + k, 5)], fill=rider)
         d.rectangle((x0, 7, x1, 9), fill=blue)
         d.line([(x0, 9), (x1, 9)], fill=blue_lo)
         for k in range(4):                                       # doors
             dx = x0 + 5 + k * (car_w - 13) // 3
             d.rectangle((dx, 3, dx + 2, 9), fill=white_lo)
-            d.point((dx + 1, 4), fill=glass)
-            d.point((dx + 1, 5), fill=glass)
+            d.point((dx + 1, 4), fill=light)                      # door window, lit
+            d.point((dx + 1, 5), fill=light_lo)
             d.line([(dx, 7), (dx + 2, 7)], fill=blue_lo)
             d.line([(dx, 8), (dx + 2, 8)], fill=blue_lo)
         for bx in (x0 + 4, x1 - 10):                             # bogies + wheels
@@ -305,8 +318,26 @@ def make_train(cars=4, car_w=56, gap=2):
     edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
     keep = (a[..., 0] == rim[0]) & (a[..., 1] == rim[1])
     a[edge & ~keep] = ink
+    lit = np.zeros(a.shape[:2], bool)                             # the window rows only (not the rim)
+    lit[4:6] = (a[4:6, :, 0] >= light_lo[0]) & (a[4:6, :, 2] >= light_lo[2])
     out = Image.fromarray(a, "RGBA")
-    return out.resize((W * TRAIN_BLOCK, H * TRAIN_BLOCK), Image.NEAREST)
+    return out.resize((W * TRAIN_BLOCK, H * TRAIN_BLOCK), Image.NEAREST), lit
+
+
+def make_train_glow(lit, pad=6):
+    """Warm light spilling out of the lit windows: the window mask scaled to game
+    pixels, blurred, drawn additively over the train (pad px of room on every side)."""
+    from PIL import ImageFilter
+    h, w = lit.shape
+    m = Image.fromarray((lit * 255).astype(np.uint8)).resize((w * TRAIN_BLOCK, h * TRAIN_BLOCK), Image.NEAREST)
+    canvas = Image.new("L", (m.width + 2 * pad, m.height + 2 * pad), 0)
+    canvas.paste(m, (pad, pad))
+    soft = np.asarray(canvas.filter(ImageFilter.GaussianBlur(3.0))).astype(float) / 255
+    alpha = np.clip(soft * 1.6, 0, 1) * 0.55
+    rgba = np.zeros(soft.shape + (4,), np.uint8)
+    rgba[..., :3] = (255, 176, 104)
+    rgba[..., 3] = (alpha * 255).round()
+    return Image.fromarray(rgba, "RGBA")
 
 
 def make_bird():
