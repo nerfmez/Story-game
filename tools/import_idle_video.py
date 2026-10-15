@@ -1,9 +1,12 @@
 """Turn a green-screen idle (standing) video into a pixel-art sprite sheet.
 
-Uses the same steps as import_walk_video.py: key out the green, cut the frames into
-pixels by the majority material of each cell (crisp, no blending), give every
-material the idle sprite's exact spread of shades, redraw the 1px outline.
-For standing still it also:
+By default the video's own colours are kept: each game pixel takes the median colour
+at the centre of its cell in the video, exactly like tools/import_sprite.py does for
+stills (use this when the video already matches the still, as AI clips made from it
+do). --recolour instead uses import_walk_video.py's steps (majority material per cell,
+the still's spread of shades, a redrawn outline), for a video whose colours are off;
+on a clip that already matches it only adds blotchy shading.
+It also:
   - pins the feet: every frame is shifted so the planted feet stay on the same
     pixels (the body still sways; only the camera/AI drift is removed)
   - scales the character so the shirt collar is as high above the ground as in the
@@ -92,6 +95,43 @@ def add_strap(frame):
     return out
 
 
+def direct(args, frames, masks):
+    """Keep the video's colours: scale so the figure is as tall as the still, then give
+    each game pixel the median colour at the centre of its cell (no blending across
+    cells, so edges and the drawn outline stay crisp)."""
+    ref = Image.open(args.palette)
+    heights = [np.nonzero(m.any(1))[0] for m in masks]
+    fig_h = np.median([h.max() - h.min() + 1 for h in heights])
+    scale = ref.size[1] / fig_h
+    ch, cw = masks[0].shape
+    out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
+    sy, sx = ch / out_h, cw / out_w
+    q = max(1, int(min(sx, sy) * 0.25))
+    result = []
+    for rgb, mk in zip(frames, masks):
+        out = np.zeros((out_h, out_w, 4), np.uint8)
+        for j in range(out_h):
+            cy = int((j + 0.5) * sy)
+            ys = slice(max(0, cy - q), cy + q + 1)
+            for i in range(out_w):
+                cx = int((i + 0.5) * sx)
+                xs = slice(max(0, cx - q), cx + q + 1)
+                m = mk[ys, xs]
+                if m.mean() >= 0.5:
+                    out[j, i, :3] = np.median(rgb[ys, xs][m], axis=0)
+                    out[j, i, 3] = 255
+        if not args.no_strap:
+            out = add_strap(out)
+        result.append(out)
+    sheet = Image.new("RGBA", (out_w * len(result), out_h), (0, 0, 0, 0))
+    for i, f in enumerate(result):
+        sheet.paste(Image.fromarray(f, "RGBA"), (i * out_w, 0))
+    sheet.save(args.out)
+    marks = [landmarks(f) for f in result]
+    print(f"{len(result)} frames of {out_w}x{out_h} -> {args.out} (video colours kept); collar heights",
+          sorted({int(h) for h, _ in marks}), "torso x", round(float(np.mean([x for _, x in marks])), 2))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -102,6 +142,8 @@ def main():
     ap.add_argument("--palette", required=True, help="idle sprite whose colours and proportions to match")
     ap.add_argument("--materials", type=int, default=9)
     ap.add_argument("--no-strap", action="store_true", help="don't draw the second backpack strap")
+    ap.add_argument("--recolour", action="store_true",
+                    help="map colours to the still's shades (only for videos whose colours are off)")
     args = ap.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -134,6 +176,10 @@ def main():
     x0, x1, y0, y1 = xs.min() - m, xs.max() + 1 + m, ys.min() - m, g_ref + 1
     frames = [f[y0:y1, x0:x1] for f in frames]
     masks = [mk[y0:y1, x0:x1] for mk in masks]
+
+    if not args.recolour:
+        direct(args, frames, masks)
+        return
 
     # Scale: collar height above the ground like the idle sprite
     ref = np.asarray(Image.open(args.palette).convert("RGBA"))
