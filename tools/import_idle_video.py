@@ -33,9 +33,13 @@ from import_walk_video import (add_outline, cell_sample, features, is_green,  # 
 
 
 # Second strap, relative to the collar row (first row with 6+ white shirt pixels) and
-# the outline of the free shoulder 8 rows below it: (dy, dx) of the strap's left column.
-STRAP = [(-1, 8), (0, 8), (1, 7), (2, 7), (3, 7), (4, 7)] + [(dy, 6) for dy in range(5, 19)]
-STRAP_DARK, STRAP_LIT = (30, 38, 84, 255), (54, 66, 122, 255)
+# the outline of the free shoulder 8 rows below it: (dy, dx, width) per row.
+# Shaped like the original strap on the other shoulder: wide where it crosses the top
+# of the shoulder, then curving outward over the chest as the bag's weight pulls it
+# back, tapering and slipping under the armpit.
+STRAP = [(-1, 7, 1), (0, 4, 5), (1, 5, 3), (2, 5, 3), (3, 4, 3), (4, 4, 3),
+         (5, 3, 3), (6, 3, 3), (7, 3, 2), (8, 3, 1)]
+STRAP_DARK, STRAP_MID, STRAP_LIT = (26, 30, 70, 255), (40, 52, 104, 255), (62, 78, 140, 255)
 
 
 def add_strap(frame):
@@ -44,11 +48,19 @@ def add_strap(frame):
     collar = next(y for y in range(frame.shape[0]) if white[y].sum() >= 6)
     left = int(np.nonzero(a[collar + 8])[0].min())
     out = frame.copy()
-    for dy, dx in STRAP:
-        y, x = collar + dy, left + dx
-        if a[y, x] and a[y, x + 1]:
-            out[y, x] = STRAP_DARK
-            out[y, x + 1] = STRAP_LIT
+    for dy, dx, width in STRAP:
+        y = collar + dy
+        for k in range(width):
+            x = left + dx + k
+            if not a[y, x]:
+                continue
+            if width == 1:
+                colour = STRAP_MID
+            elif dy == 0:                      # top of the shoulder catches the light
+                colour = STRAP_LIT if 0 < k < width - 1 else STRAP_MID
+            else:
+                colour = STRAP_DARK if k == 0 else (STRAP_LIT if k == width - 1 else STRAP_MID)
+            out[y, x] = colour
     return out
 
 
