@@ -84,7 +84,7 @@ centered = false
 
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
-repeat_size = Vector2(982, 0)
+repeat_size = Vector2(957, 0)
 repeat_times = 3
 
 [node name="Fill" type="Sprite2D" parent="Railway"]
@@ -101,7 +101,7 @@ centered = false
 scroll_scale = Vector2(0.12, 0.12)
 
 [node name="Train" type="Sprite2D" parent="TrainLayer"]
-position = Vector2(-700, 168)
+position = Vector2(-700, 163)
 texture = ExtResource("7_train")
 centered = false
 script = ExtResource("3_train")
@@ -130,7 +130,7 @@ centered = false
 
 [node name="RailReflection" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
-repeat_size = Vector2(982, 0)
+repeat_size = Vector2(957, 0)
 repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="RailReflection"]

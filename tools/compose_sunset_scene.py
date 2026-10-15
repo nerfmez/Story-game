@@ -3,7 +3,6 @@
 Inputs (in art_source/):
   sunset_sky.png         full sky painting (16:9)
   railway.png            trees, viaduct, city, crossing - transparent background
-  railway_with_train.png same view with a train on the viaduct (the train is cut from it)
   railway_long.png       long viaduct strip with trees (the railway layer itself)
 
 Outputs (assets/bg/sunset/). Every layer tiles seamlessly left-right, so the
@@ -14,7 +13,7 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
   railway_back.png  railway tile made from railway_long.png, joined end to end along the
                     least visible cut (width printed at the end = RAIL_TILE in the scene)
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
-  train.png         a 3-car train cut from the train image (loops along the viaduct)
+  train.png         a 4-car commuter train drawn in pixel art (wheels on the near rail)
   sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
   city_reflect.png  the city mirrored in the wet road (moves with the city)
   rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
@@ -169,7 +168,6 @@ def seamless(img):
 
 def build_railway():
     back = scaled(remove_crossing(Image.open(SRC / "railway.png").convert("RGBA")))
-    with_train = scaled(Image.open(SRC / "railway_with_train.png").convert("RGBA"))
     b = np.asarray(back).astype(int)
 
     # --- Distant city goes to its own (much slower) layer (from the original art)
@@ -180,12 +178,14 @@ def build_railway():
 
     # --- The railway layer itself: the long viaduct strip, made into a tile and
     # scaled like the other art, with its rails at the same height as before
-    deck_top = int(489 * SCALE)  # top of the viaduct deck (where the train runs) in layer pixels
+    deck_top = int(489 * SCALE)  # the near rail's top (where the train's wheels run) in layer pixels
     strip = scaled(seamless(Image.open(SRC / "railway_long.png").convert("RGBA")))
     sa = np.asarray(strip)
-    # rails = first row whose pixels are mostly the warm rail highlight (trees above
-    # the deck can also be solid all the way across, so opacity alone is not enough)
-    rails = np.nonzero(np.median(sa[..., 0], axis=1) > 150)[0][0]
+    # Rails = rows whose pixels are mostly the warm rail highlight (trees above the
+    # deck can also be solid all the way across, so opacity alone is not enough).
+    # There are two rails; the train's wheels stand on the near (lower) one.
+    lit = np.nonzero(np.median(sa[..., 0], axis=1) > 150)[0]
+    rails = lit[np.r_[0, np.nonzero(np.diff(lit) > 2)[0] + 1][-1]]
     back = Image.new("RGBA", (strip.size[0], 451), (0, 0, 0, 0))
     back.paste(strip, (0, deck_top - rails))
     back.save(OUT / "railway_back.png")
@@ -194,20 +194,83 @@ def build_railway():
     fill = backfill(back.size[0])
     fill.save(OUT / "railway_fill.png")
 
-    # --- Train: one clean car from the left half (before the crossing), repeated 3 times
-    car = with_train.crop((int(362 * SCALE), int(464 * SCALE), int(822 * SCALE), int(505 * SCALE)))
-    cw, ch = car.size
-    gap = 3
-    train = Image.new("RGBA", (cw * 3 + gap * 2, ch), (0, 0, 0, 0))
-    for k in range(3):
-        train.alpha_composite(car, (k * (cw + gap), 0))
-    # Coupler between cars
-    d = ImageDraw.Draw(train)
-    for k in range(1, 3):
-        x = k * (cw + gap) - gap
-        d.rectangle((x, ch // 2, x + gap - 1, ch - 6), fill=(40, 36, 70, 255))
+    # --- Train: drawn in pixel art at game scale (4 commuter cars)
+    train = make_train()
     train.save(OUT / "train.png")
     return back, fill, city, train, deck_top
+
+
+def make_train(cars=4, car_w=112, gap=3):
+    """Side view of a commuter train at dusk, wheels on the bottom row.
+    The side faces away from the low sun: muted body, warm lit windows,
+    an orange rim of sunlight along the roof. Moves right (cab at both ends)."""
+    H = 24
+    W = cars * car_w + (cars - 1) * gap
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    ink = (22, 18, 40, 255)
+    roof, rim, gutter = (70, 72, 112, 255), (246, 176, 120, 255), (42, 40, 72, 255)
+    body, body_lo, door = (124, 128, 168, 255), (96, 98, 138, 255), (104, 108, 148, 255)
+    stripe, under, bogie = (232, 146, 92, 255), (40, 36, 64, 255), (30, 26, 50, 255)
+    lit, lit_top, glass = (250, 202, 128, 255), (255, 232, 176, 255), (58, 66, 108, 255)
+    trng = random.Random(3)
+    for c in range(cars):
+        x0 = c * (car_w + gap)
+        x1 = x0 + car_w - 1
+        d.rectangle((x0, 1, x1, 19), fill=body)
+        d.rectangle((x0, 1, x1, 3), fill=roof)
+        d.line([(x0 + 2, 0), (x1 - 2, 0)], fill=rim)          # sunlit roof edge
+        d.line([(x0, 4), (x1, 4)], fill=gutter)
+        d.rectangle((x0, 15, x1, 18), fill=body_lo)
+        d.line([(x0, 13), (x1, 13)], fill=stripe)
+        d.line([(x0, 14), (x1, 14)], fill=(196, 112, 82, 255))
+        d.line([(x0, 19), (x1, 19)], fill=under)
+        # doors (4 per side) and windows between them
+        doors = [x0 + 10 + k * (car_w - 26) // 3 for k in range(4)]
+        for dx in doors:
+            d.rectangle((dx, 5, dx + 6, 18), fill=door)
+            d.line([(dx + 3, 5), (dx + 3, 18)], fill=gutter)
+            for wx in (dx + 1, dx + 4):
+                d.rectangle((wx, 6, wx + 1, 10), fill=lit)
+        for a_, b_ in zip([x0 + 2] + [dx + 8 for dx in doors], doors + [x1 - 1]):
+            wx = a_ + 1
+            while wx + 7 <= b_ - 1:
+                on = trng.random() > 0.15
+                d.rectangle((wx, 6, wx + 6, 11), fill=lit if on else glass)
+                if on:
+                    d.line([(wx, 6), (wx + 6, 6)], fill=lit_top)
+                    if trng.random() < 0.45:          # a passenger's head
+                        hx = wx + trng.randint(1, 4)
+                        d.rectangle((hx, 9, hx + 1, 11), fill=(70, 50, 70, 255))
+                        d.point((hx, 8), fill=(70, 50, 70, 255))
+                wx += 8
+        # bogies with two wheels each, equipment boxes between them
+        for bx in (x0 + 10, x1 - 22):
+            d.rectangle((bx, 20, bx + 12, 21), fill=bogie)
+            for wx in (bx + 2, bx + 8):
+                d.ellipse((wx - 1, 20, wx + 2, 23), fill=(18, 16, 32, 255))
+                d.point((wx, 21), fill=(90, 86, 120, 255))
+        d.rectangle((x0 + 30, 20, x1 - 32, 21), fill=under)
+        if c < cars - 1:                                       # gangway to the next car
+            d.rectangle((x1 + 1, 6, x1 + gap, 17), fill=(34, 30, 58, 255))
+    # cab ends: sloped nose with windscreen, headlight in front, tail light behind
+    for end, sign in ((W - 1, -1), (0, 1)):
+        for k in range(5):                                     # cut the top corner diagonally
+            for y in range(1, 6 - k):
+                img.putpixel((end + sign * k, y), (0, 0, 0, 0))
+        for y in range(5, 12):
+            for k in range(1, 6):
+                img.putpixel((end + sign * k, y), glass if y > 6 else (120, 130, 170, 255))
+        img.putpixel((end + sign * 2, 16), (255, 240, 200, 255) if sign < 0 else (230, 60, 60, 255))
+        img.putpixel((end + sign * 3, 16), (255, 240, 200, 255) if sign < 0 else (230, 60, 60, 255))
+    # 1px dark outline around the silhouette
+    a = np.asarray(img).copy()
+    solid = a[..., 3] > 0
+    edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
+    edge[0, :] &= solid[0, :]
+    keep = (a[..., 0] == rim[0]) & (a[..., 1] == rim[1])       # keep the sunlit roof edge
+    a[edge & ~keep] = ink
+    return Image.fromarray(a, "RGBA")
 
 
 def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
