@@ -3,16 +3,17 @@
 Inputs (in art_source/):
   sunset_sky.png         full sky painting (16:9)
   railway.png            trees, viaduct, city, crossing - transparent background
-  railway_with_train.png same view with a train on the viaduct
+  railway_with_train.png same view with a train on the viaduct (the train is cut from it)
+  railway_long.png       long viaduct strip with trees (the railway layer itself)
 
 Outputs (assets/bg/sunset/). Every layer tiles seamlessly left-right, so the
 scene can scroll forever (Parallax2D.repeat_size in the game):
   sky.png           sky + its mirror image (1600 wide), sun just above the railway band
   city.png          the distant city skyline, split out of the railway art so it can
                     scroll far slower than the trees (extended down behind the trees)
-  railway_back.png  railway tile (720 wide) without the train or city, crossing signal removed
+  railway_back.png  railway tile made from railway_long.png, joined end to end along the
+                    least visible cut (width printed at the end = RAIL_TILE in the scene)
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
-  railway_front.png leaves that stand in front of the train
   train.png         a 3-car train cut from the train image (loops along the viaduct)
   sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
   city_reflect.png  the city mirrored in the wet road (moves with the city)
@@ -85,16 +86,6 @@ def remove_crossing(img):
     return Image.fromarray(im.astype(np.uint8), "RGBA")
 
 
-def foliage_mask(rgba):
-    """Leaves (green to dark teal hues) vs viaduct/city/sky (blue to purple)."""
-    rgb = rgba[..., :3].astype(float) / 255.0
-    mx, mn = rgb.max(2), rgb.min(2)
-    delta = np.maximum(mx - mn, 1e-6)
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    hue = np.where(mx == r, ((g - b) / delta) % 6, np.where(mx == g, (b - r) / delta + 2, (r - g) / delta + 4)) * 60
-    return (hue > 50) & (hue < 205) & (rgba[..., 3] > 0)
-
-
 def hue_of(rgba):
     rgb = rgba[..., :3].astype(float) / 255.0
     mx, mn = rgb.max(2), rgb.min(2)
@@ -139,40 +130,68 @@ def split_city(b, bottom=238):
     return city, mask
 
 
+def seamless(img):
+    """Make a wide strip tile: overlap its end on its start and cut along the path
+    where the two differ least (through gaps, the deck, similar foliage).
+    Returns the tile (narrower than the strip by the overlap)."""
+    a = np.asarray(img).astype(float)
+    h, w = a.shape[:2]
+    opaque = a[..., 3] > 128
+    deck = np.nonzero(opaque.mean(1) > 0.999)[0]      # rows that are solid all the way across (deck)
+    # overlap that lines up the deck's railing pattern best
+    best = None
+    for ov in range(120, w // 3):
+        d = np.abs(a[deck, w - ov:w, :3] - a[deck, 0:ov, :3]).mean()
+        if best is None or d < best[0] - 0.5:
+            best = (d, ov)
+    ov = best[1]
+    A, B = a[:, w - ov:], a[:, :ov]
+    cost = (np.abs(A[..., :3] - B[..., :3]).sum(2) * np.minimum(A[..., 3], B[..., 3]) / 255
+            + np.abs(A[..., 3] - B[..., 3]) * 3)
+    # dynamic programming: cheapest top-to-bottom path (one column step per row)
+    acc = cost.copy()
+    for y in range(1, h):
+        prev = acc[y - 1]
+        acc[y] += np.minimum(prev, np.minimum(np.r_[np.inf, prev[:-1]], np.r_[prev[1:], np.inf]))
+    path = np.zeros(h, int)
+    path[-1] = acc[-1].argmin()
+    for y in range(h - 2, -1, -1):
+        x = path[y + 1]
+        lo, hi = max(0, x - 1), min(ov, x + 2)
+        path[y] = lo + acc[y, lo:hi].argmin()
+    joined = B.copy()
+    for y in range(h):
+        joined[y, :path[y]] = A[y, :path[y]]       # left of the cut: the strip's end
+    tile = np.concatenate([joined, a[:, ov:w - ov]], axis=1)
+    print(f"railway strip {w}px: overlap {ov}px, tile {tile.shape[1]}px")
+    return Image.fromarray(tile.astype(np.uint8), "RGBA")
+
+
 def build_railway():
     back = scaled(remove_crossing(Image.open(SRC / "railway.png").convert("RGBA")))
     with_train = scaled(Image.open(SRC / "railway_with_train.png").convert("RGBA"))
     b = np.asarray(back).astype(int)
 
-    # --- Front occluders. Inside the train's span, a leaf is in front only if it
-    # also covers the train in the train image (otherwise the train hides it, so it
-    # is behind). Past the ends of the train, the side trees cover it.
-    t = np.asarray(with_train).astype(int)
-    leaves_back, leaves_train = foliage_mask(b), foliage_mask(t)
-    front = np.zeros(b.shape[:2], bool)
-    band0, band1 = int(440 * SCALE), int(522 * SCALE)
-    body0 = int(464 * SCALE)              # top of the train body in the train image
-    span0, span1 = int(476 * SCALE), int(1400 * SCALE)
-    front[body0:band1] = (leaves_back & leaves_train)[body0:band1]
-    front[band0:band1, :span0] = leaves_back[band0:band1, :span0]
-    front[band0:band1, span1:] = leaves_back[band0:band1, span1:]
-    fr = b.copy()
-    fr[~front, 3] = 0
-    # --- Distant city goes to its own (much slower) layer
-    city, city_mask = split_city(b)
-    b[city_mask & ~front, 3] = 0
-    back = Image.fromarray(b.astype(np.uint8), "RGBA")
-    # Crop to one tile: the art runs from its first tree to its last, so copies
-    # placed side by side meet tree-to-tree
+    # --- Distant city goes to its own (much slower) layer (from the original art)
+    city, _ = split_city(b)
     box = (CROP_X0, 0, CROP_X0 + TILE, back.size[1])
-    back = back.crop(box)
-    back.save(OUT / "railway_back.png")
     city = Image.fromarray(city.astype(np.uint8), "RGBA").crop(box)
     city.save(OUT / "city.png")
-    Image.fromarray(fr.astype(np.uint8), "RGBA").crop(box).save(OUT / "railway_front.png")
+
+    # --- The railway layer itself: the long viaduct strip, made into a tile and
+    # scaled like the other art, with its rails at the same height as before
+    deck_top = int(489 * SCALE)  # top of the viaduct deck (where the train runs) in layer pixels
+    strip = scaled(seamless(Image.open(SRC / "railway_long.png").convert("RGBA")))
+    sa = np.asarray(strip)
+    # rails = first row whose pixels are mostly the warm rail highlight (trees above
+    # the deck can also be solid all the way across, so opacity alone is not enough)
+    rails = np.nonzero(np.median(sa[..., 0], axis=1) > 150)[0][0]
+    back = Image.new("RGBA", (strip.size[0], 451), (0, 0, 0, 0))
+    back.paste(strip, (0, deck_top - rails))
+    back.save(OUT / "railway_back.png")
 
     # --- Backfill: dark foliage behind the railway so no sky shows under the trees
-    fill = backfill()
+    fill = backfill(back.size[0])
     fill.save(OUT / "railway_fill.png")
 
     # --- Train: one clean car from the left half (before the crossing), repeated 3 times
@@ -188,7 +207,6 @@ def build_railway():
         x = k * (cw + gap) - gap
         d.rectangle((x, ch // 2, x + gap - 1, ch - 6), fill=(40, 36, 70, 255))
     train.save(OUT / "train.png")
-    deck_top = int(489 * SCALE)  # top of the viaduct deck in the no-train image
     return back, fill, city, train, deck_top
 
 
@@ -217,7 +235,7 @@ def build_road(sky, city, fill, back):
     mirror(city, RAIL_Y, TILE).save(OUT / "city_reflect.png")
     rail = fill.copy()
     rail.alpha_composite(back)
-    mirror(rail, RAIL_Y, TILE).save(OUT / "rail_reflect.png")
+    mirror(rail, RAIL_Y, rail.size[0]).save(OUT / "rail_reflect.png")
 
     h = 360
     road = np.zeros((h, TILE, 4))
@@ -275,10 +293,10 @@ def periodic(clumps, w):
     return out
 
 
-def backfill(block=3):
+def backfill(width, block=3):
     """Low wall of shadowed foliage behind the railway layer (in railway-layer
     coordinates). It fills the gaps under and between the trees down to the road."""
-    w, h = TILE // block, 451 // block
+    w, h = width // block, 451 // block
     pal = [(16, 24, 56), (22, 38, 66), (30, 54, 72), (44, 76, 74)]
     top = (ROAD_TOP - 75 - RAIL_Y) / block   # foliage top line, a little above the hedge
     clumps = []
@@ -294,7 +312,7 @@ def backfill(block=3):
     arr[below:, :, :3] = pal[0]   # solid shadow under the clumps
     arr[below:, :, 3] = 255
     small = Image.fromarray(arr.astype(np.uint8), "RGBA")
-    return small.resize((TILE, 451), Image.NEAREST)
+    return small.resize((width, 451), Image.NEAREST)
 
 
 def hedge(block=3):
@@ -346,5 +364,5 @@ if __name__ == "__main__":
     back, fill, city, train, deck_top = build_railway()
     build_road(sky, city, fill, back)
     build_foreground()
-    print(f"layers written to {OUT}; train {train.size}, train top y in layer = {deck_top - train.size[1]}, "
-          f"train clip x in tile = {int(476 * SCALE) - CROP_X0}..{int(1405 * SCALE) - CROP_X0}")
+    print(f"layers written to {OUT}; railway tile {back.size[0]}px (RAIL_TILE), "
+          f"train {train.size}, train top y in layer = {deck_top - train.size[1]}")
