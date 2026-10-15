@@ -9,12 +9,13 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_post"]
 shader = ExtResource("2_post")
-shader_parameter/focus_center = 0.58
-shader_parameter/focus_width = 0.22
+shader_parameter/focus_center = 0.62
+shader_parameter/focus_width = 0.3
 shader_parameter/blur_amount = 2.5
 shader_parameter/tint = Color(1.05, 0.97, 0.92, 1)
 shader_parameter/saturation = 1.15
 shader_parameter/vignette = 0.35
+shader_parameter/contrast = 1.12
 
 [sub_resource type="Environment" id="Environment_dusk"]
 background_mode = 1
@@ -24,12 +25,12 @@ ambient_light_color = Color(0.5, 0.44, 0.72, 1)
 ambient_light_energy = 0.7
 tonemap_mode = 2
 glow_enabled = true
-glow_intensity = 0.9
+glow_intensity = 0.55
 glow_bloom = 0.08
 glow_hdr_threshold = 0.9
 fog_enabled = true
 fog_light_color = Color(0.75, 0.55, 0.62, 1)
-fog_density = 0.006
+fog_density = 0.0035
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0

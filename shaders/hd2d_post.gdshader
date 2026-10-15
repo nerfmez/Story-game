@@ -1,6 +1,6 @@
 shader_type canvas_item;
 // Post-process for the HD-2D look, applied to the 3D SubViewport image:
-// tilt-shift blur (top and bottom of the screen) + warm colour grade + vignette.
+// tilt-shift blur (top and bottom of the screen) + warm colour grade, contrast and vignette.
 
 // Screen-height band (0 = top, 1 = bottom) that stays sharp.
 uniform float focus_center : hint_range(0.0, 1.0) = 0.58;
@@ -9,6 +9,7 @@ uniform float blur_amount : hint_range(0.0, 6.0) = 2.5;
 uniform vec3 tint : source_color = vec3(1.05, 0.97, 0.92);
 uniform float saturation : hint_range(0.0, 2.0) = 1.15;
 uniform float vignette : hint_range(0.0, 1.0) = 0.35;
+uniform float contrast : hint_range(0.5, 2.0) = 1.12;
 
 void fragment() {
 	float d = max(abs(UV.y - focus_center) - focus_width, 0.0) / (1.0 - focus_width);
@@ -26,6 +27,7 @@ void fragment() {
 	col /= total;
 	float luma = dot(col, vec3(0.299, 0.587, 0.114));
 	col = mix(vec3(luma), col, saturation) * tint;
+	col = (col - 0.5) * contrast + 0.5;
 	float v = smoothstep(0.85, 0.25, length(UV - 0.5));
 	col *= mix(1.0, v, vignette);
 	COLOR = vec4(col, 1.0);

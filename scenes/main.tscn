@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -13,6 +13,7 @@
 [ext_resource type="Texture2D" path="res://assets/characters/friend_girl.png" id="11_girl"]
 [ext_resource type="Texture2D" path="res://assets/characters/friend_glasses.png" id="12_glasses"]
 [ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="13_dialogue"]
+[ext_resource type="Texture2D" path="res://assets/characters/friend_ponytail.png" id="14_ponytail"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0
@@ -83,21 +84,23 @@ centered = false
 [node name="Characters" type="Node2D" parent="."]
 
 [node name="FriendGirl" type="Sprite2D" parent="Characters"]
-position = Vector2(250, 162)
-scale = Vector2(2, 2)
+position = Vector2(262, 205)
 texture = ExtResource("11_girl")
 centered = false
 
 [node name="Player" type="Sprite2D" parent="Characters"]
-position = Vector2(310, 162)
-scale = Vector2(2, 2)
+position = Vector2(300, 205)
 texture = ExtResource("10_player")
 centered = false
 
 [node name="FriendGlasses" type="Sprite2D" parent="Characters"]
-position = Vector2(430, 162)
-scale = Vector2(2, 2)
+position = Vector2(420, 205)
 texture = ExtResource("12_glasses")
+centered = false
+
+[node name="FriendPonytail" type="Sprite2D" parent="Characters"]
+position = Vector2(452, 205)
+texture = ExtResource("14_ponytail")
 centered = false
 
 [node name="Foreground" type="Parallax2D" parent="."]

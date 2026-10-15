@@ -13,7 +13,6 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 BG = ROOT / "assets" / "bg"
-CHARS = ROOT / "assets" / "characters"
 
 # Base game resolution is 640x360. Layers are wider so the camera can pan.
 W, H = 800, 360
@@ -27,30 +26,41 @@ def lerp(a, b, t):
 def sky():
     img = Image.new("RGBA", (W, H))
     px = img.load()
-    stops = [(0.0, (40, 44, 110)), (0.45, (120, 80, 150)), (0.7, (235, 140, 110)), (1.0, (250, 200, 120))]
+    stops = [(0.0, (38, 40, 104)), (0.35, (96, 70, 150)), (0.6, (214, 120, 130)), (0.8, (246, 160, 110)), (1.0, (252, 210, 140))]
+    sun = (385, 210)
     for y in range(H):
         t = y / (H - 1)
         for i in range(len(stops) - 1):
             if stops[i][0] <= t <= stops[i + 1][0]:
                 lt = (t - stops[i][0]) / (stops[i + 1][0] - stops[i][0])
-                # Quantise into bands for a pixel-art look, with 2x2 dithering.
                 for x in range(W):
-                    d = ((x + y) % 2) * 0.06
-                    band = math.floor((lt + d) * 6) / 6
-                    px[x, y] = lerp(stops[i][1], stops[i + 1][1], band) + (255,)
+                    # Quantised bands with ordered dithering for a pixel-art look
+                    d = ((x % 2) * 2 + (y % 2)) / 4 * 0.12
+                    band = min(1.0, math.floor((lt + d) * 7) / 7)
+                    col = lerp(stops[i][1], stops[i + 1][1], band)
+                    # Warm halo around the sun
+                    dist = math.hypot(x - sun[0], (y - sun[1]) * 1.4)
+                    glow = max(0.0, 1.0 - dist / 170.0)
+                    glow = math.floor((glow + d) * 5) / 5
+                    px[x, y] = lerp(col, (255, 214, 150), glow * 0.75) + (255,)
                 break
     draw = ImageDraw.Draw(img)
-    # Sun
-    draw.ellipse((360, 150, 410, 200), fill=(255, 225, 150, 255))
-    draw.ellipse((368, 158, 402, 192), fill=(255, 240, 190, 255))
-    # Pixel clouds
-    for _ in range(14):
-        cx, cy = rng.randint(0, W), rng.randint(20, 170)
-        col = (250, 170, 120, 255) if cy > 100 else (150, 110, 170, 255)
-        for _ in range(rng.randint(4, 9)):
-            w, h = rng.randint(16, 50), rng.randint(4, 10)
-            ox, oy = rng.randint(-30, 30), rng.randint(-6, 6)
-            draw.rectangle((cx + ox, cy + oy, cx + ox + w, cy + oy + h), fill=col)
+    draw.ellipse((sun[0] - 26, sun[1] - 26, sun[0] + 26, sun[1] + 26), fill=(255, 226, 160, 255))
+    draw.ellipse((sun[0] - 19, sun[1] - 19, sun[0] + 19, sun[1] + 19), fill=(255, 246, 210, 255))
+    # Long sunset clouds: dark purple tops, glowing orange undersides
+    for _ in range(16):
+        cx, cy = rng.randint(-40, W + 40), rng.randint(30, 190)
+        length = rng.randint(60, 180)
+        thick = rng.randint(5, 11)
+        near_sun = cy > 110
+        top = (122, 84, 150) if near_sun else (92, 72, 140)
+        under = (255, 170, 120) if near_sun else (200, 130, 160)
+        for k in range(rng.randint(3, 6)):
+            ox = rng.randint(-length // 3, length // 3)
+            w = rng.randint(length // 3, length)
+            y0 = cy + rng.randint(-thick, thick // 2)
+            draw.rectangle((cx + ox, y0, cx + ox + w, y0 + thick), fill=top + (255,))
+            draw.rectangle((cx + ox + 4, y0 + thick - 2, cx + ox + w - 4, y0 + thick), fill=under + (255,))
     img.save(BG / "01_sky.png")
 
 
@@ -146,41 +156,8 @@ def foreground():
     img.save(BG / "06_foreground.png")
 
 
-def character(name, hair, skirt=False, glasses=False):
-    img = Image.new("RGBA", (24, 56), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    skin, shirt, navy = (240, 200, 160, 255), (235, 235, 250, 255), (35, 45, 90, 255)
-    d.rectangle((7, 4, 16, 14), fill=skin)  # head
-    d.rectangle((6, 1, 17, 6), fill=hair)  # hair
-    if skirt:
-        d.rectangle((5, 3, 7, 18), fill=hair)
-        d.rectangle((16, 3, 18, 18), fill=hair)
-    if glasses:
-        d.rectangle((8, 8, 15, 9), fill=(20, 20, 20, 255))
-    else:
-        d.point((10, 9), fill=(20, 20, 20, 255))
-        d.point((14, 9), fill=(20, 20, 20, 255))
-    d.rectangle((5, 15, 18, 30), fill=shirt)  # shirt
-    d.rectangle((3, 16, 5, 28), fill=shirt)  # arms
-    d.rectangle((18, 16, 20, 28), fill=shirt)
-    if skirt:
-        d.polygon([(5, 30), (18, 30), (20, 40), (3, 40)], fill=navy)
-        d.rectangle((7, 40, 9, 50), fill=skin)
-        d.rectangle((14, 40, 16, 50), fill=skin)
-    else:
-        d.rectangle((5, 30, 18, 38), fill=navy)
-        d.rectangle((7, 38, 9, 50), fill=skin)
-        d.rectangle((14, 38, 16, 50), fill=skin)
-    d.rectangle((6, 50, 10, 54), fill=(20, 20, 25, 255))  # shoes
-    d.rectangle((13, 50, 17, 54), fill=(20, 20, 25, 255))
-    img.save(CHARS / f"{name}.png")
-
-
 if __name__ == "__main__":
     BG.mkdir(parents=True, exist_ok=True)
-    CHARS.mkdir(parents=True, exist_ok=True)
     sky(); city_far(); train(); mid(); ground(); foreground()
-    character("friend_girl", (60, 40, 30, 255), skirt=True)
-    character("player", (20, 20, 30, 255))
-    character("friend_glasses", (25, 25, 35, 255), glasses=True)
-    print("placeholder art written to", BG, "and", CHARS)
+    print("placeholder art written to", BG)
+    print("characters: python3 tools/make_characters.py")
