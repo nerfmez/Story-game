@@ -8,11 +8,14 @@ Inputs (in art_source/):
 Outputs (assets/bg/sunset/). Every layer tiles seamlessly left-right, so the
 scene can scroll forever (Parallax2D.repeat_size in the game):
   sky.png           sky + its mirror image (1600 wide), sun just above the railway band
-  railway_back.png  railway tile (720 wide) without the train, crossing signal removed
+  city.png          the distant city skyline, split out of the railway art so it can
+                    scroll far slower than the trees (extended down behind the trees)
+  railway_back.png  railway tile (720 wide) without the train or city, crossing signal removed
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
   railway_front.png leaves that stand in front of the train
   train.png         a 3-car train cut from the train image (loops along the viaduct)
   sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
+  city_reflect.png  the city mirrored in the wet road (moves with the city)
   rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
   road.png          wet asphalt (semi-transparent over the reflections), fence, hedge
   foreground.png    near utility pole + wires (960 wide tile)
@@ -92,6 +95,50 @@ def foliage_mask(rgba):
     return (hue > 50) & (hue < 205) & (rgba[..., 3] > 0)
 
 
+def hue_of(rgba):
+    rgb = rgba[..., :3].astype(float) / 255.0
+    mx, mn = rgb.max(2), rgb.min(2)
+    delta = np.maximum(mx - mn, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    return np.where(mx == r, ((g - b) / delta) % 6, np.where(mx == g, (b - r) / delta + 2, (r - g) / delta + 4)) * 60
+
+
+def split_city(b, bottom=238):
+    """Pull the blue city skyline (and bluish far trees) out of the railway art.
+
+    Returns (city RGBA array, mask). Where trees hide the lower part of the city,
+    each column is extended down with its lowest visible colour, and columns
+    hidden completely reuse the nearest visible column, so no holes appear when
+    the trees slide past the slower city."""
+    hue = hue_of(b)
+    mask = (hue > 215) & (hue < 265) & (b[..., 3] > 0)
+    mask[225:] = False
+    city = np.zeros_like(b)
+    cols = np.where(mask.any(0))[0]
+    if len(cols) == 0:
+        return city, mask
+    filled = np.zeros(b.shape[1], bool)
+    for x in cols:
+        rows = np.where(mask[:, x])[0]
+        top = rows.min()
+        last = b[top, x]
+        for y in range(top, bottom):
+            if mask[y, x]:
+                last = b[y, x]
+                city[y, x] = last
+            elif b[y, x, 3] == 0:
+                continue          # real sky between buildings (e.g. the sun) stays open
+            else:
+                city[y, x] = last  # hidden behind trees: continue the building down
+        filled[x] = True
+    for x in range(cols.min(), cols.max() + 1):
+        if not filled[x]:
+            near = cols[np.argmin(np.abs(cols - x))]
+            hidden = b[:, x, 3] > 0                 # only where something covers this column
+            city[hidden, x] = city[hidden, near]
+    return city, mask
+
+
 def build_railway():
     back = scaled(remove_crossing(Image.open(SRC / "railway.png").convert("RGBA")))
     with_train = scaled(Image.open(SRC / "railway_with_train.png").convert("RGBA"))
@@ -111,11 +158,17 @@ def build_railway():
     front[band0:band1, span1:] = leaves_back[band0:band1, span1:]
     fr = b.copy()
     fr[~front, 3] = 0
+    # --- Distant city goes to its own (much slower) layer
+    city, city_mask = split_city(b)
+    b[city_mask & ~front, 3] = 0
+    back = Image.fromarray(b.astype(np.uint8), "RGBA")
     # Crop to one tile: the art runs from its first tree to its last, so copies
     # placed side by side meet tree-to-tree
     box = (CROP_X0, 0, CROP_X0 + TILE, back.size[1])
     back = back.crop(box)
     back.save(OUT / "railway_back.png")
+    city = Image.fromarray(city.astype(np.uint8), "RGBA").crop(box)
+    city.save(OUT / "city.png")
     Image.fromarray(fr.astype(np.uint8), "RGBA").crop(box).save(OUT / "railway_front.png")
 
     # --- Backfill: dark foliage behind the railway so no sky shows under the trees
@@ -136,7 +189,7 @@ def build_railway():
         d.rectangle((x, ch // 2, x + gap - 1, ch - 6), fill=(40, 36, 70, 255))
     train.save(OUT / "train.png")
     deck_top = int(489 * SCALE)  # top of the viaduct deck in the no-train image
-    return back, fill, train, deck_top
+    return back, fill, city, train, deck_top
 
 
 def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
@@ -156,11 +209,12 @@ def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
-def build_road(sky, fill, back):
+def build_road(sky, city, fill, back):
     """Wet road in side view, as three tiling layers:
     sky_reflect + rail_reflect (they scroll with what they reflect) under a
     semi-transparent asphalt layer that scrolls with the ground."""
     mirror(sky, 0, SKY_TILE).save(OUT / "sky_reflect.png")
+    mirror(city, RAIL_Y, TILE).save(OUT / "city_reflect.png")
     rail = fill.copy()
     rail.alpha_composite(back)
     mirror(rail, RAIL_Y, TILE).save(OUT / "rail_reflect.png")
@@ -289,8 +343,8 @@ def build_foreground():
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     sky = build_sky()
-    back, fill, train, deck_top = build_railway()
-    build_road(sky, fill, back)
+    back, fill, city, train, deck_top = build_railway()
+    build_road(sky, city, fill, back)
     build_foreground()
     print(f"layers written to {OUT}; train {train.size}, train top y in layer = {deck_top - train.size[1]}, "
           f"train clip x in tile = {int(476 * SCALE) - CROP_X0}..{int(1405 * SCALE) - CROP_X0}")

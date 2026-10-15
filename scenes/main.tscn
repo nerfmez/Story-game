@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -18,6 +18,8 @@
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/sky_reflect.png" id="16_sky_reflect"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/rail_reflect.png" id="17_rail_reflect"]
 [ext_resource type="Script" path="res://scripts/hero_walker.gd" id="18_walker"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/city.png" id="19_city"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/city_reflect.png" id="20_city_reflect"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -56,17 +58,27 @@ follow_offset = 30.0
 mouse_sway = 12.0
 
 [node name="Sky" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.03, 0.03)
+scroll_scale = Vector2(0.01, 0.01)
 repeat_size = Vector2(1600, 0)
 repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="Sky"]
-position = Vector2(0, 0)
+position = Vector2(-48, 0)
 texture = ExtResource("5_sky")
 centered = false
 
+[node name="City" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.03, 0.03)
+repeat_size = Vector2(720, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="City"]
+position = Vector2(0, -47)
+texture = ExtResource("19_city")
+centered = false
+
 [node name="Railway" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.25, 0.25)
+scroll_scale = Vector2(0.12, 0.12)
 repeat_size = Vector2(720, 0)
 repeat_times = 3
 
@@ -105,17 +117,26 @@ texture = ExtResource("8_rail_front")
 centered = false
 
 [node name="SkyReflection" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.03, 0.03)
+scroll_scale = Vector2(0.01, 0.01)
 repeat_size = Vector2(1600, 0)
 repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="SkyReflection"]
-position = Vector2(0, 0)
+position = Vector2(-48, 0)
 texture = ExtResource("16_sky_reflect")
 centered = false
 
+[node name="CityReflection" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.03, 0.03)
+repeat_size = Vector2(720, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="CityReflection"]
+texture = ExtResource("20_city_reflect")
+centered = false
+
 [node name="RailReflection" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.25, 0.25)
+scroll_scale = Vector2(0.12, 0.12)
 repeat_size = Vector2(720, 0)
 repeat_times = 3
 
