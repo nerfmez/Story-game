@@ -17,6 +17,8 @@ extends Node2D
 @onready var _reflection: Sprite2D = $Reflection
 
 var _anim_time := 0.0
+## ทิศจากปุ่มบนจอ (-1 ซ้าย, 0 หยุด, 1 ขวา) ตั้งโดย touch_controls.gd
+var touch_dir := 0.0
 
 
 func _ready() -> void:
@@ -27,6 +29,8 @@ func _process(delta: float) -> void:
 	var dir := Input.get_axis("ui_left", "ui_right")
 	if dir == 0.0:
 		dir = float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
+	if dir == 0.0:
+		dir = touch_dir
 	position.x += dir * speed * delta
 	if dir != 0.0:
 		_anim_time += delta

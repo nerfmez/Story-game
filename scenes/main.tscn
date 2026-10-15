@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -21,6 +21,11 @@
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/city.png" id="19_city"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/city_reflect.png" id="20_city_reflect"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_walk.png" id="21_walk"]
+[ext_resource type="Script" path="res://scripts/touch_controls.gd" id="22_touch"]
+[ext_resource type="Texture2D" path="res://assets/ui/arrow_left.png" id="23_left"]
+[ext_resource type="Texture2D" path="res://assets/ui/arrow_left_pressed.png" id="24_left_p"]
+[ext_resource type="Texture2D" path="res://assets/ui/arrow_right.png" id="25_right"]
+[ext_resource type="Texture2D" path="res://assets/ui/arrow_right_pressed.png" id="26_right_p"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -234,3 +239,47 @@ theme_override_font_sizes/font_size = 13
 text = "ถ่ายวิดีโอหลังเลิกเรียน"
 
 [node name="DialogueBox" parent="UI" instance=ExtResource("13_dialogue")]
+
+[node name="TouchControls" type="Control" parent="UI" node_paths=PackedStringArray("walker")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("22_touch")
+walker = NodePath("../../Characters/Hero")
+
+[node name="Left" type="TextureButton" parent="UI/TouchControls"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -146.0
+offset_right = 60.0
+offset_bottom = -98.0
+grow_vertical = 0
+texture_normal = ExtResource("23_left")
+texture_pressed = ExtResource("24_left_p")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Right" type="TextureButton" parent="UI/TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -146.0
+offset_right = -12.0
+offset_bottom = -98.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("25_right")
+texture_pressed = ExtResource("26_right_p")
+ignore_texture_size = true
+stretch_mode = 0

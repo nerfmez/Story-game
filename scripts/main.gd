@@ -14,6 +14,9 @@ extends Node
 
 
 func _ready() -> void:
+	# บนมือถือ/เบราว์เซอร์ ให้ภาพขยายเต็มจอแบบไม่ต้องเป็นจำนวนเท่าเต็ม (ไม่งั้นภาพเล็กมีขอบดำหนา)
+	if OS.has_feature("web") or OS.has_feature("mobile"):
+		get_tree().root.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	dialogue_box.line_started.connect(_on_line_started)
 	dialogue_box.finished.connect(_on_finished)
 	dialogue_box.start(load_lines(dialogue_file))
