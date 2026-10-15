@@ -86,6 +86,15 @@ assets/textures/         texture พิกเซลสำหรับฉาก H
 
 ![เดิน](docs/walk.gif)
 
+### ท่ายืนเคลื่อนไหว (ไม่ต้องใช้วิดีโอ)
+
+```
+python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png
+```
+
+สร้างแผ่นภาพ 6 เฟรมจากภาพยืนภาพเดียว: หายใจ (ไหล่ลง 1px ก่อน แล้วหัวตามลงอีกจังหวะ ส่วนลำตัวด้านล่างบีบ)
+และแต่ละท่ามีแบบหลับตา `hero_walker.gd` เล่นจังหวะหายใจตาม `breath_steps` และกะพริบตาแบบสุ่มทุก 2-5 วินาที
+
 ### นำเข้าท่าเดินจากวิดีโอฉากเขียว
 
 ```

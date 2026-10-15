@@ -3,7 +3,15 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
+## ภาพยืน: แผ่นภาพ 6 เฟรม (หายใจ 3 ท่า + หลับตา 3 ท่า) จาก tools/make_idle_anim.py
+## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
+@export var idle_frames := 6
+## จังหวะหายใจ: (ท่า, วินาที) ท่า 0 = ปกติ, 1 = ไหล่ลง, 2 = ไหล่+หัวลง
+@export var breath_steps: Array[Vector2] = [Vector2(0, 1.1), Vector2(1, 0.3), Vector2(2, 1.0), Vector2(1, 0.3)]
+## กะพริบตาทุกๆ กี่วินาที (สุ่มในช่วงนี้) และนานเท่าไร
+@export var blink_every := Vector2(2.2, 5.0)
+@export var blink_time := 0.13
 @export var walk_texture: Texture2D
 @export var walk_frames := 15
 ## เฟรมต่อวินาทีของท่าเดิน (15 เฟรมต่อรอบ = 1.25 วินาที เท่าวิดีโอต้นฉบับ)
@@ -31,6 +39,9 @@ var touch_dir := 0.0
 ## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
 var _facing_right := false
 var _last_frame := -1
+var _idle_time := 0.0
+var _blink_wait := 3.0
+var _blink_left := 0.0
 
 
 func _ready() -> void:
@@ -55,6 +66,12 @@ func _process(delta: float) -> void:
 	else:
 		_anim_time = 0.0
 		_last_frame = -1
+		_idle_time += delta
+		_blink_wait -= delta
+		if _blink_wait <= 0.0:
+			_blink_left = blink_time
+			_blink_wait = randf_range(blink_every.x, blink_every.y)
+		_blink_left -= delta
 		_set_pose(false, _facing_right)
 
 
@@ -71,8 +88,25 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 				sprite.offset.y = idle_texture.get_height() - walk_texture.get_height()
 		elif idle_texture:
 			sprite.texture = idle_texture
-			sprite.hframes = 1
-			sprite.frame = 0
+			sprite.hframes = idle_frames
+			sprite.frame = _idle_frame()
 			# ภาพยืนต้นฉบับหันซ้ายเหมือนท่าเดิน
 			sprite.offset = idle_offset_flipped if facing_right else Vector2.ZERO
 			sprite.flip_h = facing_right
+
+
+## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา + 3 ถ้ากำลังกะพริบตา
+func _idle_frame() -> int:
+	if idle_frames < 6:
+		return 0
+	var total := 0.0
+	for step in breath_steps:
+		total += step.y
+	var t := fmod(_idle_time, total)
+	var pose := 0
+	for step in breath_steps:
+		if t < step.y:
+			pose = int(step.x)
+			break
+		t -= step.y
+	return pose + (3 if _blink_left > 0.0 else 0)
