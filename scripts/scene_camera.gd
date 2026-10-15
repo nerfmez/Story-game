@@ -22,6 +22,9 @@ var _x := 0.0
 
 func _ready() -> void:
 	_x = position.x
+	# บนจอสัมผัส "ตำแหน่งเมาส์" คือจุดที่นิ้วแตะ (เช่นปุ่มเดิน) กล้องจะกระตุกตาม จึงปิดการโยก
+	if DisplayServer.is_touchscreen_available() or OS.has_feature("mobile"):
+		mouse_sway = 0.0
 
 
 func pan_to(x: float) -> void:

@@ -159,6 +159,10 @@ def main():
                          "e.g. shorts hem to ankle) by FACTOR so the legs match the idle sprite")
     ap.add_argument("--bob", type=float, default=1.0,
                     help="with --legs: keep this fraction of the video's up-down body bob (0.4 = calmer)")
+    ap.add_argument("--lock-upper", type=int, default=0, metavar="ROWS",
+                    help="use one frame's body above ROWS pixels from the ground (e.g. mid-shorts) "
+                         "for every frame, so only the legs animate (no wobbling hair/shirt)")
+    ap.add_argument("--lock-from", type=int, default=0, help="frame whose upper body is used")
     ap.add_argument("--shoe-scale", type=float, default=1.0,
                     help="squash each shoe to this fraction of its height; the frame moves down "
                          "so feet stay grounded")
@@ -258,10 +262,35 @@ def main():
     pad = int(np.abs(shifts).max())
     out_h = max(f.shape[0] for f in out_frames)
     out_w = out_frames[0].shape[1] + 2 * pad
+    canvases = []
+    for frame, dx in zip(out_frames, shifts):
+        c = np.zeros((out_h, out_w, 4), np.uint8)
+        c[out_h - frame.shape[0]:, pad + dx:pad + dx + frame.shape[1]] = frame
+        canvases.append(c)
+
+    if args.lock_upper:
+        # AI video redraws hair, shirt and bag a little differently every frame, which
+        # reads as shaking. Use one frame's upper body for all frames (only the legs
+        # move) and give it a clean 1px bob: down on the wide steps, up when passing.
+        def spread(c):
+            xs = np.nonzero(c[-12:, :, 3].any(0))[0]
+            return xs.max() - xs.min()
+        spreads = np.array([spread(c) for c in canvases])
+        low = (spreads > np.median(spreads)).astype(int)  # feet wide apart = body lowest
+        cut = out_h - 1 - args.lock_upper
+        ref_up = canvases[args.lock_from][:cut].copy()
+        for c, lo in zip(canvases, low):
+            d = int(lo) - int(low[args.lock_from])
+            c[:cut + d] = 0
+            if d >= 0:
+                c[d:cut + d] = ref_up
+            else:
+                c[:cut + d] = ref_up[-d:]
+        print("upper body from frame", args.lock_from, "bob", low.tolist(), "feet spread", spreads.tolist())
+
     sheet = Image.new("RGBA", (out_w * args.frames, out_h), (0, 0, 0, 0))
-    for i, (frame, dx) in enumerate(zip(out_frames, shifts)):
-        sheet.paste(Image.fromarray(frame, "RGBA"), (i * out_w + pad + dx, out_h - frame.shape[0]))
-    print("collar heights", [landmarks(f)[0] for f in out_frames], "x shifts", shifts.tolist())
+    for i, c in enumerate(canvases):
+        sheet.paste(Image.fromarray(c, "RGBA"), (i * out_w, 0))
     sheet.save(args.out)
     print(f"{args.frames} frames of {out_w}x{out_h} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
 

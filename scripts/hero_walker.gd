@@ -5,14 +5,16 @@ extends Node2D
 
 @export var idle_texture: Texture2D
 @export var walk_texture: Texture2D
-@export var walk_frames := 8
-## เฟรมต่อวินาทีของท่าเดิน (8 เฟรมต่อรอบ ≈ 1.25 วินาที ตามวิดีโอต้นฉบับ)
-@export var walk_fps := 6.4
+@export var walk_frames := 15
+## เฟรมต่อวินาทีของท่าเดิน (15 เฟรมต่อรอบ = 1.25 วินาที ตามวิดีโอต้นฉบับ)
+@export var walk_fps := 12.0
 ## ความเร็วเดิน (พิกเซล/วินาที) ตั้งให้พอดีกับก้าวเท้า เท้าจะไม่ไถลบนถนน
 @export var speed := 45.0
 ## ภาพท่าเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกับภาพยืน (ตอนหันซ้าย / ตอนพลิกหันขวา)
 @export var walk_offset := Vector2(-20, 0)
-@export var walk_offset_flipped := Vector2(-6, 0)
+@export var walk_offset_flipped := Vector2(-5, 0)
+## ภาพยืนตอนพลิกหันขวา เลื่อนให้ลำตัวอยู่ที่เดิม
+@export var idle_offset_flipped := Vector2(1, 0)
 
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
@@ -22,6 +24,8 @@ var _anim_time := 0.0
 var _x := 0.0
 ## ทิศจากปุ่มบนจอ (-1 ซ้าย, 0 หยุด, 1 ขวา) ตั้งโดย touch_controls.gd
 var touch_dir := 0.0
+## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
+var _facing_right := false
 
 
 func _ready() -> void:
@@ -38,11 +42,12 @@ func _process(delta: float) -> void:
 	_x += dir * speed * delta
 	position.x = roundf(_x)
 	if dir != 0.0:
+		_facing_right = dir > 0.0
 		_anim_time += delta
-		_set_pose(true, dir > 0.0)
+		_set_pose(true, _facing_right)
 	else:
 		_anim_time = 0.0
-		_set_pose(false, false)
+		_set_pose(false, _facing_right)
 
 
 func _set_pose(walking: bool, facing_right: bool) -> void:
@@ -60,5 +65,6 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.texture = idle_texture
 			sprite.hframes = 1
 			sprite.frame = 0
-			sprite.offset = Vector2.ZERO
-			sprite.flip_h = false
+			# ภาพยืนต้นฉบับหันซ้ายเหมือนท่าเดิน
+			sprite.offset = idle_offset_flipped if facing_right else Vector2.ZERO
+			sprite.flip_h = facing_right
