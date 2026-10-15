@@ -638,10 +638,22 @@ def hedge(block=3):
         x += r * rng.uniform(0.9, 1.4)
     clumps = periodic(clumps, w)
     clumps.sort(key=lambda c: c[1])
-    arr = shapes.render_clumps((w, h), clumps, (w * 0.5, 0, 40), pal, shapes.leaf_field((w, h), 21, amp=0.2), (230, 170, 120), rng)
-    arr[int((ROAD_TOP - 8) / block):] = 0  # stops at the curb
-    small = Image.fromarray(arr.astype(np.uint8), "RGBA")
-    return small.resize((TILE, 360), Image.NEAREST)
+    leaves = shapes.leaf_field((w, h), 21, amp=0.2)
+    arr = shapes.render_clumps((w, h), clumps, (w * 0.5, 0, 40), pal, leaves, (230, 170, 120), rng)
+    # Leaves all the way down to the curb: the curb row isn't a whole block, so the
+    # hedge is drawn one block past it and cut at the exact row after scaling up (cut
+    # in blocks, it stopped a pixel short and left a see-through line under the fence).
+    # Any space between the round clumps there is filled with leaves in shadow.
+    base, curb = int((ROAD_TOP - 14) / block), -(-(ROAD_TOP - 8) // block)
+    gap = arr[base:curb, :, 3] == 0
+    dapple = leaves[base:curb] > np.median(leaves)
+    fill = np.where(dapple[..., None], np.array(pal[2]), np.array(pal[1]))
+    arr[base:curb, :, :3][gap] = fill[gap]
+    arr[base:curb, :, 3][gap] = 255
+    arr[curb:] = 0
+    big = np.asarray(Image.fromarray(arr.astype(np.uint8), "RGBA").resize((TILE, 360), Image.NEAREST)).copy()
+    big[ROAD_TOP - 8:] = 0                  # stops exactly at the curb
+    return Image.fromarray(big, "RGBA")
 
 
 def build_foreground(block=2):
