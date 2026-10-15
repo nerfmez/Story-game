@@ -1,12 +1,13 @@
-"""Keep the head and shoulders of a walk sheet at one height in every frame.
+"""Keep the upper body of a walk sheet at one height in every frame.
 
 The walk video's upper body pops up 2-3px in single frames (right after a step), so
 in game the character looked like it bounced. For each frame this finds how far its
-head and chest (rows 4..60) sit from the median of all frames, then moves only the
-band above a cut in the plain middle of the shirt by that much: moving down hides
-a few shirt rows at the cut, moving up repeats them. The cut is the run of rows
-that looks most like its neighbours, so the seam doesn't show; legs, feet and the
-ground line are untouched.
+head and chest (rows 4..60) sit from the median of all frames, then moves the whole
+body above the thighs (head, shirt, bag, shorts) by that much as one piece: moving
+down hides a few thigh rows, moving up repeats them. Cutting higher (in the shirt)
+kept the head still but left the hips bouncing, so the torso stretched and squashed.
+The cut is the run of thigh rows that looks most like its neighbours; the legs differ
+every frame anyway, so it doesn't show. Feet and the ground line are untouched.
 
 Usage:
   python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15
@@ -57,8 +58,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("sheet")
     ap.add_argument("--frames", type=int, required=True)
-    ap.add_argument("--cut", type=int, nargs=2, default=(38, 62), metavar=("FROM", "TO"),
-                    help="shirt rows to cut in (below the chest, above the hem)")
+    ap.add_argument("--cut", type=int, nargs=2, default=(80, 96), metavar=("FROM", "TO"),
+                    help="rows to cut in: the thighs, below the shorts and above the knees")
     ap.add_argument("--out", help="default: overwrite the sheet")
     args = ap.parse_args()
 
