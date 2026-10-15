@@ -18,6 +18,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+import anime_shapes as shapes
+
 ROOT = Path(__file__).resolve().parent.parent
 BG = ROOT / "assets" / "bg"
 FONT = ROOT / "assets" / "fonts" / "Sarabun-Regular.ttf"
@@ -28,6 +30,11 @@ HORIZON = 166     # eye level of a 1.5 m tall camera
 F = 288.0         # focal length in px: a 1.7 m character at Z = 4 m is ~122 px tall
 EYE = 1.5
 rng = random.Random(21)
+SUN_POS = (CX - 6, 150)
+SUN_LIGHT = (CX, 140, 150)   # light position for leaves: the low sun at the end of the street
+TREE_PAL = [(30, 44, 64), (44, 72, 74), (70, 104, 80), (112, 142, 86), (170, 182, 100)]
+TREE_RIM = (236, 206, 130)
+TRUNK = (62, 44, 62)
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
 
@@ -270,47 +277,13 @@ def house(layer, side, z, depth, height, color):
                      haze(sc, z), glow=tuple(int(v * 0.5) for v in haze(sc, z)))
 
 
-# ---------------------------------------------------------------- painterly fields
-
-def shaded_blobs(size, blobs, light_dir, palette, rim, seed_noise=0.0):
-    """Metaball shape shaded by a light direction -> anime cloud / tree canopy."""
-    w, h = size
-    yy, xx = np.mgrid[0:h, 0:w].astype(float)
-    dens = np.zeros((h, w))
-    for bx, by, br in blobs:
-        dens += np.exp(-(((xx - bx) ** 2 + (yy - by) ** 2) / (br * br)))
-    if seed_noise:
-        dens += (np.random.default_rng(5).random((h, w)) - 0.5) * seed_noise
-    mask = dens > 0.5
-    gy, gx = np.gradient(dens)
-    norm = np.sqrt(gx * gx + gy * gy) + 1e-6
-    nx, ny = -gx / norm, -gy / norm
-    light = nx * light_dir[0] + ny * light_dir[1]
-    # Interior is mostly in shade; edges facing the light glow
-    edge = np.clip(1.0 - (dens - 0.5) * 1.6, 0, 1)
-    shade = np.clip(0.35 + 0.65 * light * edge + 0.15 * (dens < 0.75), 0, 1)
-    shade += (BAYER[yy.astype(int) % 4, xx.astype(int) % 4] - 0.5) * 0.18
-    idx = np.clip((shade * len(palette)).astype(int), 0, len(palette) - 1)
-    pal = np.array(palette)
-    rgb = pal[idx]
-    rim_mask = mask & (light > 0.55) & (edge > 0.75)
-    rgb[rim_mask] = rim
-    alpha = np.where(mask, 255, 0)
-    return np.dstack([rgb, alpha]).astype(np.uint8)
-
-
-def paste_rgba(dst, arr, x, y):
-    img = Image.fromarray(arr, "RGBA")
-    dst.alpha_composite(img, (int(x), int(y)))
-
-
 # ---------------------------------------------------------------- layers
 
 def paint_sky():
     img = Image.new("RGBA", (W, H))
     px = np.zeros((H, W, 3))
     stops = [(0.0, (34, 38, 100)), (0.25, (70, 62, 140)), (0.45, (150, 96, 160)), (0.6, (232, 130, 140)), (0.75, (252, 170, 120)), (1.0, (255, 214, 150))]
-    sun = (CX, 140)
+    sun = SUN_POS
     yy, xx = np.mgrid[0:H, 0:W]
     dither = BAYER[yy % 4, xx % 4]
     for y in range(H):
@@ -331,20 +304,25 @@ def paint_sky():
     d.ellipse((sun[0] - 17, sun[1] - 17, sun[0] + 17, sun[1] + 17), fill=(255, 236, 190, 255))
     d.ellipse((sun[0] - 12, sun[1] - 12, sun[0] + 12, sun[1] + 12), fill=(255, 250, 230, 255))
 
-    cloud_pal = [(70, 60, 120), (112, 78, 140), (170, 104, 150), (226, 136, 140), (250, 176, 130)]
-    # Big towering cumulonimbus on the left, lit from the low sun on the right
-    blobs = []
-    for i in range(46):
-        t = i / 46
-        bx = 150 + rng.gauss(0, 34) * (0.6 + t)
-        by = 210 - t * 170 + rng.gauss(0, 8)
-        br = 34 - t * 14 + rng.uniform(-5, 6)
-        blobs.append((bx, by, br))
-    paste_rgba(img, shaded_blobs((W, H), blobs, (0.85, 0.5), cloud_pal, (255, 226, 180), 0.05), 0, 0)
-    # Long low strato clouds across the sun
-    for cy, cx0, length in ((112, 470, 240), (92, 560, 200), (70, 250, 200), (150, 120, 150)):
-        blobs = [(cx0 + k * length / 14, cy + rng.gauss(0, 2.5), rng.uniform(7, 12)) for k in range(14)]
-        paste_rgba(img, shaded_blobs((W, H), blobs, (0.2, 1.0), cloud_pal, (255, 214, 160)), 0, 0)
+    # Anime cumulus: piled puffs lit as one volume by the low sun, flat bases
+    warm = [(150, 96, 150), (222, 124, 146), (255, 170, 140), (255, 206, 160), (255, 238, 205)]
+    cool = [(92, 80, 148), (126, 98, 166), (168, 126, 182), (208, 174, 212), (240, 220, 240)]
+    sun_l = (SUN_POS[0], SUN_POS[1] + 40, 130)  # light pushed towards the viewer: warm lit faces
+    arr = np.asarray(img).astype(float)
+    layers = [
+        (shapes.cumulus_lobes(rng, 545, 152, 230, 140, (16, 26)), 152, 1.0),   # tower at the end of the street
+        (shapes.cumulus_lobes(rng, 230, 120, 140, 45, (9, 14)), 120, 1.0),      # smaller one over the school
+        (shapes.cumulus_lobes(rng, 450, 46, 70, 14, (5, 8)), 46, 1.0),          # high puff
+        (shapes.stratus_lobes(rng, 250, 520, 120, 6), None, 0.4),               # streaks across the sun
+        (shapes.stratus_lobes(rng, 470, 740, 98, 5), None, 0.4),
+        (shapes.stratus_lobes(rng, 300, 420, 82, 4), None, 0.45),
+    ]
+    for lobes, base_y, squash in layers:
+        c = shapes.cloud((W, H), lobes, sun_l, warm, cool, base_y=base_y, squash=squash)
+        m = c[..., 3] > 0
+        arr[m] = c[m]
+    img = Image.fromarray(arr.astype(np.uint8), "RGBA")
+    d = ImageDraw.Draw(img)
     # Birds and a contrail
     for bx, by in ((520, 70), (531, 76), (545, 66), (300, 96)):
         d.line([(bx - 3, by - 2), (bx, by), (bx + 3, by - 2)], fill=(60, 50, 90, 255))
@@ -377,7 +355,7 @@ def paint_far():
     # Far end of the street (Z 60..200)
     for z in range(190, 60, -14):
         for side in (-1, 1):
-            house(layer, side, z, 10, rng.uniform(5, 12), rng.choice([(170, 150, 180), (150, 140, 170), (190, 160, 160)]))
+            house(layer, side, z, 10, rng.uniform(4, 7.5), rng.choice([(170, 150, 180), (150, 140, 170), (190, 160, 160)]))
     layer.quad3d([(-3.5, 0, 60), (3.5, 0, 60), (3.5, 0, 400), (-3.5, 0, 400)], haze((80, 70, 110), 120))
     layer.finish(0.6)
 
@@ -396,7 +374,7 @@ def paint_street():
     palette = [(214, 190, 186), (190, 176, 196), (226, 206, 178), (170, 160, 196), (206, 170, 160)]
     for z in zs:
         for side in (-1, 1):
-            house(layer, side, z, 8.5, rng.uniform(5.5, 9.5), rng.choice(palette))
+            house(layer, side, z, 8.5, rng.uniform(4.2, 6.8), rng.choice(palette))
     # Poles and sagging wires down the street
     tops = {}
     for side in (-1, 1):
@@ -435,28 +413,26 @@ def paint_mid(street_tops):
 
     # --- School on the left: long wall along the road, gate, building behind
     school = (236, 222, 206)
-    box(layer, -30, -20, 0, 12, 22, 40, mix(school, SHADE_DARK, 0.55), mix(mix(school, SHADE, 0.4), RIM, 0.2), school)
-    windows(layer, -20, 22.5, 39.5, 1, 11.5, 4, 7, 0.5, 22)
-    front_windows(layer, -30, -20, 22, 1, 11.5, 4, 0.4)
-    layer.quad3d([(-27, 12, 22), (-23, 12, 22), (-23, 13.6, 22), (-27, 13.6, 22)], mix(school, SHADE_DARK, 0.5))  # clock tower
-    c = project(-25, 12.8, 22)
+    box(layer, -30, -20, 0, 8.5, 22, 40, mix(school, SHADE_DARK, 0.55), mix(mix(school, SHADE, 0.4), RIM, 0.2), school)
+    windows(layer, -20, 22.5, 39.5, 1, 8.0, 3, 7, 0.5, 22)
+    front_windows(layer, -30, -20, 22, 1, 8.0, 3, 0.4)
+    layer.quad3d([(-27, 8.5, 22), (-23, 8.5, 22), (-23, 10.1, 22), (-27, 10.1, 22)], mix(school, SHADE_DARK, 0.5))  # clock tower
+    c = project(-25, 9.3, 22)
     layer.draw.ellipse((c[0] - 4, c[1] - 4, c[0] + 4, c[1] + 4), fill=(240, 230, 210, 255))
-    trees = [(-10, 6.0, 14), (-15, 7.0, 19), (-8.0, 5.5, 24), (12.5, 5.5, 16)]
-    for tx, ty, tz in trees:
-        base = project(tx, 0, tz)
-        top = project(tx, ty, tz)
-        r = (base[1] - top[1]) * 0.3
-        blobs = [(top[0] + rng.gauss(0, r * 0.6), top[1] + r * 0.7 + rng.gauss(0, r * 0.4), r * rng.uniform(0.22, 0.4)) for _ in range(34)]
-        tree_pal = [(24, 36, 58), (34, 54, 66), (48, 76, 74), (74, 108, 80), (120, 146, 88)]
-        arr = shaded_blobs((W, H), blobs, (0.8, -0.2), tree_pal, (220, 200, 120), 0.04)
-        layer.draw.line([base, (top[0], top[1] + r)], fill=(60, 44, 54, 255), width=max(1, int(r * 0.12)))
-        layer.paste(arr)
+    trees = [(-15, 7.5, 19), (-10, 6.5, 14), (-8.0, 5.5, 24), (12.5, 6.0, 17)]
+    for k, (tx, ty, tz) in enumerate(trees):
+        bx, by = project(tx, 0, tz)
+        h_px = by - project(tx, ty, tz)[1]
+        arr = shapes.tree((W, H), rng, (bx, by), h_px, h_px * 0.95, SUN_LIGHT, TREE_PAL, TRUNK, TREE_RIM, seed=40 + k)
+        layer.paste(arr.astype(np.uint8))
     # Wall + gate pillars + name plate
-    for k in range(10):  # shrubs peeking over the wall
-        base = project(-6.0, 2.2, 7.8 + k * 0.8)
-        r = F / (7.8 + k * 0.8) * 0.5
-        blobs = [(base[0] + rng.gauss(0, r * 0.6), base[1] - r * 0.3 + rng.gauss(0, r * 0.3), r * rng.uniform(0.4, 0.7)) for _ in range(5)]
-        layer.paste(shaded_blobs((W, H), blobs, (0.8, -0.3), [(28, 44, 60), (44, 70, 70), (76, 108, 80), (122, 150, 90)], (220, 200, 120)))
+    hedge = []  # hedge peeking over the wall: a row of leaf clumps
+    for k in range(14):
+        z = 7.8 + k * 0.6
+        hx, hy = project(-5.9, 2.3, z)
+        hedge.append((hx + rng.uniform(-2, 2), hy + rng.uniform(-2, 1), F / z * rng.uniform(0.32, 0.45)))
+    hedge.sort(key=lambda c: -c[2])
+    layer.paste(shapes.render_clumps((W, H), hedge, SUN_LIGHT, TREE_PAL, shapes.leaf_field((W, H), 7), TREE_RIM, rng).astype(np.uint8))
     wall_side = mix(mix(school, SHADE, 0.35), RIM, 0.25)
     box(layer, -5.6, -5.2, 0, 2.2, 7.5, 15.5, mix(school, SHADE_DARK, 0.5), wall_side, school, top=mix(school, RIM, 0.6))
     layer.quad3d([(-5.2, 2.0, 7.5), (-5.2, 2.0, 15.5), (-5.2, 2.2, 15.5), (-5.2, 2.2, 7.5)], mix(school, SHADE, 0.6))  # coping
@@ -576,9 +552,10 @@ def street_details(layer):
     for px, pz in ((4.75, 7.6), (4.75, 13.0), (-4.95, 13.8)):
         box(layer, px - 0.22, px + 0.22, 0, 0.45, pz, pz + 0.4, (170, 96, 70), (200, 120, 90), (140, 80, 60), top=(90, 60, 50))
         top = project(px, 0.75, pz)
-        rr = F / pz * 0.4
-        blobs = [(top[0] + rng.gauss(0, rr * 0.4), top[1] + rng.gauss(0, rr * 0.3), rr * rng.uniform(0.35, 0.6)) for _ in range(6)]
-        layer.paste(shaded_blobs((W, H), blobs, (0.8, -0.4), [(30, 60, 60), (48, 90, 70), (80, 130, 80), (140, 170, 90)], (230, 210, 130)))
+        rr = F / pz * 0.3
+        bush = [(top[0] + rng.uniform(-rr, rr) * 0.6, top[1] + rng.uniform(-rr, rr) * 0.4, rr * rng.uniform(0.6, 0.9)) for _ in range(3)]
+        bush.sort(key=lambda c: c[1])
+        layer.paste(shapes.render_clumps((W, H), bush, SUN_LIGHT, TREE_PAL, shapes.leaf_field((W, H), int(pz * 10)), TREE_RIM, rng).astype(np.uint8))
 
 
 def crossing(layer, x, z, side):
@@ -711,10 +688,20 @@ def paint_foreground(near_tops):
             pts.append((x, y_))
         d.line(pts, fill=(30, 26, 46, 255), width=2 if k < 3 else 1)
     # Leaves at the top-left corner, backlit
-    leaves_pal = [(26, 40, 52), (36, 58, 62), (52, 84, 70), (92, 120, 80)]
-    blobs = [(rng.uniform(60, 260), rng.uniform(-20, 50), rng.uniform(16, 30)) for _ in range(26)]
-    arr = shaded_blobs((W + 200, H), blobs, (0.7, 0.7), leaves_pal, (230, 200, 120), 0.06)
-    img.alpha_composite(Image.fromarray(arr, "RGBA"))
+    # Close to the camera and backlit: mostly dark, with a warm rim towards the sun
+    leaves_pal = [(20, 28, 44), (28, 42, 54), (42, 64, 62), (74, 98, 74)]
+    clumps = []
+    for k in range(12):  # one canopy hanging into the top-left corner
+        t = k / 11
+        clumps.append((110 + t * 200 + rng.uniform(-14, 14), -10 + t * 45 + rng.uniform(-10, 10), 30 - t * 14 + rng.uniform(-3, 3)))
+    clumps.sort(key=lambda c: c[1])
+    size = (W + 200, H)
+    arr = shapes.render_clumps(size, clumps, (560, 200, 80), leaves_pal, shapes.leaf_field(size, 11), (220, 180, 120), rng)
+    # outline the canopy (it is not part of a Layer, so ink it here)
+    a = arr[..., 3] > 0
+    edge = a & ~(np.roll(a, 1, 0) & np.roll(a, -1, 0) & np.roll(a, 1, 1) & np.roll(a, -1, 1))
+    arr[edge, :3] = (14, 10, 28)
+    img.alpha_composite(Image.fromarray(arr.astype(np.uint8), "RGBA"))
     img.save(BG / "06_foreground.png")
 
 
