@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import anime_shapes as shapes
 
 ROOT = Path(__file__).resolve().parent.parent
-BG = ROOT / "assets" / "bg"
+BG = ROOT / "assets" / "bg" / "street"
 FONT = ROOT / "assets" / "fonts" / "Sarabun-Regular.ttf"
 
 W, H = 800, 360

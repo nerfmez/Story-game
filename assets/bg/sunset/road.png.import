@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cr12gl786c8ur"
-path="res://.godot/imported/04_mid.png-b5666ac1207613edee4d30e56a8e73d1.ctex"
+uid="uid://b7v000x7ka11s"
+path="res://.godot/imported/road.png-782664aa1b2b0bd54c220e3bd84eacb1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/04_mid.png"
-dest_files=["res://.godot/imported/04_mid.png-b5666ac1207613edee4d30e56a8e73d1.ctex"]
+source_file="res://assets/bg/sunset/road.png"
+dest_files=["res://.godot/imported/road.png-782664aa1b2b0bd54c220e3bd84eacb1.ctex"]
 
 [params]
 

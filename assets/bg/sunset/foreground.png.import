@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dun24duyhpyaj"
-path="res://.godot/imported/03_train.png-3319f2fe8e6bb2413cbd8adda4a0050b.ctex"
+uid="uid://bb5pjdk1uypry"
+path="res://.godot/imported/foreground.png-6091d5af03f021fd48ae18d87cf062b3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/03_train.png"
-dest_files=["res://.godot/imported/03_train.png-3319f2fe8e6bb2413cbd8adda4a0050b.ctex"]
+source_file="res://assets/bg/sunset/foreground.png"
+dest_files=["res://.godot/imported/foreground.png-6091d5af03f021fd48ae18d87cf062b3.ctex"]
 
 [params]
 

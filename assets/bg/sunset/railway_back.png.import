@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d71p8d8fjd3i"
-path="res://.godot/imported/02_city_far.png-eb309df246015903edcbf99b5f3776da.ctex"
+uid="uid://cb0cqhadpsi4y"
+path="res://.godot/imported/railway_back.png-a073fe519d77c385271be7c551423940.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/02_city_far.png"
-dest_files=["res://.godot/imported/02_city_far.png-eb309df246015903edcbf99b5f3776da.ctex"]
+source_file="res://assets/bg/sunset/railway_back.png"
+dest_files=["res://.godot/imported/railway_back.png-a073fe519d77c385271be7c551423940.ctex"]
 
 [params]
 

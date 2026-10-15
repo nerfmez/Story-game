@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1kdlbasyt7dq"
-path="res://.godot/imported/01_sky.png-eb2710b590fe45ad16b8f1a1cb371aa9.ctex"
+uid="uid://bvrawwb7exj0u"
+path="res://.godot/imported/railway_front.png-a2b9ea697b9cc96a24ad1e85813019dd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/01_sky.png"
-dest_files=["res://.godot/imported/01_sky.png-eb2710b590fe45ad16b8f1a1cb371aa9.ctex"]
+source_file="res://assets/bg/sunset/railway_front.png"
+dest_files=["res://.godot/imported/railway_front.png-a2b9ea697b9cc96a24ad1e85813019dd.ctex"]
 
 [params]
 
