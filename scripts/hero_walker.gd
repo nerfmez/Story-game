@@ -6,12 +6,13 @@ extends Node2D
 @export var idle_texture: Texture2D
 @export var walk_texture: Texture2D
 @export var walk_frames := 8
-## เฟรมต่อวินาทีของท่าเดิน (8 เฟรมต่อรอบ ≈ 1.3 วินาที ตามวิดีโอต้นฉบับ)
-@export var walk_fps := 6.0
+## เฟรมต่อวินาทีของท่าเดิน (8 เฟรมต่อรอบ ≈ 1.25 วินาที ตามวิดีโอต้นฉบับ)
+@export var walk_fps := 6.4
 ## ความเร็วเดิน (พิกเซล/วินาที) ตั้งให้พอดีกับก้าวเท้า เท้าจะไม่ไถลบนถนน
 @export var speed := 45.0
-## ภาพท่าเดินกว้างกว่าภาพยืน เลื่อนให้ตัวอยู่ตรงกลางเดียวกัน
-@export var walk_offset := Vector2(-5, 0)
+## ภาพท่าเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกับภาพยืน (ตอนหันซ้าย / ตอนพลิกหันขวา)
+@export var walk_offset := Vector2(-19, 0)
+@export var walk_offset_flipped := Vector2(-6, 0)
 
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
@@ -46,7 +47,7 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.texture = walk_texture
 			sprite.hframes = walk_frames
 			sprite.frame = int(_anim_time * walk_fps) % walk_frames
-			sprite.offset.x = walk_offset.x
+			sprite.offset.x = walk_offset_flipped.x if facing_right else walk_offset.x
 			sprite.flip_h = facing_right
 		elif idle_texture:
 			sprite.texture = idle_texture

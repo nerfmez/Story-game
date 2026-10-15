@@ -66,11 +66,12 @@ assets/textures/         texture พิกเซลสำหรับฉาก H
 
 ```
 python3 tools/import_walk_video.py art_source/hero_walk_greenscreen.mp4 assets/characters/hero_walk.png \
-    --start 24 --cycle 32 --frames 8 --height 122 --palette assets/characters/hero_uniform.png
+    --start 20 --cycle 30 --frames 8 --height 122 --palette assets/characters/hero_uniform.png --flatten-soles 3
 ```
 
 วิดีโอต้องเป็นตัวละครเดินอยู่กับที่ (กล้องนิ่ง) สคริปต์ตัดหนึ่งรอบก้าว (`--cycle` เฟรม) เลือกมา 8 เฟรม
 ลบพื้นเขียว ย่อให้สูงเท่าภาพยืน และใช้สีชุดเดียวกับภาพยืน (`--palette`)
+`--flatten-soles 3` ตัดพื้นรองเท้าที่หนา/มีส้นออก 3 พิกเซล (รองเท้านักเรียนพื้นเรียบ) แล้วเลื่อนภาพลงให้เท้ายังแตะพื้น
 - กล้อง (`scene_camera.gd`) ตามตัวละคร (`follow`) และ `camera_x` ในบทกลายเป็นระยะเลื่อนกล้องออกจากตัวละคร
 
 **ความเร็วแต่ละชั้น (parallax) ตามระยะจริง:** ตัวละครอยู่ห่างกล้อง ~4 ม. ชั้นที่อยู่ห่าง D เมตรจะเลื่อน ≈ 4/D

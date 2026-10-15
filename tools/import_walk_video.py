@@ -37,6 +37,31 @@ def match_histograms(pixels, reference):
     return out
 
 
+def flatten_soles(rgba, trim, search_rows=16):
+    """Make chunky/heeled shoes flat: in every column, cut `trim` pixels off the
+    bottom of the shoe, redraw a thin dark sole line, then shift the frame down."""
+    h, w = rgba.shape[:2]
+    out = rgba.copy()
+    dark = (out[..., :3].max(axis=2) < 95) & (out[..., 3] > 0)
+    top = h - search_rows
+    for x in range(w):
+        col = dark[top:, x]
+        if not col.any():
+            continue
+        bottom = top + int(np.where(col)[0].max())
+        run_top = bottom
+        while run_top - 1 >= top and dark[run_top - 1, x]:
+            run_top -= 1
+        if bottom - run_top + 1 <= trim + 2:
+            continue  # too thin to be a sole (toe tip, lace)
+        out[bottom - trim + 1:bottom + 1, x] = 0
+        new_bottom = bottom - trim
+        out[new_bottom, x, :3] = (out[new_bottom, x, :3] * 0.55).astype(out.dtype)  # sole edge
+    shifted = np.zeros_like(out)
+    shifted[trim:] = out[:h - trim]
+    return shifted
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -46,6 +71,9 @@ def main():
     ap.add_argument("--frames", type=int, default=8, help="frames to keep from the cycle")
     ap.add_argument("--height", type=int, default=122, help="character height in game pixels")
     ap.add_argument("--palette", help="sprite whose colours the frames are snapped to")
+    ap.add_argument("--flatten-soles", type=int, default=0,
+                    help="trim this many pixels off the bottom of each shoe (thick soles/heels) "
+                         "and move the frame down by the same amount so the feet stay on the ground")
     args = ap.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -102,6 +130,8 @@ def main():
             small = small.quantize(palette=pal_img, dither=Image.Dither.NONE).convert("RGB")
         frame = small.convert("RGBA")
         frame.putalpha(Image.fromarray((a * 255).astype(np.uint8), "L"))
+        if args.flatten_soles:
+            frame = Image.fromarray(flatten_soles(np.asarray(frame), args.flatten_soles), "RGBA")
         sheet.paste(frame, (i * out_w, 0))
     sheet.save(args.out)
     print(f"{args.frames} frames of {out_w}x{args.height} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
