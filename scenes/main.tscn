@@ -1,4 +1,4 @@
-[gd_scene load_steps=62 format=3]
+[gd_scene load_steps=58 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -45,9 +45,6 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hero_idle_video.png" id="44_idle"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_phone.png" id="45_phone"]
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
-[ext_resource type="Script" path="res://scripts/car.gd" id="48_car"]
-[ext_resource type="Texture2D" path="res://assets/bg/sunset/car.png" id="49_car_tex"]
-[ext_resource type="AudioStream" path="res://assets/audio/car_pass.ogg" id="50_car_snd"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -86,13 +83,6 @@ shader = ExtResource("40_grade")
 [sub_resource type="Gradient" id="Gradient_dust"]
 offsets = PackedFloat32Array(0, 0.2, 0.7, 1)
 colors = PackedColorArray(1, 0.72, 0.68, 0, 1, 0.72, 0.68, 0.85, 1, 0.66, 0.66, 0.55, 1, 0.62, 0.66, 0)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_car_reflection"]
-shader = ExtResource("15_water")
-shader_parameter/wobble = 1.0
-shader_parameter/speed = 2.5
-shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.3)
-shader_parameter/fade_length = 0.35
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -318,29 +308,6 @@ centered = false
 [node name="Body" type="Sprite2D" parent="Characters/Hero"]
 texture = ExtResource("11_hero")
 centered = false
-
-[node name="Cars" type="Node2D" parent="."]
-
-[node name="Car" type="Node2D" parent="Cars" node_paths=PackedStringArray("sound")]
-position = Vector2(0, 322)
-script = ExtResource("48_car")
-sound = NodePath("Sound")
-
-[node name="Reflection" type="Sprite2D" parent="Cars/Car"]
-material = SubResource("ShaderMaterial_car_reflection")
-texture = ExtResource("49_car_tex")
-centered = false
-hframes = 3
-
-[node name="Body" type="Sprite2D" parent="Cars/Car"]
-position = Vector2(0, -118)
-texture = ExtResource("49_car_tex")
-centered = false
-hframes = 3
-
-[node name="Sound" type="AudioStreamPlayer" parent="Cars/Car"]
-stream = ExtResource("50_car_snd")
-volume_db = -80.0
 
 [node name="Foreground" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.25, 1.25)

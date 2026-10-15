@@ -6,8 +6,6 @@ Outputs (assets/audio/, Ogg Vorbis):
                         their sounds when they are on screen)
   train_pass.ogg        3.2 s seamless loop of a train on a viaduct: rumble, motor
                         whine and the clack-clack of the wheels over rail joints
-  car_pass.ogg          2 s seamless loop of a car on the wet road: tyre hiss on water,
-                        low engine hum (the game fades it in/out and bends the pitch)
   step_1..3.ogg         footsteps on wet asphalt (soft scuff + tiny splash)
   bird_1..3.ogg         short calls of a small bird (2-4 tweets), played by the flocks
 
@@ -104,16 +102,6 @@ def train_loop(seconds=3.2):
     return out
 
 
-def car_loop(seconds=2.0):
-    n = int(SR * seconds)
-    t = np.arange(n) / SR
-    out = 0.5 * shaped_noise(n, 900, 6000, -0.2) * slow_lfo(n, 6, 0.25)        # tyres on water
-    out += 0.3 * shaped_noise(n, 40, 260, -0.5)                                # road rumble
-    hum = np.sin(2 * np.pi * 75 * t) + 0.5 * np.sin(2 * np.pi * 150 * t) + 0.2 * np.sin(2 * np.pi * 225 * t)
-    out += 0.12 * hum * slow_lfo(n, 2, 0.3)                                    # engine
-    return out
-
-
 def bird_call(seed):
     """A few quick rising tweets, like a small bird calling to the flock."""
     r = np.random.default_rng(seed)
@@ -161,7 +149,6 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     save_ogg("ambience_evening.ogg", ambience(), 0.7)
     save_ogg("train_pass.ogg", train_loop(), 0.8)
-    save_ogg("car_pass.ogg", car_loop(), 0.8)
     for i in range(3):
         save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
         save_ogg(f"bird_{i + 1}.ogg", bird_call(200 + i), 0.6)

@@ -21,8 +21,6 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
   road.png          wet asphalt (semi-transparent over the reflections), fence, hedge
   foreground.png    near utility pole + wires (960 wide tile)
   bird.png          a small bird silhouette, 2 wing frames side by side (for the flocks)
-  car.png           a sedan driving by on the near lane, 3 paints (white / red / dark
-                    blue) as 3 frames side by side; faces right, flipped to drive left
   Atmosphere (all line up with the sky tile: 1600 wide, sun at SUN_X / SUN_Y and its
   mirror image, so they scroll with the sky):
   sun_glow.png      warm bloom around the sun, drawn additively over the tree tops
@@ -54,12 +52,6 @@ SKY_TILE = 1600                     # sky + mirrored sky
 FG_TILE = 960                       # one near utility pole per foreground tile
 RAIL_BLOCK = 2                      # railway trees/viaduct: 2x2 game pixels per art pixel
 TRAIN_BLOCK = 2                     # train: 2x2 game pixels per art pixel
-CAR_BLOCK = 2                       # cars: 2x2 game pixels per art pixel
-CAR_SCALE = 1.3                     # car drawn 1.3x its 152x48 layout: ~124 px tall, a bit nearer than the hero
-# car paints: (lit shoulder, side, shade low on the doors)
-CAR_PAINTS = [((232, 228, 238), (196, 194, 214), (138, 136, 168)),     # white
-              ((228, 96, 98), (184, 46, 60), (116, 28, 48)),            # red
-              ((86, 108, 172), (48, 68, 128), (28, 40, 86))]            # dark blue
 SUN_X, SUN_Y = 248, 150             # sun centre in the sky layer (its sprite sits at x -48)
 MIRROR = 1.6                        # reflection squash: we look down at the road
 ROAD_TOP = 258                      # first row of the ground (sidewalk) in screen space; reflections mirror here
@@ -315,85 +307,6 @@ def make_train(cars=4, car_w=56, gap=2):
     a[edge & ~keep] = ink
     out = Image.fromarray(a, "RGBA")
     return out.resize((W * TRAIN_BLOCK, H * TRAIN_BLOCK), Image.NEAREST)
-
-
-def make_car(paint, k=None):
-    """Side view of a 4-door sedan at dusk, laid out on a 152x48 grid, scaled by k
-    (CAR_SCALE) in art pixels so lines stay one art pixel wide, then scaled up by
-    CAR_BLOCK. Faces right. Backlit by the low sun: the side is in soft shade, roof
-    and shoulder edges catch a pink-orange rim. Headlight on (warm), red taillight,
-    dark glass with a faint sky streak, wheels with grey rims, and a soft shadow on
-    the road under the body (the bottom rows)."""
-    k = CAR_SCALE if k is None else k
-    lit, side, shade = paint
-    W, H = round(152 * k), round(48 * k)
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    def q(*xy):                      # grid -> art pixels
-        return [round(v * k) for v in xy]
-
-    def pts(seq):
-        return [tuple(q(x, y)) for x, y in seq]
-
-    ink = (20, 18, 36, 255)
-    rim = (250, 184, 136, 255)
-    glass, glass_hi = (30, 30, 50, 255), (92, 80, 120, 255)
-    trim, tyre, rim_metal, hub = (40, 36, 58, 255), (18, 16, 28, 255), (132, 130, 152, 255), (70, 66, 92, 255)
-    g = 45                                           # grid row the tyres stand on
-    d.rectangle(q(10, g - 1, 142, g + 1), fill=(10, 8, 20, 110))      # road shadow
-    d.rectangle(q(16, g + 2, 136, g + 2), fill=(10, 8, 20, 60))
-    body = [(2, 19), (6, 16), (30, 15), (47, 4), (93, 4), (112, 16), (142, 18), (148, 21),
-            (150, 27), (150, 37), (147, 39), (4, 39), (1, 35), (1, 22)]
-    d.polygon(pts(body), fill=side)
-    d.rectangle(q(2, 31, 149, 38), fill=shade)                         # lower doors in shade
-    d.line(pts([(4, 30), (148, 30)]), fill=trim)                       # body crease
-    d.line(pts([(3, 18), (30, 16)]), fill=lit)                         # lit boot lid
-    d.line(pts([(112, 17), (143, 19)]), fill=lit)                      # lit bonnet
-    d.line(pts([(31, 16), (111, 16)]), fill=lit)                       # shoulder line
-    d.line(pts([(48, 5), (92, 5)]), fill=lit)                          # roof
-    d.line(pts([(47, 4), (93, 4)]), fill=rim)                          # sunlit roof edge
-    d.line(pts([(6, 16), (29, 15)]), fill=rim)
-    d.polygon(pts([(37, 15), (48, 6), (72, 6), (72, 15)]), fill=glass)  # rear door glass
-    d.polygon(pts([(75, 15), (75, 6), (91, 6), (105, 15)]), fill=glass)  # front door glass
-    for x0 in (52, 80):                                                # sky streak in the glass
-        d.line(pts([(x0, 14), (x0 + 7, 7)]), fill=glass_hi)
-        d.line(pts([(x0 + 2, 14), (x0 + 9, 7)]), fill=glass_hi)
-    for x in (46, 74, 106):                                            # door seams
-        d.line(pts([(x, 17), (x, 38)]), fill=trim)
-    d.line(pts([(46, 17), (37, 15)]), fill=trim)
-    for x in (62, 94):                                                 # handles
-        d.line(pts([(x, 20), (x + 4, 20)]), fill=lit)
-    d.polygon(pts([(106, 13), (110, 12), (111, 16), (106, 16)]), fill=side)   # mirror
-    d.line(pts([(106, 12), (110, 12)]), fill=rim)
-    d.rectangle(q(144, 22, 149, 24), fill=(255, 244, 210, 255))        # headlight
-    d.rectangle(q(149, 23, 149, 23), fill=(255, 255, 240, 255))
-    d.rectangle(q(1, 20, 4, 23), fill=(232, 44, 52, 255))              # taillight
-    d.rectangle(q(140, 33, 150, 38), fill=trim)                        # front bumper
-    d.rectangle(q(1, 33, 8, 38), fill=trim)                            # rear bumper
-    for cx in (30, 120):                                               # arches and wheels
-        d.ellipse(q(cx - 12, g - 22, cx + 12, g + 2), fill=(0, 0, 0, 0))
-        d.ellipse(q(cx - 11, g - 20, cx + 11, g + 2), fill=(14, 12, 24, 255))
-        d.ellipse(q(cx - 9, g - 18, cx + 9, g), fill=tyre)
-        d.ellipse(q(cx - 5, g - 14, cx + 5, g - 4), fill=rim_metal)
-        d.ellipse(q(cx - 2, g - 11, cx + 2, g - 7), fill=hub)
-        d.rectangle(q(cx - 3, g - 12, cx - 3, g - 12), fill=(200, 196, 214, 255))   # glint
-    a = np.asarray(img).copy()                                         # 1px dark outline
-    solid = a[..., 3] > 200
-    edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
-    keep = ((a[..., 0] == rim[0]) & (a[..., 1] == rim[1])) | (a[..., 0] > 240)
-    a[edge & ~keep] = ink
-    out = Image.fromarray(a, "RGBA")
-    return out.resize((W * CAR_BLOCK, H * CAR_BLOCK), Image.NEAREST)
-
-
-def make_cars():
-    cars = [make_car(p) for p in CAR_PAINTS]
-    w, h = cars[0].size
-    sheet = Image.new("RGBA", (w * len(cars), h), (0, 0, 0, 0))
-    for i, c in enumerate(cars):
-        sheet.paste(c, (i * w, 0))
-    return sheet
 
 
 def make_bird():
@@ -823,7 +736,6 @@ if __name__ == "__main__":
     build_road(sky, city, fill, back)
     build_foreground()
     make_bird().save(OUT / "bird.png")
-    make_cars().save(OUT / "car.png")
     build_atmosphere()
     print(f"layers written to {OUT}; railway tile {back.size[0]}px (RAIL_TILE), "
           f"train {train.size}, train top y in layer = {deck_top - train.size[1]}")
