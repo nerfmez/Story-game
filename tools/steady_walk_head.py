@@ -9,8 +9,13 @@ kept the head still but left the hips bouncing, so the torso stretched and squas
 The cut is the run of thigh rows that looks most like its neighbours; the legs differ
 every frame anyway, so it doesn't show. Feet and the ground line are untouched.
 
+--bob then adds back an even bob for weight (a dead-level body glides): per frame,
+pixels down: down 1px where the legs are widest (the foot lands), up 1px where they
+pass each other.
+
 Usage:
-  python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15
+  python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15 \\
+      --bob 0 -1 -1 0 0 1 1 0 0 -1 -1 0 1 1 0
 """
 import argparse
 
@@ -60,6 +65,7 @@ def main():
     ap.add_argument("--frames", type=int, required=True)
     ap.add_argument("--cut", type=int, nargs=2, default=(80, 96), metavar=("FROM", "TO"),
                     help="rows to cut in: the thighs, below the shorts and above the knees")
+    ap.add_argument("--bob", type=int, nargs="+", help="pixels down per frame after levelling")
     ap.add_argument("--out", help="default: overwrite the sheet")
     args = ap.parse_args()
 
@@ -68,6 +74,9 @@ def main():
     frames = [a[:, i * w:(i + 1) * w] for i in range(args.frames)]
     ref = np.median(np.stack(frames), 0)
     shifts = [offset(ref, f) for f in frames]
+    if args.bob:
+        assert len(args.bob) == args.frames, "one --bob value per frame"
+        shifts = [d + b for d, b in zip(shifts, args.bob)]
     print("upper body moved by", shifts)
     out = np.concatenate([steady(f, dy, *args.cut) for f, dy in zip(frames, shifts)], 1)
     Image.fromarray(out.astype(np.uint8), "RGBA").save(args.out or args.sheet)

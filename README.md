@@ -124,12 +124,15 @@ python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/charac
 python3 tools/import_walk_video.py art_source/hero_walk_greenscreen.mp4 assets/characters/hero_walk.png \
     --start 20 --cycle 30 --height 122 --palette assets/characters/hero_uniform.png \
     --frames 15 --shoe-scale 0.8
-python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15
+python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15 \
+    --bob 0 -1 -1 0 0 1 1 0 0 -1 -1 0 1 1 0
 ```
 
 ขั้นที่สอง: ช่วงบนในวิดีโอเด้งขึ้น 2-3px บางเฟรม (หลังก้าว) ในเกมจึงดูกระเด้ง
 `steady_walk_head.py` วัดว่าช่วงหัว-อกแต่ละเฟรมห่างจากค่ากลางของทุกเฟรมเท่าไร แล้วเลื่อนทั้งตัวเหนือต้นขา (หัว เสื้อ กระเป๋า กางเกง) ไปพร้อมกัน
 ซ่อน/ซ้ำแถวที่ต้นขา (ขาเปลี่ยนทุกเฟรมอยู่แล้ว จึงไม่เห็นรอย) ถ้าตัดกลางเสื้อ หัวจะนิ่งแต่สะโพกยังเด้ง ตัวเลยยืดหด เท้าและแนวพื้นไม่ถูกแตะ
+แล้ว `--bob` ใส่การยุบ-ยืดกลับเข้าไปแบบสม่ำเสมอให้มีน้ำหนัก (ตัวนิ่งสนิทดูเหมือนลอยไถล): ลง 1px ตอนขากางสุด (เท้าลงพื้น เฟรม 5-6, 12-13)
+ขึ้น 1px ตอนขาสวนกัน (เฟรม 1-2, 9-10) ขยับทีละไม่เกิน 1px ต่อเฟรม
 
 วิดีโอต้องเป็นตัวละครเดินอยู่กับที่ (กล้องนิ่ง) สคริปต์ตัดหนึ่งรอบก้าว (`--cycle` เฟรม) เลือกมา `--frames` เฟรม
 ลบพื้นเขียว แบ่งสีภาพยืน (`--palette`) เป็นกลุ่มวัสดุ (ผม ผิว เสื้อ กางเกง กระเป๋า ...)
