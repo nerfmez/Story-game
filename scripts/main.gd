@@ -12,14 +12,29 @@ extends Node
 
 @onready var dialogue_box: DialogueBox = $UI/DialogueBox
 
+const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
+
 
 func _ready() -> void:
 	# บนมือถือ/เบราว์เซอร์ ให้ภาพขยายเต็มจอแบบไม่ต้องเป็นจำนวนเท่าเต็ม (ไม่งั้นภาพเล็กมีขอบดำหนา)
 	if OS.has_feature("web") or OS.has_feature("mobile"):
 		get_tree().root.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	# ฉากและตัวละคร: คมแบบพิกเซลแต่เลื่อนทีละเศษพิกเซลได้ (ชั้นไกลที่เลื่อนช้าจะไม่กระตุก)
+	var smooth := ShaderMaterial.new()
+	smooth.shader = SMOOTH_PIXEL
+	_use_smooth_pixels(self, smooth)
 	dialogue_box.line_started.connect(_on_line_started)
 	dialogue_box.finished.connect(_on_finished)
 	dialogue_box.start(load_lines(dialogue_file))
+
+
+func _use_smooth_pixels(node: Node, smooth: ShaderMaterial) -> void:
+	for child in node.get_children():
+		if child is Sprite2D and child.material == null:
+			child.material = smooth
+			child.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		if not child is CanvasLayer:  # UI อยู่ใน CanvasLayer: ไม่ต้องเปลี่ยน
+			_use_smooth_pixels(child, smooth)
 
 
 static func load_lines(path: String) -> Array:
