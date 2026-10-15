@@ -55,8 +55,8 @@ TRAIN_BLOCK = 2                     # train: 2x2 game pixels per art pixel
 SUN_X, SUN_Y = 248, 150             # sun centre in the sky layer (its sprite sits at x -48)
 MIRROR = 1.6                        # reflection squash: we look down at the road
 ROAD_TOP = 258                      # first row of the ground (sidewalk) in screen space; reflections mirror here
-KERB_Y = 292                        # sidewalk ends: kerb face from here down to the street
-STREET_TOP = 300                    # first row of asphalt
+KERB_Y = 280                        # sidewalk ends: kerb face from here down to the street
+STREET_TOP = 286                    # first row of asphalt
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
 rng = random.Random(5)
 
@@ -477,7 +477,7 @@ def sidewalk(block=2):
     grout, moss = (72, 60, 92, 245), (58, 86, 70, 245)
     y = ROAD_TOP // block
     rows = []
-    for k, rh in enumerate((5, 6, 6)):                 # slab rows, far to near
+    for k, rh in enumerate((3, 4, 4)):                 # slab rows, far to near (foreshortened)
         rows.append((y, y + rh - 1, k))
         y += rh
     for y0, y1, k in rows:
