@@ -77,25 +77,26 @@ def squash_shoes(rgba, factor, band=16):
     return out, 0
 
 
-def match_luminance(pixels, reference):
-    """Match the brightness distribution only (keeps each pixel's hue and saturation)."""
-    lum = lambda p: p @ np.array([0.299, 0.587, 0.114])
-    src, ref = lum(pixels), np.sort(lum(reference))
-    order = np.argsort(src)
-    ranks = np.empty_like(order)
-    ranks[order] = np.arange(len(src))
-    target = ref[(ranks * (len(ref) - 1) / max(1, len(src) - 1)).astype(int)]
-    gain = target / np.maximum(src, 1.0)
-    return np.clip(pixels * gain[:, None], 0, 255)
+def features(rgb):
+    """Colour space for grouping pixels into materials: lightness plus two chroma axes."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    return np.stack([lum, 1.6 * (r - g), 1.6 * ((r + g) / 2 - b)], -1)
 
 
-def nearest_colours(pixels, palette):
-    """Snap each pixel to the closest colour that really occurs in the reference sprite."""
-    out = np.empty_like(pixels)
-    for k in range(0, len(pixels), 4096):
-        chunk = pixels[k:k + 4096]
-        d = ((chunk[:, None, :] - palette[None, :, :]) ** 2).sum(2)
-        out[k:k + 4096] = palette[d.argmin(1)]
+def kmeans(x, k, iters=30, seed=1):
+    rng = np.random.default_rng(seed)
+    c = x[rng.choice(len(x), k, replace=False)]
+    for _ in range(iters):
+        lab = ((x[:, None] - c[None]) ** 2).sum(2).argmin(1)
+        c = np.array([x[lab == i].mean(0) if (lab == i).any() else c[i] for i in range(k)])
+    return c
+
+
+def nearest(x, centres):
+    out = np.empty(len(x), int)
+    for k in range(0, len(x), 65536):
+        out[k:k + 65536] = ((x[k:k + 65536, None] - centres[None]) ** 2).sum(2).argmin(1)
     return out
 
 
@@ -110,24 +111,37 @@ def add_outline(rgba, colour_from=None, strength=0.62):
     return out.astype(np.uint8)
 
 
-def block_sample(img, mask, out_w, out_h):
-    """Downscale by taking the median of the centre of each target cell (no averaging
-    across cell borders), so outlines and pixel edges stay crisp."""
-    h, w = img.shape[:2]
+def cell_sample(lum, mat, mask, out_w, out_h, n_mat):
+    """Downscale without blending: each target pixel takes the material most of its cell is
+    made of (crisp, stable edges between hair/skin/shirt...) and the median lightness of
+    that material inside the cell."""
+    h, w = lum.shape
     sx, sy = w / out_w, h / out_h
-    q = max(1, int(min(sx, sy) * 0.22))
-    rgb = np.zeros((out_h, out_w, 3))
-    alpha = np.zeros((out_h, out_w), bool)
+    qx, qy = max(1, int(sx * 0.4)), max(1, int(sy * 0.4))
+    out_m = np.full((out_h, out_w), -1)
+    out_l = np.zeros((out_h, out_w))
     for j in range(out_h):
         cy = int((j + 0.5) * sy)
+        ys = slice(max(0, cy - qy), cy + qy + 1)
         for i in range(out_w):
             cx = int((i + 0.5) * sx)
-            ys, xs = slice(max(0, cy - q), cy + q + 1), slice(max(0, cx - q), cx + q + 1)
+            xs = slice(max(0, cx - qx), cx + qx + 1)
             m = mask[ys, xs]
-            alpha[j, i] = m.mean() >= 0.5
-            if alpha[j, i]:
-                rgb[j, i] = np.median(img[ys, xs][m], axis=0)
-    return rgb, alpha
+            if m.mean() < 0.5:
+                continue
+            mm = mat[ys, xs][m]
+            best = np.bincount(mm, minlength=n_mat).argmax()
+            out_m[j, i] = best
+            out_l[j, i] = np.median(lum[ys, xs][m][mm == best])
+    return out_m, out_l
+
+
+def stretch_rows(img, top, bottom, factor):
+    """Stretch rows [top, bottom) vertically by `factor` (nearest), keeping the rest."""
+    n = round((bottom - top) * factor)
+    rows = np.concatenate([np.arange(top), top + (np.arange(n) / factor).astype(int),
+                           np.arange(bottom, img.shape[0])])
+    return img[rows]
 
 
 def main():
@@ -138,10 +152,16 @@ def main():
     ap.add_argument("--cycle", type=int, required=True, help="frames in one full walk cycle")
     ap.add_argument("--frames", type=int, default=8, help="frames to keep from the cycle")
     ap.add_argument("--height", type=int, default=122, help="character height in game pixels")
-    ap.add_argument("--palette", help="sprite whose colours the frames are snapped to")
+    ap.add_argument("--palette", required=True, help="idle sprite whose colours the frames take on")
+    ap.add_argument("--materials", type=int, default=9, help="colour groups (hair, skin, shirt...)")
+    ap.add_argument("--legs", type=float, nargs=3, metavar=("TOP", "BOTTOM", "FACTOR"),
+                    help="stretch the rows between TOP and BOTTOM (fractions of the height, "
+                         "e.g. shorts hem to ankle) by FACTOR so the legs match the idle sprite")
+    ap.add_argument("--bob", type=float, default=1.0,
+                    help="with --legs: keep this fraction of the video's up-down body bob (0.4 = calmer)")
     ap.add_argument("--shoe-scale", type=float, default=1.0,
-                    help="squash each shoe to this fraction of its height (e.g. 0.7 for chunky "
-                         "AI shoes -> flat school shoes); the frame moves down so feet stay grounded")
+                    help="squash each shoe to this fraction of its height; the frame moves down "
+                         "so feet stay grounded")
     args = ap.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -156,44 +176,94 @@ def main():
     ys, xs = np.where(union)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     scale = args.height / (y1 - y0)
-    out_w = round((x1 - x0) * scale)
 
-    smalls = []
-    for rgb, mask in zip(frames, masks):
-        rgb = rgb[y0:y1, x0:x1].copy()
-        mask = mask[y0:y1, x0:x1]
-        # despill green fringe
-        rgb[..., 1] = np.where(rgb[..., 1] > np.maximum(rgb[..., 0], rgb[..., 2]),
-                               np.maximum(rgb[..., 0], rgb[..., 2]), rgb[..., 1])
-        small, small_a = block_sample(rgb, mask, out_w, args.height)
-        smalls.append((small, small_a))
+    # Materials (hair, skin, shirt, shorts, bag...) come from the idle sprite's own colours
+    ref = np.asarray(Image.open(args.palette).convert("RGBA")).astype(float)
+    opaque = ref[..., 3] > 0
+    ref_px = ref[..., :3][opaque]
+    centres = kmeans(features(ref_px), args.materials)
+    ref_mat = nearest(features(ref_px), centres)
 
-    edge_colour = None
-    if args.palette:
-        # One brightness mapping for all frames (no flicker); hue and saturation are kept,
-        # then every pixel snaps to the nearest colour that exists in the reference sprite
-        ref = np.asarray(Image.open(args.palette).convert("RGBA")).astype(float)
-        opaque = ref[..., 3] > 0
-        ref_px = ref[..., :3][opaque]
-        all_px = np.concatenate([sm[a] for sm, a in smalls])
-        mapped = nearest_colours(all_px, np.unique(ref_px, axis=0))
-        k = 0
-        for sm, a in smalls:
-            n = int(a.sum())
-            sm[a] = mapped[k:k + n]
-            k += n
-        inner = opaque & np.roll(opaque, 1, 0) & np.roll(opaque, -1, 0) & np.roll(opaque, 1, 1) & np.roll(opaque, -1, 1)
-        edge_colour = ref[..., :3][opaque & ~inner].mean(0) * 0.6
+    inner = opaque & np.roll(opaque, 1, 0) & np.roll(opaque, -1, 0) & np.roll(opaque, 1, 1) & np.roll(opaque, -1, 1)
+    edge_colour = ref[..., :3][opaque & ~inner].mean(0) * 0.6
+    ref_lum = features(ref_px)[:, 0]
 
-    sheet = Image.new("RGBA", (out_w * args.frames, args.height), (0, 0, 0, 0))
-    for i, (sm, a) in enumerate(smalls):
-        frame = np.dstack([sm.clip(0, 255), a * 255]).astype(np.uint8)
-        if args.shoe_scale < 1.0:
-            frame, _ = squash_shoes(frame, args.shoe_scale)
-        frame = add_outline(frame, edge_colour)
-        sheet.paste(Image.fromarray(frame, "RGBA"), (i * out_w, 0))
+    def build(leg_factors):
+        cells = []
+        for rgb, mask, factor in zip(frames, masks, leg_factors):
+            rgb = rgb[y0:y1, x0:x1].copy()
+            mask = mask[y0:y1, x0:x1]
+            # despill green fringe
+            rgb[..., 1] = np.minimum(rgb[..., 1], np.maximum(rgb[..., 0], rgb[..., 2]))
+            if args.legs:
+                h = rgb.shape[0]
+                top, bottom = int(args.legs[0] * h), int(args.legs[1] * h)
+                rgb = stretch_rows(rgb, top, bottom, factor)
+                mask = stretch_rows(mask, top, bottom, factor)
+            out_h = round(rgb.shape[0] * scale)
+            out_w = round(rgb.shape[1] * scale / 2) * 2  # even width: no half-pixel centre
+            feat = features(rgb.reshape(-1, 3))
+            mat = nearest(feat, centres).reshape(mask.shape)
+            cells.append(cell_sample(feat[:, 0].reshape(mask.shape), mat, mask, out_w, out_h, args.materials))
+
+        # Per material, give the frames the same spread of shades as the idle sprite:
+        # the n-th lightest hair pixel becomes the idle's n-th lightest hair colour, etc.
+        out_rgb = [np.zeros(m.shape + (3,)) for m, _ in cells]
+        for k in range(args.materials):
+            pool = ref_px[ref_mat == k][np.argsort(ref_lum[ref_mat == k])]
+            sel = [m == k for m, _ in cells]
+            vals = np.concatenate([l[s] for (_, l), s in zip(cells, sel)])
+            if len(vals) == 0 or len(pool) == 0:
+                continue
+            ranks = np.empty(len(vals), int)
+            ranks[np.argsort(vals, kind="stable")] = np.arange(len(vals))
+            mapped = pool[(ranks * (len(pool) - 1) / max(1, len(vals) - 1)).astype(int)]
+            n = 0
+            for o, s in zip(out_rgb, sel):
+                c = int(s.sum())
+                o[s] = mapped[n:n + c]
+                n += c
+
+        result = []
+        for (m, _), rgb in zip(cells, out_rgb):
+            frame = np.dstack([rgb, (m >= 0) * 255]).astype(np.uint8)
+            if args.shoe_scale < 1.0:
+                frame, _ = squash_shoes(frame, args.shoe_scale)
+            result.append(add_outline(frame, edge_colour))
+        return result
+
+    def landmarks(frame):
+        """Height of the shirt collar above the ground and x centre of the torso."""
+        a = frame[..., 3] > 0
+        white = a & (frame[..., :3].min(2) > 185)
+        collar = next(y for y in range(frame.shape[0]) if white[y].sum() >= 6)
+        torso = np.nonzero(a[collar:collar + 30])[1]
+        return frame.shape[0] - 1 - collar, torso.mean()
+
+    base = args.legs[2] if args.legs else 1.0
+    factors = [base] * args.frames
+    out_frames = build(factors)
+    if args.legs and args.bob < 1.0:
+        # The video bobs a lot; lengthen/shorten the legs per frame so the body bobs
+        # only `bob` as much (feet stay on the ground, no up-down shake)
+        heights = np.array([landmarks(f)[0] for f in out_frames], float)
+        region = (args.legs[1] - args.legs[0]) * args.height
+        target = heights.mean() + args.bob * (heights - heights.mean())
+        factors = [f + (t - h) / region for f, t, h in zip(factors, target, heights)]
+        out_frames = build(factors)
+
+    # Line every frame up on the torso (no side-to-side shake) and on the ground
+    centres_x = np.array([landmarks(f)[1] for f in out_frames])
+    shifts = np.round(centres_x.mean() - centres_x).astype(int)
+    pad = int(np.abs(shifts).max())
+    out_h = max(f.shape[0] for f in out_frames)
+    out_w = out_frames[0].shape[1] + 2 * pad
+    sheet = Image.new("RGBA", (out_w * args.frames, out_h), (0, 0, 0, 0))
+    for i, (frame, dx) in enumerate(zip(out_frames, shifts)):
+        sheet.paste(Image.fromarray(frame, "RGBA"), (i * out_w + pad + dx, out_h - frame.shape[0]))
+    print("collar heights", [landmarks(f)[0] for f in out_frames], "x shifts", shifts.tolist())
     sheet.save(args.out)
-    print(f"{args.frames} frames of {out_w}x{args.height} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
+    print(f"{args.frames} frames of {out_w}x{out_h} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
 
 
 if __name__ == "__main__":

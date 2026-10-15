@@ -15,6 +15,13 @@ extends Camera2D
 @export var max_x := 380.0
 
 var _target_x := 320.0
+## ระยะเลื่อนกล้องออกจากตัวละคร (ค่อยๆ เลื่อน) ตอนตาม follow
+var _extra := 0.0
+var _x := 0.0
+
+
+func _ready() -> void:
+	_x = position.x
 
 
 func pan_to(x: float) -> void:
@@ -25,10 +32,13 @@ func _process(delta: float) -> void:
 	var viewport_width := get_viewport_rect().size.x
 	var mouse_x := get_viewport().get_mouse_position().x
 	var sway := clampf(mouse_x / viewport_width - 0.5, -0.5, 0.5) * 2.0 * mouse_sway
-	var goal: float
+	var t := 1.0 - exp(-follow_speed * delta)
 	if follow:
+		# ล็อกกล้องกับตัวละครตรงๆ (ตัวละครไม่สั่นบนจอตอนเดิน) ส่วนที่ค่อยๆ เลื่อนคือระยะเยื้อง:
 		# camera_x ในบทกลายเป็นการเลื่อนกล้องออกจากตัวละคร (320 = ตรงกลาง)
-		goal = follow.position.x + follow_offset + (_target_x - 320.0) + sway
+		_extra = lerpf(_extra, follow_offset + (_target_x - 320.0) + sway, t)
+		position.x = follow.position.x + roundf(_extra)
 	else:
-		goal = clampf(_target_x + sway, min_x, max_x)
-	position.x = lerpf(position.x, goal, 1.0 - exp(-follow_speed * delta))
+		_x = lerpf(_x, clampf(_target_x + sway, min_x, max_x), t)
+		# ปัดเป็นพิกเซลเต็ม ภาพพิกเซลจึงคมไม่สั่น
+		position.x = roundf(_x)
