@@ -325,28 +325,8 @@ def build_road(sky, city, fill, back):
     rail.alpha_composite(back)
     mirror(rail, RAIL_Y, rail.size[0]).save(OUT / "rail_reflect.png")
 
-    h = 360
-    road = np.zeros((h, TILE, 4))
-    yy, xx = np.mgrid[0:h, 0:TILE]
-    dither = BAYER[yy % 4, xx % 4]
-    # Puddles (wrap around the tile edge): the asphalt is thinner there, so more reflection
-    puddle = np.zeros((h, TILE), bool)
-    for _ in range(7):
-        cx, cy = rng.uniform(0, TILE), rng.uniform(ROAD_TOP + 12, 350)
-        for _k in range(3):
-            ex, ey = cx + rng.uniform(-25, 25), cy + rng.uniform(-3, 3)
-            rx, ry = rng.uniform(18, 50), rng.uniform(3, 7)
-            for off in (-TILE, 0, TILE):
-                puddle |= ((xx - ex - off) / rx) ** 2 + ((yy - ey) / ry) ** 2 < 1
-    asphalt_far, asphalt_near = np.array((58, 52, 96)), np.array((30, 28, 58))
-    for y in range(ROAD_TOP, h):
-        t = (y - ROAD_TOP) / (h - ROAD_TOP)
-        road[y, :, :3] = np.floor((asphalt_far * (1 - t) + asphalt_near * t) / 6 + dither[y, :, None] * 0.9) * 6
-        # Damp asphalt shows only a faint sheen (more at the far edge, where we look
-        # at it at a grazing angle); the puddles are real mirrors
-        sheen = 0.12 + 0.10 * (1 - t) ** 2
-        road[y, :, 3] = np.where(puddle[y], 0.28, 1 - sheen) * 255
-    img = Image.fromarray(np.clip(road, 0, 255).astype(np.uint8), "RGBA")
+    road = road_surface()
+    img = road
     img.alpha_composite(hedge())
     d = ImageDraw.Draw(img)
     # Far curb + low fence under the trees, kerb highlight, edge line, cracks, a manhole
@@ -359,17 +339,110 @@ def build_road(sky, city, fill, back):
     d.line([(0, ROAD_TOP - 13), (TILE, ROAD_TOP - 13)], fill=(56, 50, 88, 255))
     for x in range(0, TILE, 36):  # dashed edge line (720 / 36 = 20 per tile)
         d.line([(x, ROAD_TOP + 6), (x + 20, ROAD_TOP + 6)], fill=(200, 190, 210, 255))
-    for _ in range(10):
+    for _ in range(16):  # cracks, some branching
         x, y = rng.randint(20, TILE - 60), rng.randint(ROAD_TOP + 14, 350)
         pts = [(x, y)]
-        for _k in range(4):
-            x += rng.randint(3, 9)
+        for _k in range(rng.randint(3, 7)):
+            x += rng.randint(2, 8)
             y += rng.randint(-1, 1)
             pts.append((x, y))
         d.line(pts, fill=(22, 18, 40, 255))
+        if rng.random() < 0.5:
+            bx, by = pts[len(pts) // 2]
+            d.line([(bx, by), (bx + rng.randint(-4, 4), by + rng.choice((-2, 2)))], fill=(26, 22, 46, 255))
     d.ellipse((520, 300, 566, 309), fill=(40, 36, 66, 255), outline=(20, 16, 36, 255))
     d.ellipse((526, 302, 560, 307), outline=(70, 64, 100, 255))
     img.save(OUT / "road.png")
+
+
+def tile_noise(h, w, cell, nrng):
+    """Smooth value noise in [0, 1] that wraps left-right (w must be a multiple of cell)."""
+    gh, gw = h // cell + 2, w // cell
+    g = nrng.random((gh, gw))
+    y = np.arange(h) / cell
+    x = np.arange(w) / cell
+    y0, x0 = y.astype(int), x.astype(int)
+    fy, fx = (y - y0)[:, None], (x - x0)[None, :]
+    fy, fx = fy * fy * (3 - 2 * fy), fx * fx * (3 - 2 * fx)
+    x1 = (x0 + 1) % gw
+    a, b = g[y0][:, x0], g[y0][:, x1]
+    c, d = g[y0 + 1][:, x0], g[y0 + 1][:, x1]
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def road_surface(block=2):
+    """Asphalt for the road layer, drawn at 1/block resolution (chunky pixels) and
+    semi-transparent where it is wet, so the reflection layers below show through.
+    Wetness fades out gradually (dithered steps) instead of hard puddle edges; even the
+    deepest puddle keeps some asphalt and ripples on top, so it is not a mirror.
+    The surface has aggregate grain, patches, repairs, oil stains and tyre tracks."""
+    nrng = np.random.default_rng(12)
+    h, w = 360 // block, TILE // block
+    top = ROAD_TOP // block
+    yy, xx = np.mgrid[0:h, 0:w]
+    t = np.clip((yy - top) / (h - top), 0, 1)            # 0 at the far kerb, 1 at the bottom
+    dither = BAYER[yy % 4, xx % 4]
+
+    # --- wetness: soft puddles with ragged edges + damp patches + wetter gutter by the kerb
+    ragged = tile_noise(h, w, 6, nrng)
+    wet = np.zeros((h, w))
+    for _ in range(8):
+        cx, cy = nrng.uniform(0, w), nrng.uniform(top + 6, h - 4)
+        rx, ry = nrng.uniform(14, 34), nrng.uniform(2.5, 6) * (0.7 + 0.6 * (cy - top) / (h - top))
+        for off in (-w, 0, w):
+            dist = np.sqrt(((xx - cx - off) / rx) ** 2 + ((yy - cy) / ry) ** 2)
+            dist = dist * (0.8 + 0.5 * ragged)              # ragged outline
+            wet = np.maximum(wet, np.clip(1.3 - dist, 0, 1))
+    damp = tile_noise(h, w, 30, nrng)
+    wet = np.maximum(wet, np.clip(damp - 0.45, 0, 1) * 0.9)
+    wet = np.maximum(wet, np.clip(1 - (yy - top) / 6, 0, 1) * 0.55)   # gutter by the kerb
+    levels = 4                                               # dithered steps, pixel-art style
+    wetq = np.floor(np.clip(wet, 0, 1) * levels + dither * 0.999) / levels
+    wetq = np.clip(wetq, 0, 1)
+
+    # --- dry asphalt colour and texture
+    far, near = np.array((60, 54, 96.0)), np.array((32, 30, 58.0))
+    col = far * (1 - t[..., None]) + near * t[..., None]
+    col += (tile_noise(h, w, 12, nrng)[..., None] - 0.5) * 14          # uneven tone
+    grain = nrng.random((h, w))
+    col[grain < 0.07] += 16                                           # light aggregate
+    col[grain > 0.95] -= 12                                           # dark pits
+    for ty in (0.38, 0.47, 0.78, 0.88):                               # tyre tracks (worn, darker)
+        band = np.abs(t - ty) < 0.035
+        col[band] -= 6
+    for _ in range(4):                                                # patched repairs
+        px, py = int(nrng.uniform(0, w)), int(nrng.uniform(top + 4, h - 10))
+        pw, ph = int(nrng.uniform(10, 26)), int(nrng.uniform(3, 7))
+        cols = np.arange(px, px + pw) % w
+        col[py:py + ph][:, cols] = col[py:py + ph][:, cols] * 0.88 + 4
+        col[py, cols] -= 8
+        col[py + ph - 1, cols] -= 8
+    for _ in range(5):                                                # oil stains
+        cx, cy = nrng.uniform(0, w), nrng.uniform(top + 8, h - 4)
+        rx, ry = nrng.uniform(3, 8), nrng.uniform(1, 2.5)
+        for off in (-w, 0, w):
+            m = ((xx - cx - off) / rx) ** 2 + ((yy - cy) / ry) ** 2 < 1
+            col[m] = col[m] * 0.75 + np.array((14, 6, 24)) * 0.25
+    col *= (1 - 0.28 * wetq)[..., None]                                # wet asphalt is darker
+    col = np.floor(col / 6 + dither[..., None] * 0.9) * 6
+
+    # --- how much reflection shows: a little on damp asphalt (more at a grazing angle,
+    # far away), at most about half in the deepest puddles
+    show = (0.06 + 0.1 * (1 - t) ** 2) + wetq * (0.42 + 0.1 * (1 - t))
+    alpha = 1 - np.clip(show, 0, 0.62)
+
+    # --- ripples / sky glints on the puddles: short light dashes on the surface
+    glint = (wetq >= 0.75) & (nrng.random((h, w)) < 0.05)
+    glint_x = glint | np.roll(glint, 1, axis=1)
+    col[glint_x] = np.array((150, 126, 176))
+    alpha[glint_x] = 0.85
+
+    out = np.zeros((h, w, 4))
+    out[..., :3] = col
+    out[..., 3] = alpha * 255
+    out[:top] = 0
+    img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
+    return img.resize((TILE, 360), Image.NEAREST)
 
 
 def periodic(clumps, w):
