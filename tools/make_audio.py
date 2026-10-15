@@ -4,6 +4,8 @@ Outputs (assets/audio/, Ogg Vorbis):
   ambience_evening.ogg  24 s seamless loop: city hum, breeze, crickets, a cicada swell
                         (only things you hear but don't see; birds and the train make
                         their sounds when they are on screen)
+  ambience_morning.ogg  24 s seamless loop for the morning scene: city hum, breeze and
+                        small birds chirping now and then (no crickets or cicada)
   train_pass.ogg        3.2 s seamless loop of a train on a viaduct: rumble, motor
                         whine and the clack-clack of the wheels over rail joints
   step_1..3.ogg         footsteps on wet asphalt (soft scuff + tiny splash)
@@ -12,7 +14,7 @@ Outputs (assets/audio/, Ogg Vorbis):
 Everything that loops is built circularly (noise shaped in the frequency domain,
 events wrapped around the end), so the loops have no seam.
 
-Usage: python3 tools/make_audio.py   (needs ffmpeg with libvorbis)
+Usage: python3 tools/make_audio.py [FILE.ogg ...]   (needs ffmpeg with libvorbis; no names = all)
 """
 import subprocess
 import tempfile
@@ -85,6 +87,20 @@ def ambience(seconds=24):
     return out * 0.9
 
 
+def ambience_morning(seconds=24):
+    n = SR * seconds
+    out = np.zeros(n)
+    out += 0.14 * shaped_noise(n, 25, 180, -0.6) * slow_lfo(n, 2, 0.3)          # city hum
+    out += 0.05 * shaped_noise(n, 250, 1400) * slow_lfo(n, 3, 0.8, 0.4)         # breeze
+    k, seed = 0.6, 300
+    while k < seconds - 0.2:                                                     # birds, near and far
+        call = bird_call(seed)
+        place(out, call * rng.uniform(0.06, 0.16), int(k * SR))
+        seed += 1
+        k += rng.uniform(0.8, 3.2)
+    return out * 0.9
+
+
 def train_loop(seconds=3.2):
     n = int(SR * seconds)
     out = 0.32 * shaped_noise(n, 30, 420, -0.4)                                  # rumble
@@ -146,10 +162,15 @@ def save_ogg(name, x, peak=0.8):
 
 
 if __name__ == "__main__":
+    import sys
     OUT.mkdir(parents=True, exist_ok=True)
-    save_ogg("ambience_evening.ogg", ambience(), 0.7)
-    save_ogg("train_pass.ogg", train_loop(), 0.8)
+    files = {"ambience_evening.ogg": lambda: save_ogg("ambience_evening.ogg", ambience(), 0.7),
+             "ambience_morning.ogg": lambda: save_ogg("ambience_morning.ogg", ambience_morning(), 0.7),
+             "train_pass.ogg": lambda: save_ogg("train_pass.ogg", train_loop(), 0.8)}
     for i in range(3):
-        save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
-        save_ogg(f"bird_{i + 1}.ogg", bird_call(200 + i), 0.6)
+        files[f"step_{i + 1}.ogg"] = lambda i=i: save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
+        files[f"bird_{i + 1}.ogg"] = lambda i=i: save_ogg(f"bird_{i + 1}.ogg", bird_call(200 + i), 0.6)
+    # name files to (re)make only those (encoding again changes the bytes of the others)
+    for name in sys.argv[1:] or list(files):
+        files[name]()
     print("audio written to", OUT)
