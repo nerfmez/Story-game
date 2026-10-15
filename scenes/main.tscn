@@ -168,7 +168,7 @@ volume_db = -14.0
 
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
-repeat_size = Vector2(957, 0)
+repeat_size = Vector2(958, 0)
 repeat_times = 3
 
 [node name="Fill" type="Sprite2D" parent="Railway"]
@@ -243,7 +243,7 @@ centered = false
 
 [node name="RailReflection" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
-repeat_size = Vector2(957, 0)
+repeat_size = Vector2(958, 0)
 repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="RailReflection"]

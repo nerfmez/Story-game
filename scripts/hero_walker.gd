@@ -3,12 +3,16 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
-## ภาพยืน: 8 เฟรมจาก tools/make_idle_anim.py (4 ท่าหายใจ + 4 ท่าเดียวกันแบบหลับตา)
+## ภาพยืน: 14 เฟรมจาก tools/make_idle_anim.py (7 ท่าหายใจ + 7 ท่าเดียวกันแบบหลับตา)
 ## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
-@export var idle_frames := 8
-## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 ไหล่ลง, 2 หัวตามลง (ผมค้าง), 3 ลงสุด ผมตกตาม
-@export var breath_steps: Array[Vector2] = [Vector2(0, 1.0), Vector2(1, 0.18), Vector2(2, 0.18), Vector2(3, 0.9), Vector2(2, 0.16), Vector2(1, 0.16)]
+@export var idle_frames := 14
+## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 ไหล่ลง, 2 หัวตาม (ผมค้าง), 3 ลงสุด, 4 ผมเด้งเกิน,
+## 5 ไหล่ขึ้น (หัวยังลง), 6 หัวขึ้น (ผมค้าง)
+@export var breath_steps: Array[Vector2] = [
+	Vector2(0, 0.9), Vector2(1, 0.14), Vector2(2, 0.14), Vector2(3, 0.12), Vector2(4, 0.14),
+	Vector2(3, 0.8), Vector2(5, 0.14), Vector2(6, 0.14),
+]
 ## กะพริบตาทุกๆ กี่วินาที (สุ่มในช่วงนี้) และนานเท่าไร
 @export var blink_every := Vector2(2.2, 5.0)
 @export var blink_time := 0.13
@@ -95,9 +99,9 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.flip_h = facing_right
 
 
-## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+4 ถ้ากำลังกะพริบตา)
+## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+7 ถ้ากำลังกะพริบตา)
 func _idle_frame() -> int:
-	if idle_frames < 8:
+	if idle_frames < 14:
 		return 0
 	var total := 0.0
 	for step in breath_steps:
@@ -109,4 +113,4 @@ func _idle_frame() -> int:
 			pose = int(step.x)
 			break
 		t -= step.y
-	return pose + (4 if _blink_left > 0.0 else 0)
+	return pose + (7 if _blink_left > 0.0 else 0)

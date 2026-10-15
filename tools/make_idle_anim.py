@@ -1,13 +1,20 @@
 """Make the idle (standing) frames from the single idle sprite, no video needed.
 
-Pixel-art breathing with overlapping action, whole pixels only (nothing stretched):
-  0 rest
-  1 shoulders 1px down, head still (the neck gains one row)
-  2 head follows, hair tips still up (the hair gains one row)
-  3 everything 1px down, hair settled (one shirt row hidden under the chest)
-then 4-7 are the same four poses with the eyes closed. Every added or hidden row is
-the one in its area that looks most like its neighbour, so the face and chin keep
-their exact shape and no seam shows.
+Pixel-art breathing with overlapping action, whole pixels only (nothing stretched).
+The sprite is cut into bands at quiet rows (hair | head | body | legs) and each pose
+moves the bands by whole pixels; where two bands part, the row between is doubled,
+where they meet, one row is hidden. Cuts sit at the row that looks most like its
+neighbour (in the hair, below the chin, mid-shirt), so the face keeps its exact shape.
+
+Poses (offsets of hair / head / body in pixels):
+  0 rest              0 0 0
+  1 shoulders down    0 0 1
+  2 head follows      0 1 1   (hair tips lag behind)
+  3 down              1 1 1
+  4 hair overshoots   2 1 1
+  5 shoulders rise    1 1 0   (head still down)
+  6 head rises        1 0 0   (hair lags)
+then 7-13 are the same poses with the eyes closed.
 
 Usage:
   python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png
@@ -31,13 +38,21 @@ def close_eyes(a, eyes):
     return out
 
 
-def drop(a, top, row):
-    """Move rows top..row-1 down one pixel (row `row` is covered). Row `top` keeps its
-    old content, i.e. it is doubled (top = 0 leaves an empty first row instead)."""
-    out = a.copy()
-    out[top + 1:row + 1] = a[top:row]
-    if top == 0:
-        out[0] = 0
+def pose(a, cuts, offsets):
+    """Move each band of rows down by its offset. cuts = (hair_end, head_end, body_end);
+    rows below body_end stay put. Overlaps hide rows; gaps double the row above."""
+    h = a.shape[0]
+    bands = [(0, cuts[0]), (cuts[0], cuts[1]), (cuts[1], cuts[2]), (cuts[2], h)]
+    offs = list(offsets) + [0]
+    out = np.zeros_like(a)
+    filled = np.zeros(h, bool)
+    for (y0, y1), off in reversed(list(zip(bands, offs))):   # legs first, hair last (on top)
+        out[y0 + off:y1 + off] = a[y0:min(y1, h - off)]
+        filled[y0 + off:y1 + off] = True
+    for y in range(1, h):                                      # gaps: repeat the row above
+        if not filled[y] and filled[y - 1]:
+            out[y] = out[y - 1]
+            filled[y] = True
     return out
 
 
@@ -68,10 +83,9 @@ def main():
     chest = quiet_row(a, *args.chest)
     neck = quiet_row(a, *args.neck)
     hair = quiet_row(a, *args.hair)
-    shoulders = drop(a, neck, chest)
-    head = drop(a, hair, chest)
-    down = drop(a, 0, chest)
-    poses = [(a, 0), (shoulders, 0), (head, 1), (down, 1)]
+    cuts = (hair, neck, chest)
+    offsets = [(0, 0, 0), (0, 0, 1), (0, 1, 1), (1, 1, 1), (2, 1, 1), (1, 1, 0), (1, 0, 0)]
+    poses = [(pose(a, cuts, o), o[1]) for o in offsets]
     frames = [p for p, _ in poses] + [close_eyes(p, [(x, y + dy) for x, y in eyes]) for p, dy in poses]
     print("rows: hair", hair, "neck", neck, "chest", chest)
     h, w = a.shape[:2]
