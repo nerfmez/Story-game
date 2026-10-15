@@ -6,9 +6,9 @@ extends Node3D
 ## เมื่อมีโมเดลจริงจาก Blender แล้ว ให้วางโมเดลไว้ใต้โหนด Set แทนกล่องพวกนี้
 ## เงาสะท้อนจะสร้างให้อัตโนมัติจากทุกอย่างใต้ Set
 
-const SKY_TEX := preload("res://assets/bg/01_sky.png")
-const CITY_TEX := preload("res://assets/bg/02_city_far.png")
-const LEAVES_TEX := preload("res://assets/bg/06_foreground.png")
+const SKY_TEX := preload("res://assets/bg/hd2d/01_sky.png")
+const CITY_TEX := preload("res://assets/bg/hd2d/02_city_far.png")
+const LEAVES_TEX := preload("res://assets/bg/hd2d/06_foreground.png")
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const TEX := {
 	"plaster": preload("res://assets/textures/plaster.png"),

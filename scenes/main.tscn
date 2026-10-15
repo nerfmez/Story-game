@@ -1,19 +1,17 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
 [ext_resource type="Script" path="res://scripts/train.gd" id="3_train"]
 [ext_resource type="Texture2D" path="res://assets/bg/01_sky.png" id="4_sky"]
 [ext_resource type="Texture2D" path="res://assets/bg/02_city_far.png" id="5_city"]
-[ext_resource type="Texture2D" path="res://assets/bg/03_train.png" id="6_train"]
-[ext_resource type="Texture2D" path="res://assets/bg/04_mid.png" id="7_mid"]
-[ext_resource type="Texture2D" path="res://assets/bg/05_ground.png" id="8_ground"]
-[ext_resource type="Texture2D" path="res://assets/bg/06_foreground.png" id="9_fg"]
-[ext_resource type="Texture2D" path="res://assets/characters/player.png" id="10_player"]
-[ext_resource type="Texture2D" path="res://assets/characters/friend_girl.png" id="11_girl"]
-[ext_resource type="Texture2D" path="res://assets/characters/friend_glasses.png" id="12_glasses"]
-[ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="13_dialogue"]
-[ext_resource type="Texture2D" path="res://assets/characters/friend_ponytail.png" id="14_ponytail"]
+[ext_resource type="Texture2D" path="res://assets/bg/03_street.png" id="6_street"]
+[ext_resource type="Texture2D" path="res://assets/bg/03_train.png" id="7_train"]
+[ext_resource type="Texture2D" path="res://assets/bg/04_mid.png" id="8_mid"]
+[ext_resource type="Texture2D" path="res://assets/bg/05_ground.png" id="9_ground"]
+[ext_resource type="Texture2D" path="res://assets/bg/06_foreground.png" id="10_fg"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_uniform.png" id="11_hero"]
+[ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="12_dialogue"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0
@@ -42,7 +40,7 @@ position = Vector2(320, 180)
 script = ExtResource("2_camera")
 
 [node name="Sky" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.05, 0.05)
+scroll_scale = Vector2(0.03, 0.03)
 
 [node name="Sprite2D" type="Sprite2D" parent="Sky"]
 position = Vector2(-80, 0)
@@ -50,65 +48,63 @@ texture = ExtResource("4_sky")
 centered = false
 
 [node name="CityFar" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.25, 0.25)
+scroll_scale = Vector2(0.1, 0.1)
 
 [node name="Sprite2D" type="Sprite2D" parent="CityFar"]
 position = Vector2(-80, 0)
 texture = ExtResource("5_city")
 centered = false
 
+[node name="Street" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.2, 0.2)
+
+[node name="Sprite2D" type="Sprite2D" parent="Street"]
+position = Vector2(-80, 0)
+texture = ExtResource("6_street")
+centered = false
+
 [node name="TrainLayer" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.45, 0.45)
+scroll_scale = Vector2(0.28, 0.28)
 
 [node name="Train" type="Sprite2D" parent="TrainLayer"]
-position = Vector2(-320, 200)
-texture = ExtResource("6_train")
+position = Vector2(-1100, 124)
+texture = ExtResource("7_train")
 centered = false
 script = ExtResource("3_train")
+speed = 260.0
+auto_interval = 18.0
+start_x = -1100.0
+end_x = 800.0
 
 [node name="Mid" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.7, 0.7)
+scroll_scale = Vector2(0.45, 0.45)
 
 [node name="Sprite2D" type="Sprite2D" parent="Mid"]
 position = Vector2(-80, 0)
-texture = ExtResource("7_mid")
+texture = ExtResource("8_mid")
 centered = false
 
 [node name="Ground" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.6, 0.6)
 
 [node name="Sprite2D" type="Sprite2D" parent="Ground"]
 position = Vector2(-80, 0)
-texture = ExtResource("8_ground")
+texture = ExtResource("9_ground")
 centered = false
 
 [node name="Characters" type="Node2D" parent="."]
 
-[node name="FriendGirl" type="Sprite2D" parent="Characters"]
-position = Vector2(262, 205)
-texture = ExtResource("11_girl")
-centered = false
-
-[node name="Player" type="Sprite2D" parent="Characters"]
-position = Vector2(300, 205)
-texture = ExtResource("10_player")
-centered = false
-
-[node name="FriendGlasses" type="Sprite2D" parent="Characters"]
-position = Vector2(420, 205)
-texture = ExtResource("12_glasses")
-centered = false
-
-[node name="FriendPonytail" type="Sprite2D" parent="Characters"]
-position = Vector2(452, 205)
-texture = ExtResource("14_ponytail")
+[node name="Hero" type="Sprite2D" parent="Characters"]
+position = Vector2(290, 152)
+texture = ExtResource("11_hero")
 centered = false
 
 [node name="Foreground" type="Parallax2D" parent="."]
-scroll_scale = Vector2(1.3, 1.3)
+scroll_scale = Vector2(1.25, 1.25)
 
 [node name="Sprite2D" type="Sprite2D" parent="Foreground"]
 position = Vector2(-180, 0)
-texture = ExtResource("9_fg")
+texture = ExtResource("10_fg")
 centered = false
 
 [node name="UI" type="CanvasLayer" parent="."]
@@ -136,4 +132,4 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "ถ่ายวิดีโอหลังเลิกเรียน"
 
-[node name="DialogueBox" parent="UI" instance=ExtResource("13_dialogue")]
+[node name="DialogueBox" parent="UI" instance=ExtResource("12_dialogue")]

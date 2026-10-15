@@ -1,4 +1,6 @@
-"""Generate placeholder pixel-art layers for the parallax demo scene.
+"""Generate the simple placeholder layers used by the HD-2D scene (sky, city, leaves).
+
+The 2D scene uses the anime-style layers from tools/make_anime_bg.py instead.
 
 Replace the PNGs in assets/ with real art (e.g. exported from Aseprite)
 at any time; keep the same file names and roughly the same sizes.
@@ -12,7 +14,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-BG = ROOT / "assets" / "bg"
+BG = ROOT / "assets" / "bg" / "hd2d"
 
 # Base game resolution is 640x360. Layers are wider so the camera can pan.
 W, H = 800, 360
@@ -158,6 +160,6 @@ def foreground():
 
 if __name__ == "__main__":
     BG.mkdir(parents=True, exist_ok=True)
-    sky(); city_far(); train(); mid(); ground(); foreground()
+    sky(); city_far(); foreground()
     print("placeholder art written to", BG)
     print("characters: python3 tools/make_characters.py")
