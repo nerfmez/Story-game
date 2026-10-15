@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" path="res://assets/bg/06_foreground.png" id="10_fg"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_uniform.png" id="11_hero"]
 [ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="12_dialogue"]
+[ext_resource type="Texture2D" path="res://assets/characters/shadow.png" id="13_shadow"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0
@@ -93,6 +94,11 @@ texture = ExtResource("9_ground")
 centered = false
 
 [node name="Characters" type="Node2D" parent="."]
+
+[node name="HeroShadow" type="Sprite2D" parent="Characters"]
+position = Vector2(286, 269)
+texture = ExtResource("13_shadow")
+centered = false
 
 [node name="Hero" type="Sprite2D" parent="Characters"]
 position = Vector2(290, 152)

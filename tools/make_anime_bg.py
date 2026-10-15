@@ -54,24 +54,95 @@ def project(x, y, z):
     return (CX + F * x / z, HORIZON - F * (y - EYE) / z)
 
 
+class TrackedDraw:
+    """ImageDraw that also writes a per-shape ID map, used to draw anime line art.
+    Every shape gets a new ID; later shapes are in front of earlier ones."""
+
+    def __init__(self, layer):
+        self.layer = layer
+        self.img = ImageDraw.Draw(layer.img)
+        self.ids = ImageDraw.Draw(layer.ids)
+
+    def _next(self, noline):
+        self.layer.next_id += 1
+        if noline:
+            self.layer.noline.add(self.layer.next_id)
+        return self.layer.next_id
+
+    def polygon(self, pts, fill, noline=False):
+        self.img.polygon(pts, fill=fill)
+        self.ids.polygon(pts, fill=self._next(noline))
+
+    def line(self, pts, fill, width=1, noline=False):
+        self.img.line(pts, fill=fill, width=width)
+        self.ids.line(pts, fill=self._next(noline), width=width)
+
+    def ellipse(self, box, fill=None, noline=False, outline=None, width=1):
+        if outline:  # ring only (bicycle wheels)
+            self.img.ellipse(box, outline=outline, width=width)
+            self.ids.ellipse(box, outline=self._next(True), width=width)
+            return
+        self.img.ellipse(box, fill=fill)
+        self.ids.ellipse(box, fill=self._next(noline))
+
+    def rectangle(self, box, fill, noline=False):
+        self.img.rectangle(box, fill=fill)
+        self.ids.rectangle(box, fill=self._next(noline))
+
+
 class Layer:
-    def __init__(self, name):
+    def __init__(self, name, line_strength=1.0):
         self.name = name
+        self.line_strength = line_strength
         self.img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        self.draw = ImageDraw.Draw(self.img)
+        self.ids = Image.new("I", (W, H), 0)
+        self.next_id = 0
+        self.noline = set()
+        self.draw = TrackedDraw(self)
         self.glow = Image.new("RGB", (W, H), (0, 0, 0))  # emissive buffer for bloom
         self.glow_draw = ImageDraw.Draw(self.glow)
 
-    def poly(self, pts, col, glow=None):
-        self.draw.polygon([(round(x), round(y)) for x, y in pts], fill=col + (255,))
+    def poly(self, pts, col, glow=None, noline=False):
+        pts = [(round(x), round(y)) for x, y in pts]
+        self.draw.polygon(pts, fill=col + (255,), noline=noline)
         if glow:
-            self.glow_draw.polygon([(round(x), round(y)) for x, y in pts], fill=glow)
+            self.glow_draw.polygon(pts, fill=glow)
 
-    def quad3d(self, corners, col, glow=None):
-        self.poly([project(*c) for c in corners], col, glow)
+    def quad3d(self, corners, col, glow=None, noline=False):
+        self.poly([project(*c) for c in corners], col, glow, noline)
 
-    def line3d(self, a, b, col, width=1):
-        self.draw.line([project(*a), project(*b)], fill=col + (255,), width=width)
+    def line3d(self, a, b, col, width=1, noline=True):
+        self.draw.line([project(*a), project(*b)], fill=col + (255,), width=width, noline=noline)
+
+    def paste(self, arr, noline=False):
+        """Composite an RGBA array (trees, shrubs) as one outlined shape."""
+        img = Image.fromarray(arr, "RGBA")
+        self.img.alpha_composite(img)
+        self.next_id += 1
+        if noline:
+            self.noline.add(self.next_id)
+        mask = Image.fromarray(((arr[..., 3] > 0) * 255).astype(np.uint8), "L")
+        self.ids.paste(self.next_id, (0, 0), mask)
+
+    def line_art(self):
+        """1px outline wherever a shape meets something behind it (or empty space).
+        The line colour is a darker, cooler version of the shape's own colour
+        (selective outlining), faded by line_strength for distant layers."""
+        ids = np.asarray(self.ids).astype(np.int64)
+        rgba = np.asarray(self.img).astype(float)
+        noline = np.zeros(self.next_id + 2, bool)
+        for i in self.noline:
+            noline[i] = True
+        edge = np.zeros(ids.shape, bool)
+        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            nb = np.roll(np.roll(ids, dy, axis=0), dx, axis=1)
+            edge |= (ids > nb) & (ids > 0)
+        edge &= ~noline[ids]
+        line = rgba[..., :3] * 0.22 + np.array((22, 12, 42)) * 0.78
+        k = self.line_strength
+        rgba[edge, :3] = rgba[edge, :3] * (1 - k) + line[edge] * k
+        self.img = Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
+        self.draw = TrackedDraw(self)
 
     def finish(self, bloom=0.9):
         # Soft glow around light sources, then composite under the alpha of the layer
@@ -87,6 +158,7 @@ class Layer:
         rgb = np.where(alpha[..., None] == 0, add / np.maximum(spill[..., None], 1) * 255 * (spill[..., None] > 0), rgb)
         out = np.dstack([np.clip(rgb, 0, 255), np.clip(alpha_out, 0, 255)]).astype(np.uint8)
         self.img = Image.fromarray(out, "RGBA")
+        self.line_art()  # line art goes on top of the lighting, like inked cels
         self.img.save(BG / self.name)
 
 
@@ -131,7 +203,7 @@ def wire(layer, a, b, sag=0.5, col=(40, 34, 62), steps=24):
         p = [a[k] + (b[k] - a[k]) * t for k in range(3)]
         p[1] -= sag * 4 * t * (1 - t)
         pts.append(project(*p))
-    layer.draw.line(pts, fill=col + (255,), width=1)
+    layer.draw.line(pts, fill=col + (255,), width=1, noline=True)
 
 
 def windows(layer, x_face, z0, z1, y0, y1, rows, cols, lit_ratio, z_ref, facing_left=True):
@@ -180,6 +252,12 @@ def house(layer, side, z, depth, height, color):
     edge = face + 0.6 * -side
     layer.quad3d([(face, height, z - 0.4), (face, height, z + depth + 0.4), (edge, height - 0.6, z + depth + 0.4), (edge, height - 0.6, z - 0.4)], roof)
     layer.line3d((edge, height - 0.6, z - 0.4), (edge, height - 0.6, z + depth + 0.4), haze(RIM if side < 0 else (110, 90, 130), z))
+    # Siding lines on the street-facing wall and tile ridges on the roof edge
+    for k in range(1, int(height / 0.7)):
+        layer.line3d((face, k * 0.7, z), (face, k * 0.7, z + depth), haze(mix(side_col, SHADE_DARK, 0.25), z))
+    for k in range(int(depth / 0.6) + 1):
+        zz = z - 0.4 + k * 0.6
+        layer.line3d((face, height, zz), (edge, height - 0.6, zz), haze((50, 44, 78), z))
     # Air conditioner units and a sign now and then
     if rng.random() < 0.6:
         y = rng.uniform(1.0, height - 1.5)
@@ -275,7 +353,7 @@ def paint_sky():
 
 
 def paint_far():
-    layer = Layer("02_city_far.png")
+    layer = Layer("02_city_far.png", line_strength=0.25)
     # Distant mountains + skyline, heavy haze
     pts = [(0, HORIZON - 6)]
     for x in range(0, W + 40, 40):
@@ -305,7 +383,7 @@ def paint_far():
 
 
 def paint_street():
-    layer = Layer("03_street.png")
+    layer = Layer("03_street.png", line_strength=0.6)
     # Road + sidewalks from Z 18..60
     layer.quad3d([(-5.2, 0, 18), (5.2, 0, 18), (5.2, 0, 61), (-5.2, 0, 61)], (110, 96, 140))
     layer.quad3d([(-3.5, 0, 18), (3.5, 0, 18), (3.5, 0, 61), (-3.5, 0, 61)], (78, 70, 112))
@@ -342,7 +420,7 @@ def paint_street():
 
 
 def paint_mid(street_tops):
-    layer = Layer("04_mid.png")
+    layer = Layer("04_mid.png", line_strength=0.95)
     # Road and sidewalks Z 7.5..18
     layer.quad3d([(-30, 0, 7.5), (30, 0, 7.5), (30, 0, 18.2), (-30, 0, 18.2)], (100, 88, 130))
     layer.quad3d([(-3.5, 0, 7.5), (3.5, 0, 7.5), (3.5, 0, 18.2), (-3.5, 0, 18.2)], (74, 66, 106))
@@ -372,13 +450,13 @@ def paint_mid(street_tops):
         tree_pal = [(24, 36, 58), (34, 54, 66), (48, 76, 74), (74, 108, 80), (120, 146, 88)]
         arr = shaded_blobs((W, H), blobs, (0.8, -0.2), tree_pal, (220, 200, 120), 0.04)
         layer.draw.line([base, (top[0], top[1] + r)], fill=(60, 44, 54, 255), width=max(1, int(r * 0.12)))
-        paste_rgba(layer.img, arr, 0, 0)
+        layer.paste(arr)
     # Wall + gate pillars + name plate
     for k in range(10):  # shrubs peeking over the wall
         base = project(-6.0, 2.2, 7.8 + k * 0.8)
         r = F / (7.8 + k * 0.8) * 0.5
         blobs = [(base[0] + rng.gauss(0, r * 0.6), base[1] - r * 0.3 + rng.gauss(0, r * 0.3), r * rng.uniform(0.4, 0.7)) for _ in range(5)]
-        paste_rgba(layer.img, shaded_blobs((W, H), blobs, (0.8, -0.3), [(28, 44, 60), (44, 70, 70), (76, 108, 80), (122, 150, 90)], (220, 200, 120)), 0, 0)
+        layer.paste(shaded_blobs((W, H), blobs, (0.8, -0.3), [(28, 44, 60), (44, 70, 70), (76, 108, 80), (122, 150, 90)], (220, 200, 120)))
     wall_side = mix(mix(school, SHADE, 0.35), RIM, 0.25)
     box(layer, -5.6, -5.2, 0, 2.2, 7.5, 15.5, mix(school, SHADE_DARK, 0.5), wall_side, school, top=mix(school, RIM, 0.6))
     layer.quad3d([(-5.2, 2.0, 7.5), (-5.2, 2.0, 15.5), (-5.2, 2.2, 15.5), (-5.2, 2.2, 7.5)], mix(school, SHADE, 0.6))  # coping
@@ -407,6 +485,19 @@ def paint_mid(street_tops):
     wood = (150, 96, 80)
     box(layer, 5.0, 11.0, 0, 3.6, 7.5, 13.0, mix(wood, SHADE, 0.5), wood, mix(wood, SHADE, 0.6))
     layer.quad3d([(5.0, 0.0, 7.9), (5.0, 0.0, 12.6), (5.0, 2.6, 12.6), (5.0, 2.6, 7.9)], (255, 196, 120), glow=(255, 150, 70))
+    front_wood = mix(wood, SHADE, 0.5)
+    for k in range(1, 15):
+        layer.line3d((5.0 + k * 0.4, 0.05, 7.5), (5.0 + k * 0.4, 3.55, 7.5), mix(front_wood, SHADE_DARK, 0.35))
+    layer.quad3d([(6.0, 1.1, 7.49), (7.6, 1.1, 7.49), (7.6, 2.3, 7.49), (6.0, 2.3, 7.49)], (255, 210, 150), glow=(160, 110, 60))  # side window
+    layer.quad3d([(6.75, 1.1, 7.48), (6.85, 1.1, 7.48), (6.85, 2.3, 7.48), (6.75, 2.3, 7.48)], mix(front_wood, SHADE_DARK, 0.4))
+    for k, pc in enumerate(((240, 230, 200), (250, 190, 120))):  # menu posters
+        x0 = 8.2 + k * 0.9
+        layer.quad3d([(x0, 1.2, 7.49), (x0 + 0.7, 1.2, 7.49), (x0 + 0.7, 2.2, 7.49), (x0, 2.2, 7.49)], pc)
+        for r in range(3):
+            layer.line3d((x0 + 0.1, 1.95 - r * 0.25, 7.48), (x0 + 0.6, 1.95 - r * 0.25, 7.48), (150, 90, 80))
+    for k in range(4):  # noren curtain at the entrance
+        z0 = 8.0 + k * 0.5
+        layer.quad3d([(4.98, 2.6, z0), (4.98, 2.6, z0 + 0.45), (4.98, 2.0, z0 + 0.45), (4.98, 2.0, z0)], (60, 70, 140))
     for k in range(7):  # shelves with goods inside
         y = 0.9 + (k % 3) * 0.55
         zz = 8.3 + (k // 3) * 1.4
@@ -430,6 +521,8 @@ def paint_mid(street_tops):
     layer.draw.line([sb[0], sb[1]], fill=(255, 200, 150, 255))
     _sign_text(layer, "ชาเย็น น้ำปั่น", sb)
 
+    street_details(layer)
+
     # --- Railway crossing on both sides of the road
     for side in (-1, 1):
         crossing(layer, 4.0 * side, 15.2, side)
@@ -443,6 +536,49 @@ def paint_mid(street_tops):
     wire(layer, tops[-1][3], tops[1][4], sag=0.5)
     layer.finish(1.0)
     return tops
+
+
+def street_details(layer):
+    # Zebra crossing in front of the stop line
+    for k in range(8):
+        x0 = -3.2 + k * 0.82
+        layer.quad3d([(x0, 0.01, 13.2), (x0 + 0.45, 0.01, 13.2), (x0 + 0.45, 0.01, 14.3), (x0, 0.01, 14.3)], (214, 206, 226))
+    # Convex traffic mirror (orange pole, round mirror showing the sunset)
+    mx, mz = 3.85, 10.5
+    box(layer, mx - 0.05, mx + 0.05, 0, 2.6, mz, mz + 0.1, (230, 110, 50), (250, 150, 80), (200, 90, 40))
+    c = project(mx - 0.35, 2.75, mz)
+    r = F / mz * 0.33
+    layer.draw.ellipse((c[0] - r - 1, c[1] - r - 1, c[0] + r + 1, c[1] + r + 1), fill=(236, 110, 50, 255))
+    layer.draw.ellipse((c[0] - r + 1, c[1] - r + 1, c[0] + r - 1, c[1] + r - 1), fill=(220, 160, 170, 255))
+    layer.draw.ellipse((c[0] - r + 2, c[1], c[0] + r - 2, c[1] + r - 1), fill=(120, 96, 150, 255), noline=True)
+    layer.draw.line([(c[0] - r * 0.4, c[1] - r * 0.5), (c[0] - r * 0.1, c[1] - r * 0.6)], fill=(255, 240, 230, 255), noline=True)
+    # Blue road sign on the school side
+    sx, sz = -4.85, 9.4
+    box(layer, sx - 0.04, sx + 0.04, 0, 2.3, sz, sz + 0.08, (150, 150, 170), (190, 190, 210), (120, 120, 140))
+    c = project(sx, 2.55, sz)
+    r = F / sz * 0.3
+    layer.draw.ellipse((c[0] - r, c[1] - r, c[0] + r, c[1] + r), fill=(240, 240, 250, 255))
+    layer.draw.ellipse((c[0] - r + 1, c[1] - r + 1, c[0] + r - 1, c[1] + r - 1), fill=(56, 96, 190, 255))
+    layer.draw.polygon([(c[0], c[1] - r * 0.6), (c[0] + r * 0.45, c[1] + r * 0.1), (c[0] - r * 0.45, c[1] + r * 0.1)], fill=(250, 250, 255, 255), noline=True)
+    layer.draw.rectangle((c[0] - 1, c[1], c[0] + 1, c[1] + r * 0.6), fill=(250, 250, 255, 255), noline=True)
+    # Bicycle parked in front of the shop
+    bz = 7.3
+    w1, w2 = project(3.7, 0.33, bz), project(4.6, 0.33, bz)
+    wr = F / bz * 0.33
+    for w in (w1, w2):
+        layer.draw.ellipse((w[0] - wr, w[1] - wr, w[0] + wr, w[1] + wr), outline=(34, 28, 52, 255), width=2)
+        layer.draw.ellipse((w[0] - 1, w[1] - 1, w[0] + 1, w[1] + 1), fill=(150, 150, 170, 255), noline=True)
+    seat, bar = project(3.95, 0.95, bz), project(4.5, 1.05, bz)
+    for a, b in ((w1, seat), (seat, bar), (bar, w2), (seat, (w1[0] + (w2[0] - w1[0]) * 0.45, w1[1])), ((w1[0] + (w2[0] - w1[0]) * 0.45, w1[1]), w2)):
+        layer.draw.line([a, b], fill=(70, 150, 200, 255), width=2)
+    layer.draw.rectangle((bar[0] - 3, bar[1] - 4, bar[0] + 3, bar[1] - 1), fill=(200, 200, 210, 255))  # basket
+    # Potted plants by the shop and the school gate
+    for px, pz in ((4.75, 7.6), (4.75, 13.0), (-4.95, 13.8)):
+        box(layer, px - 0.22, px + 0.22, 0, 0.45, pz, pz + 0.4, (170, 96, 70), (200, 120, 90), (140, 80, 60), top=(90, 60, 50))
+        top = project(px, 0.75, pz)
+        rr = F / pz * 0.4
+        blobs = [(top[0] + rng.gauss(0, rr * 0.4), top[1] + rng.gauss(0, rr * 0.3), rr * rng.uniform(0.35, 0.6)) for _ in range(6)]
+        layer.paste(shaded_blobs((W, H), blobs, (0.8, -0.4), [(30, 60, 60), (48, 90, 70), (80, 130, 80), (140, 170, 90)], (230, 210, 130)))
 
 
 def crossing(layer, x, z, side):
@@ -495,7 +631,7 @@ def _sign_text(layer, text, quad):
 
 
 def paint_ground():
-    layer = Layer("05_ground.png")
+    layer = Layer("05_ground.png", line_strength=0.9)
     # Near road Z 2..7.5 (drawn wider than the screen for panning), wet asphalt
     layer.quad3d([(-30, 0, 2.0), (30, 0, 2.0), (30, 0, 7.6), (-30, 0, 7.6)], (96, 86, 124))
     layer.quad3d([(-3.5, 0, 2.0), (3.5, 0, 2.0), (3.5, 0, 7.6), (-3.5, 0, 7.6)], (60, 56, 92))
@@ -513,6 +649,29 @@ def paint_ground():
         fall = np.clip(1 - np.abs(xx - sx) / width, 0, 1) * np.clip((yy - top) / 30.0, 0, 1) * np.clip(1 - (yy - top) / 140.0, 0, 1)
         fall = np.floor(fall * 5 + dither * 0.9) / 5
         img[..., :3] += (np.array(col) - img[..., :3]) * fall[..., None] * 0.6 * (img[..., 3:] > 0)
+    layer.img = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGBA")
+    layer.draw = TrackedDraw(layer)
+    # Manhole cover, drain grates along the curbs, cracks, faded centre line
+    mc = project(1.2, 0, 5.0)
+    rx, ry = F / 5.0 * 0.35, F / 5.0 * 0.07
+    layer.draw.ellipse((mc[0] - rx, mc[1] - ry, mc[0] + rx, mc[1] + ry), fill=(70, 66, 96, 255))
+    layer.draw.ellipse((mc[0] - rx + 2, mc[1] - ry + 1, mc[0] + rx - 2, mc[1] + ry - 1), fill=(86, 80, 112, 255))
+    for side in (-1, 1):
+        for gz in (3.0, 5.5):
+            layer.quad3d([(3.05 * side, 0, gz), (3.4 * side, 0, gz), (3.4 * side, 0, gz + 0.8), (3.05 * side, 0, gz + 0.8)], (52, 48, 76))
+            for k in range(5):
+                layer.line3d((3.05 * side, 0, gz + 0.15 * k + 0.1), (3.4 * side, 0, gz + 0.15 * k + 0.1), (90, 84, 116))
+    for k in range(3):
+        layer.quad3d([(-0.06, 0, 2.2 + k * 2.0), (0.06, 0, 2.2 + k * 2.0), (0.06, 0, 3.2 + k * 2.0), (-0.06, 0, 3.2 + k * 2.0)], (120, 112, 140))
+    for _ in range(6):
+        cx_, cz = rng.uniform(-3, 3), rng.uniform(2.5, 7)
+        pts = [project(cx_, 0, cz)]
+        for _k in range(4):
+            cx_ += rng.uniform(-0.4, 0.4)
+            cz += rng.uniform(0.1, 0.3)
+            pts.append(project(cx_, 0, cz))
+        layer.draw.line(pts, fill=(44, 40, 70, 255), width=1, noline=True)
+    img = np.asarray(layer.img).astype(float)
     # Puddles: irregular, mirror the sunset sky, brighter towards their far edge
     for _ in range(7):
         px, pz = rng.choice((-1, 1)) * rng.uniform(0.5, 3.4), rng.uniform(2.6, 7.0)
@@ -528,7 +687,7 @@ def paint_ground():
         sky = np.array((255, 196, 150)) * (1 - t[..., None]) + np.array((110, 80, 150)) * t[..., None]
         img[m, :3] = sky[m] * 0.6 + img[m, :3] * 0.4
     layer.img = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGBA")
-    layer.draw = ImageDraw.Draw(layer.img)
+    layer.draw = TrackedDraw(layer)
     layer.finish(0.5)
 
 
