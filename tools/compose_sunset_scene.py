@@ -610,9 +610,9 @@ def build_foreground(block=2):
         for off in (0, w):
             d.line([(p[0] + off, p[1]) for p in pts], fill=colour, width=width)
     for k, (dx, y0) in enumerate(((-17, 8), (-9, 8), (8, 8), (-7, 16))):
-        sag_line(px + dx, y0, 30 + 7 * k)
+        sag_line(px + dx, y0, 13 + 4 * k)
     for k in range(3):                    # telecom bundle
-        sag_line(px - 4, 42 + k, 24 + 4 * k, colour=(24, 18, 38) if k % 2 else wire)
+        sag_line(px - 4, 36 + k, 10 + 2 * k, colour=(24, 18, 38) if k % 2 else wire)
     # --- tapered concrete pole
     for y in range(h):
         half = int(round(4.5 + 1.6 * y / h))
@@ -650,8 +650,8 @@ def build_foreground(block=2):
     d.rectangle((px - 24, 26, px - 19, 28), fill=(40, 34, 60))
     d.line([(px - 23, 29), (px - 20, 29)], fill=(255, 226, 180))
     # --- coiled cable loop and junction box
-    d.ellipse((px + 3, 46, px + 11, 54), outline=wire)
-    d.ellipse((px + 4, 47, px + 10, 53), outline=(28, 22, 42))
+    d.ellipse((px + 3, 40, px + 11, 48), outline=wire)
+    d.ellipse((px + 4, 41, px + 10, 47), outline=(28, 22, 42))
     d.rectangle((px - 11, 56, px - 6, 63), fill=(70, 66, 92))
     d.line([(px - 11, 56), (px - 6, 56)], fill=(150, 130, 150))
     d.point((px - 9, 59), fill=(220, 90, 80))
