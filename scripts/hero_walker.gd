@@ -12,6 +12,10 @@ extends Node2D
 ## ความเร็วเดิน (พิกเซล/วินาที) = เท้าที่วางบนพื้นในภาพเลื่อน ~5.9 พิกเซล/เฟรม x 12 เฟรม/วินาที
 ## ต้องเท่ากันพอดี ไม่งั้นเท้าไถลบนถนนและดูกระตุกทุกก้าว
 @export var speed := 71.0
+## เฟรมที่เท้าแตะพื้น (เล่นเสียงเท้า)
+@export var step_frames: Array[int] = [4, 11]
+## เสียงเท้า (AudioStreamRandomizer ที่สุ่มเสียง/ระดับเสียงให้ไม่ซ้ำ)
+@export var step_sound: AudioStreamPlayer
 ## ภาพท่าเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกับภาพยืน (ตอนหันซ้าย / ตอนพลิกหันขวา)
 @export var walk_offset := Vector2(-20, 0)
 @export var walk_offset_flipped := Vector2(-5, 0)
@@ -26,6 +30,7 @@ var _anim_time := 0.0
 var touch_dir := 0.0
 ## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
 var _facing_right := false
+var _last_frame := -1
 
 
 func _ready() -> void:
@@ -43,8 +48,13 @@ func _process(delta: float) -> void:
 		_facing_right = dir > 0.0
 		_anim_time += delta
 		_set_pose(true, _facing_right)
+		var frame := int(_anim_time * walk_fps) % walk_frames
+		if frame != _last_frame and frame in step_frames and step_sound:
+			step_sound.play()
+		_last_frame = frame
 	else:
 		_anim_time = 0.0
+		_last_frame = -1
 		_set_pose(false, _facing_right)
 
 

@@ -20,6 +20,7 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
   rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
   road.png          wet asphalt (semi-transparent over the reflections), fence, hedge
   foreground.png    near utility pole + wires (960 wide tile)
+  bird.png          a small bird silhouette, 2 wing frames side by side (for the flocks)
 
 Usage: python3 tools/compose_sunset_scene.py
 """
@@ -298,6 +299,17 @@ def make_train(cars=4, car_w=56, gap=2):
     return out.resize((W * TRAIN_BLOCK, H * TRAIN_BLOCK), Image.NEAREST)
 
 
+def make_bird():
+    """Tiny backlit bird, two frames (wings up / wings down), 7x4 each."""
+    img = Image.new("RGBA", (14, 4), (0, 0, 0, 0))
+    ink = (40, 26, 52, 255)
+    for (x, y) in ((0, 0), (1, 1), (2, 2), (3, 2), (4, 2), (5, 1), (6, 0), (3, 3)):   # wings up
+        img.putpixel((x, y), ink)
+    for (x, y) in ((0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (1, 3), (5, 3), (3, 1)):
+        img.putpixel((7 + x, y), ink)                                                # wings down
+    return img
+
+
 def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
     """Mirror image rows above the road into the road rows (screen coordinates).
     src_y: screen y of src's row 0. Rows are squashed by MIRROR and wobbled with
@@ -527,5 +539,6 @@ if __name__ == "__main__":
     back, fill, city, train, deck_top = build_railway()
     build_road(sky, city, fill, back)
     build_foreground()
+    make_bird().save(OUT / "bird.png")
     print(f"layers written to {OUT}; railway tile {back.size[0]}px (RAIL_TILE), "
           f"train {train.size}, train top y in layer = {deck_top - train.size[1]}")

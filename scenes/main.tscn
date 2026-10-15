@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -25,6 +25,24 @@
 [ext_resource type="Texture2D" path="res://assets/ui/arrow_left_pressed.png" id="24_left_p"]
 [ext_resource type="Texture2D" path="res://assets/ui/arrow_right.png" id="25_right"]
 [ext_resource type="Texture2D" path="res://assets/ui/arrow_right_pressed.png" id="26_right_p"]
+[ext_resource type="AudioStream" path="res://assets/audio/ambience_evening.ogg" id="27_amb"]
+[ext_resource type="AudioStream" path="res://assets/audio/train_pass.ogg" id="28_train_snd"]
+[ext_resource type="AudioStream" path="res://assets/audio/step_1.ogg" id="29_step1"]
+[ext_resource type="AudioStream" path="res://assets/audio/step_2.ogg" id="30_step2"]
+[ext_resource type="AudioStream" path="res://assets/audio/step_3.ogg" id="31_step3"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/bird.png" id="32_bird"]
+[ext_resource type="Script" path="res://scripts/birds.gd" id="33_birds"]
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
+random_pitch = 1.12
+random_volume_offset_db = 2.0
+streams_count = 3
+stream_0/stream = ExtResource("29_step1")
+stream_0/weight = 1.0
+stream_1/stream = ExtResource("30_step2")
+stream_1/weight = 1.0
+stream_2/stream = ExtResource("31_step3")
+stream_2/weight = 1.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -82,6 +100,13 @@ position = Vector2(0, -47)
 texture = ExtResource("19_city")
 centered = false
 
+[node name="Birds" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.05, 0.05)
+
+[node name="Flock" type="Node2D" parent="Birds"]
+script = ExtResource("33_birds")
+bird_texture = ExtResource("32_bird")
+
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
 repeat_size = Vector2(957, 0)
@@ -100,7 +125,7 @@ centered = false
 [node name="TrainLayer" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
 
-[node name="Train" type="Sprite2D" parent="TrainLayer"]
+[node name="Train" type="Sprite2D" parent="TrainLayer" node_paths=PackedStringArray("sound")]
 position = Vector2(-700, 163)
 texture = ExtResource("7_train")
 centered = false
@@ -108,6 +133,11 @@ script = ExtResource("3_train")
 speed = 90.0
 auto_interval = 12.0
 across_screen = true
+sound = NodePath("Sound")
+
+[node name="Sound" type="AudioStreamPlayer" parent="TrainLayer/Train"]
+stream = ExtResource("28_train_snd")
+volume_db = -34.0
 
 [node name="SkyReflection" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.01, 0.01)
@@ -162,11 +192,16 @@ centered = false
 
 [node name="Characters" type="Node2D" parent="."]
 
-[node name="Hero" type="Node2D" parent="Characters"]
+[node name="Hero" type="Node2D" parent="Characters" node_paths=PackedStringArray("step_sound")]
 position = Vector2(290, 152)
 script = ExtResource("18_walker")
 idle_texture = ExtResource("11_hero")
 walk_texture = ExtResource("21_walk")
+step_sound = NodePath("Steps")
+
+[node name="Steps" type="AudioStreamPlayer" parent="Characters/Hero"]
+stream = SubResource("AudioStreamRandomizer_steps")
+volume_db = -9.0
 
 [node name="Reflection" type="Sprite2D" parent="Characters/Hero"]
 material = SubResource("ShaderMaterial_reflection")
@@ -192,6 +227,11 @@ repeat_times = 3
 position = Vector2(-280, 0)
 texture = ExtResource("10_fg")
 centered = false
+
+[node name="Ambience" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("27_amb")
+volume_db = -5.0
+autoplay = true
 
 [node name="UI" type="CanvasLayer" parent="."]
 
