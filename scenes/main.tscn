@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -20,6 +20,7 @@
 [ext_resource type="Script" path="res://scripts/hero_walker.gd" id="18_walker"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/city.png" id="19_city"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/city_reflect.png" id="20_city_reflect"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_walk.png" id="21_walk"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -179,6 +180,8 @@ centered = false
 [node name="Hero" type="Node2D" parent="Characters"]
 position = Vector2(290, 152)
 script = ExtResource("18_walker")
+idle_texture = ExtResource("11_hero")
+walk_texture = ExtResource("21_walk")
 
 [node name="Reflection" type="Sprite2D" parent="Characters/Hero"]
 material = SubResource("ShaderMaterial_reflection")
