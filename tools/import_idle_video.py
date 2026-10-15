@@ -34,12 +34,28 @@ from import_walk_video import (add_outline, cell_sample, features, is_green,  # 
 
 # Second strap, relative to the collar row (first row with 6+ white shirt pixels) and
 # the outline of the free shoulder 8 rows below it: (dy, dx, width) per row.
-# Shaped like the original strap on the other shoulder: wide where it crosses the top
-# of the shoulder, then curving outward over the chest as the bag's weight pulls it
-# back, tapering and slipping under the armpit.
-STRAP = [(-1, 7, 1), (0, 4, 5), (1, 5, 3), (2, 5, 3), (3, 4, 3), (4, 4, 3),
-         (5, 3, 3), (6, 3, 3), (7, 3, 2), (8, 3, 1)]
+# Following the reference art (art_source/hero_two_straps_ref.png): over the top of
+# the shoulder, then down the side of the chest next to the sleeve, bowing slightly
+# outward with the chest, to below the sleeve where the arm covers it, with a metal
+# adjuster buckle about a third of the way down. Both straps get a buckle.
+STRAP = ([(-1, 6, 2), (0, 4, 4), (1, 5, 3)] + [(dy, 5, 2) for dy in range(2, 8)]
+         + [(dy, 4, 2) for dy in range(8, 17)] + [(17, 3, 2), (18, 3, 2), (19, 3, 1)])
+BUCKLE_DY = 7                       # high enough that the original strap is still in view there
 STRAP_DARK, STRAP_MID, STRAP_LIT = (26, 30, 70, 255), (40, 52, 104, 255), (62, 78, 140, 255)
+METAL, METAL_DARK = (196, 196, 214, 255), (96, 96, 122, 255)
+
+
+def is_navy(px):
+    r, g, b = int(px[0]), int(px[1]), int(px[2])
+    return px[3] > 0 and b > r + 20 and b > g + 10 and max(r, g, b) < 150
+
+
+def add_buckle(out, y, x):
+    """2x2 metal adjuster with a dark lower edge, centred on a strap at (x, y)."""
+    out[y, x] = METAL
+    out[y, x + 1] = METAL
+    out[y + 1, x] = METAL_DARK
+    out[y + 1, x + 1] = METAL_DARK
 
 
 def add_strap(frame):
@@ -56,11 +72,23 @@ def add_strap(frame):
                 continue
             if width == 1:
                 colour = STRAP_MID
-            elif dy == 0:                      # top of the shoulder catches the light
-                colour = STRAP_LIT if 0 < k < width - 1 else STRAP_MID
+            elif dy <= 0:                      # top of the shoulder catches the light
+                colour = STRAP_LIT if k > 0 else STRAP_MID
             else:
-                colour = STRAP_DARK if k == 0 else (STRAP_LIT if k == width - 1 else STRAP_MID)
+                colour = STRAP_DARK if k == 0 else STRAP_LIT
             out[y, x] = colour
+    by = collar + BUCKLE_DY
+    bx = left + [dx for dy, dx, _ in STRAP if dy == BUCKLE_DY][0]
+    add_buckle(out, by, bx)
+    # the original strap on the other shoulder: first navy run just right of the middle
+    # (further out is the bag itself)
+    # The strap shifts a little from frame to frame, so look a couple of rows around too.
+    mid = frame.shape[1] // 2
+    for y in (by, by - 1, by + 1, by - 2, by + 2):
+        xs = [x for x in range(mid, mid + 10) if is_navy(frame[y, x]) and is_navy(frame[y, x + 1])]
+        if xs:
+            add_buckle(out, y, xs[0])
+            break
     return out
 
 
