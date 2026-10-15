@@ -42,6 +42,8 @@ TILE = 720                          # repeat width of railway/road layers (fence
 CROP_X0 = 48                        # the railway art's trees start here in the 800px-wide scaled image
 SKY_TILE = 1600                     # sky + mirrored sky
 FG_TILE = 960                       # one near utility pole per foreground tile
+RAIL_BLOCK = 3                      # railway trees/viaduct: 3x3 game pixels per art pixel (like the hedge)
+TRAIN_BLOCK = 2                     # train: 2x2 game pixels per art pixel
 MIRROR = 1.6                        # reflection squash: we look down at the road
 ROAD_TOP = 258                      # first row of road in screen space
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
@@ -130,6 +132,33 @@ def split_city(b, bottom=238):
     return city, mask
 
 
+def pixelate(img, block, colours=48, rails=()):
+    """Scale source art to game size with chunky block x block pixels: average down to
+    1/block of the game size, cut the colours to a small palette (crisp, flat areas like
+    hand-made pixel art), then blow each pixel up to block x block.
+    Foliage and the grey-blue structure get palettes of their own, so the many greens
+    don't push the viaduct's colours green. `rails` = (source row, colour) lines that are
+    too thin to survive the averaging; they are drawn back as one pixel row each."""
+    w, h = img.size
+    sw, sh = round(w * SCALE / block), round(h * SCALE / block)
+    small = img.resize((sw, sh), Image.BOX)              # Pillow resamples RGBA premultiplied
+    a = np.asarray(small).astype(int)
+    solid = a[..., 3] > 128
+    green = (a[..., 1] > a[..., 2] + 4) | (a[..., 1] > a[..., 0] + 30)
+    out = np.zeros((sh, sw, 3), np.uint8)
+    for part, n in ((green, colours * 2 // 3), (~green, colours // 3)):
+        px = a[..., :3][part & solid].astype(np.uint8)
+        if not len(px):
+            continue
+        q = Image.fromarray(px[None]).quantize(n, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        out[part & solid] = np.asarray(q.convert("RGB"))[0]
+    for row, colour in rails:
+        y = round(row * sh / h)
+        out[y][solid[y]] = colour
+    rgba = np.dstack([out, solid * 255]).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA").resize((sw * block, sh * block), Image.NEAREST)
+
+
 def seamless(img):
     """Make a wide strip tile: overlap its end on its start and cut along the path
     where the two differ least (through gaps, the deck, similar foliage).
@@ -180,13 +209,16 @@ def build_railway():
     # --- The railway layer itself: the long viaduct strip, made into a tile and
     # scaled like the other art, with its rails at the same height as before
     deck_top = int(489 * SCALE)  # the near rail's top (where the train's wheels run) in layer pixels
-    strip = scaled(seamless(Image.open(SRC / "railway_long.png").convert("RGBA")))
-    sa = np.asarray(strip)
+    tile = seamless(Image.open(SRC / "railway_long.png").convert("RGBA"))
     # Rails = rows whose pixels are mostly the warm rail highlight (trees above the
     # deck can also be solid all the way across, so opacity alone is not enough).
-    # There are two rails; the train's wheels stand on the near (lower) one.
-    lit = np.nonzero(np.median(sa[..., 0], axis=1) > 150)[0]
-    rails = lit[np.r_[0, np.nonzero(np.diff(lit) > 2)[0] + 1][-1]]
+    # There are two; the train's wheels stand on the near (lower) one.
+    ta = np.asarray(tile)
+    lit = np.nonzero(np.median(ta[..., 0], axis=1) > 150)[0]
+    groups = np.split(lit, np.nonzero(np.diff(lit) > 2)[0] + 1)
+    rail_lines = [(int(g[0]), tuple(int(v) for v in np.median(ta[g[0], :, :3], axis=0))) for g in groups]
+    strip = pixelate(tile, RAIL_BLOCK, rails=rail_lines)
+    rails = round(groups[-1][0] * strip.size[1] / tile.size[1] / RAIL_BLOCK) * RAIL_BLOCK
     back = Image.new("RGBA", (strip.size[0], 451), (0, 0, 0, 0))
     back.paste(strip, (0, deck_top - rails))
     back.save(OUT / "railway_back.png")
@@ -201,84 +233,69 @@ def build_railway():
     return back, fill, city, train, deck_top
 
 
-def make_train(cars=4, car_w=112, gap=3):
-    """Side view of a Bangkok-skytrain-style train at dusk (no logos), wheels on
-    the bottom row: light grey roof, red line under it, white upper body with a
-    black glass window band, royal-blue lower body, black cab faces outlined in
-    red. The side is in shade (the sun is behind), so colours are a bit muted;
-    the roof edge catches the sunset. Moves right; cab at both ends."""
-    H = 24
+def make_train(cars=4, car_w=56, gap=2):
+    """Side view of a Bangkok-skytrain-style train at dusk (no logos), drawn at
+    1/TRAIN_BLOCK resolution and scaled up so its pixels are chunky. Light grey roof,
+    red line, white upper body with a black glass window band, royal-blue lower body,
+    black cab faces outlined in red. The side is in shade (sun behind); the roof edge
+    catches the sunset. Wheels on the bottom row. Moves right; cab at both ends."""
+    H = 12
     W = cars * car_w + (cars - 1) * gap
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     ink = (20, 18, 36, 255)
-    rim, roof, roof_lo = (250, 184, 136, 255), (156, 156, 178, 255), (122, 122, 150, 255)
-    red, red_lo = (206, 46, 58, 255), (150, 34, 52, 255)
-    white, white_lo = (206, 208, 226, 255), (170, 174, 202, 255)
-    glass, glass_hi, glow = (26, 26, 40, 255), (64, 68, 96, 255), (120, 96, 76, 255)
-    blue, blue_lo, skirt = (40, 70, 168, 255), (30, 52, 132, 255), (24, 32, 80, 255)
-    door_gap, under, bogie = (110, 114, 146, 255), (36, 34, 54, 255), (28, 26, 44, 255)
+    rim, roof = (250, 184, 136, 255), (150, 150, 174, 255)
+    red = (206, 46, 58, 255)
+    white, white_lo = (206, 208, 226, 255), (164, 168, 198, 255)
+    glass, glow = (26, 26, 40, 255), (112, 90, 74, 255)
+    blue, blue_lo = (40, 70, 168, 255), (28, 48, 128, 255)
+    bogie, wheel = (30, 28, 46, 255), (14, 12, 26, 255)
     trng = random.Random(3)
     for c in range(cars):
         x0 = c * (car_w + gap)
         x1 = x0 + car_w - 1
-        d.rectangle((x0, 1, x1, 2), fill=roof)
-        d.line([(x0 + 2, 0), (x1 - 2, 0)], fill=rim)            # sunlit roof edge
-        d.line([(x0, 3), (x1, 3)], fill=roof_lo)
-        d.line([(x0, 4), (x1, 4)], fill=red)                    # red line under the roof
-        d.rectangle((x0, 5, x1, 12), fill=white)
-        d.line([(x0, 12), (x1, 12)], fill=white_lo)
-        d.rectangle((x0, 13, x1, 18), fill=blue)                # blue lower body
-        d.line([(x0, 18), (x1, 18)], fill=blue_lo)
-        d.line([(x0, 19), (x1, 19)], fill=skirt)
-        # black glass window band, interrupted by 4 doors with tall windows
-        doors = [x0 + 10 + k * (car_w - 26) // 3 for k in range(4)]
-        d.rectangle((x0 + 2, 6, x1 - 2, 10), fill=glass)
-        for wx in range(x0 + 3, x1 - 2, 9):                     # window pillars + dim cabin light
-            d.line([(wx, 6), (wx, 10)], fill=white_lo)
-            if trng.random() < 0.6:
-                d.line([(wx + 2, 9), (wx + 6, 9)], fill=glow)
-        d.line([(x0 + 2, 6), (x1 - 2, 6)], fill=glass_hi)       # sky glint on the glass
-        for dx in doors:
-            d.rectangle((dx - 1, 5, dx + 7, 18), fill=door_gap)
-            for wx in (dx, dx + 4):
-                d.rectangle((wx, 5, wx + 2, 18), fill=white if wx == dx else white_lo)
-                d.rectangle((wx + 1, 6, wx + 1, 12), fill=glass)
-                d.rectangle((wx, 13, wx + 2, 18), fill=blue if wx == dx else blue_lo)
-        # bogies with two wheels each, equipment boxes between them
-        for bx in (x0 + 10, x1 - 22):
-            d.rectangle((bx, 20, bx + 12, 21), fill=bogie)
-            for wx in (bx + 2, bx + 8):
-                d.ellipse((wx - 1, 20, wx + 2, 23), fill=(16, 14, 28, 255))
-                d.point((wx, 21), fill=(96, 92, 120, 255))
-        d.rectangle((x0 + 30, 20, x1 - 32, 21), fill=under)
-        if c < cars - 1:                                         # gangway to the next car
-            d.rectangle((x1 + 1, 5, x1 + gap, 18), fill=(30, 28, 48, 255))
-    # Cab ends: rounded, sloped black face outlined in red, white and blue below it,
-    # headlight in front (right end), tail light at the back
-    for end, sign in ((W - 1, -1), (0, 1)):
-        for k in range(6):                                       # round off the top corner
-            for y in range(0, max(0, 5 - k)):
-                img.putpixel((end + sign * k, y), (0, 0, 0, 0))
-        for y in range(3, 14):
-            depth = 7 if y > 4 else 7 - (5 - y) * 2
-            for k in range(0, depth):
-                img.putpixel((end + sign * k, y), glass)
-            img.putpixel((end + sign * depth, y), red)           # red outline of the face
-        for k in range(0, 8):
-            img.putpixel((end + sign * k, 13), red_lo if k < 7 else red)
-        img.putpixel((end + sign * 1, 6), glass_hi)
-        img.putpixel((end + sign * 2, 6), glass_hi)
-        light = (255, 244, 214, 255) if sign < 0 else (236, 52, 52, 255)
-        for k in (1, 2, 3):
-            img.putpixel((end + sign * k, 12), light)
-    # 1px dark outline around the silhouette (the sunlit roof edge stays)
-    a = np.asarray(img).copy()
+        d.line([(x0 + 1, 0), (x1 - 1, 0)], fill=rim)            # sunlit roof edge
+        d.line([(x0, 1), (x1, 1)], fill=roof)
+        d.line([(x0, 2), (x1, 2)], fill=red)                    # red line under the roof
+        d.rectangle((x0, 3, x1, 6), fill=white)
+        d.rectangle((x0 + 1, 4, x1 - 1, 5), fill=glass)         # black window band
+        for wx in range(x0 + 2, x1 - 1, 5):
+            if trng.random() < 0.5:
+                d.point((wx + 2, 5), fill=glow)                 # dim cabin light
+        d.rectangle((x0, 7, x1, 9), fill=blue)
+        d.line([(x0, 9), (x1, 9)], fill=blue_lo)
+        for k in range(4):                                       # doors
+            dx = x0 + 5 + k * (car_w - 13) // 3
+            d.rectangle((dx, 3, dx + 2, 9), fill=white_lo)
+            d.point((dx + 1, 4), fill=glass)
+            d.point((dx + 1, 5), fill=glass)
+            d.line([(dx, 7), (dx + 2, 7)], fill=blue_lo)
+            d.line([(dx, 8), (dx + 2, 8)], fill=blue_lo)
+        for bx in (x0 + 4, x1 - 10):                             # bogies + wheels
+            d.rectangle((bx, 10, bx + 6, 10), fill=bogie)
+            d.point((bx + 1, 11), fill=wheel)
+            d.point((bx + 5, 11), fill=wheel)
+        d.line([(x0 + 14, 10), (x1 - 14, 10)], fill=bogie)
+        if c < cars - 1:
+            d.rectangle((x1 + 1, 3, x1 + gap, 8), fill=(30, 28, 48, 255))
+    for end, sign in ((W - 1, -1), (0, 1)):                      # cab faces
+        img.putpixel((end, 0), (0, 0, 0, 0))
+        img.putpixel((end + sign, 0), (0, 0, 0, 0))
+        img.putpixel((end, 1), (0, 0, 0, 0))
+        for y in range(1, 7):
+            depth = 3 if y > 1 else 2
+            for k in range(depth):
+                if (end + sign * k, y) != (end, 1):
+                    img.putpixel((end + sign * k, y), glass)
+            img.putpixel((end + sign * depth, y), red)
+        img.putpixel((end + sign, 7), (255, 244, 214, 255) if sign < 0 else (236, 52, 52, 255))
+    a = np.asarray(img).copy()                                   # 1px dark outline
     solid = a[..., 3] > 0
     edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
     keep = (a[..., 0] == rim[0]) & (a[..., 1] == rim[1])
     a[edge & ~keep] = ink
-    return Image.fromarray(a, "RGBA")
+    out = Image.fromarray(a, "RGBA")
+    return out.resize((W * TRAIN_BLOCK, H * TRAIN_BLOCK), Image.NEAREST)
 
 
 def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
