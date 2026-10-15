@@ -95,16 +95,10 @@ def add_strap(frame):
     return out
 
 
-def direct(args, frames, masks):
-    """Keep the video's colours: scale so the figure is as tall as the still, then give
-    each game pixel the median colour at the centre of its cell (no blending across
-    cells, so edges and the drawn outline stay crisp)."""
-    ref = Image.open(args.palette)
-    heights = [np.nonzero(m.any(1))[0] for m in masks]
-    fig_h = np.median([h.max() - h.min() + 1 for h in heights])
-    scale = ref.size[1] / fig_h
+def sample(frames, masks, out_w, out_h):
+    """Each game pixel takes the median colour at the centre of its cell (no blending
+    across cells, so edges and the drawn outline stay crisp)."""
     ch, cw = masks[0].shape
-    out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
     sy, sx = ch / out_h, cw / out_w
     q = max(1, int(min(sx, sy) * 0.25))
     result = []
@@ -120,16 +114,81 @@ def direct(args, frames, masks):
                 if m.mean() >= 0.5:
                     out[j, i, :3] = np.median(rgb[ys, xs][m], axis=0)
                     out[j, i, 3] = 255
-        if not args.no_strap:
-            out = add_strap(out)
         result.append(out)
+    return result
+
+
+def poly_terms(rgb):
+    r, g, b = (rgb[:, k] / 255.0 for k in range(3))
+    return np.stack([np.ones_like(r), r, g, b, r * r, g * g, b * b, r * g, r * b, g * b], 1)
+
+
+def colour_match(frames, ref):
+    """Match the colours to the still (which the walk is mapped to) with one smooth
+    function of colour (quadratic in RGB) for every pixel of every frame: shading
+    stays exactly as in the video, only the overall tone shifts, so no blotches.
+    Fitted on the first frame laid over the still (the clip starts from that pose)."""
+    f0 = frames[0]
+    fh, fw = f0.shape[:2]
+    rh, rw = ref.shape[:2]
+    best = None
+    for dy in range(-3, 4):
+        for dx in range(-4, 5):
+            ys0, xs0 = max(0, dy), max(0, dx)
+            a = f0[ys0:ys0 + rh, xs0:xs0 + rw] if dy >= 0 and dx >= 0 else None
+            if a is None or a.shape[:2] != (rh, rw):
+                continue
+            both = (a[..., 3] > 0) & (ref[..., 3] > 0)
+            err = np.abs(a[..., :3].astype(float) - ref[..., :3])[both].mean() + 60 * (1 - both.mean())
+            if best is None or err < best[0]:
+                best = (err, a)
+    # the frames are wider/taller than the still: also try the still placed inside
+    a = best[1]
+    both = (a[..., 3] > 0) & (ref[..., 3] > 0)
+    src = a[..., :3][both].astype(float)
+    dst = ref[..., :3][both].astype(float)
+    keep = np.ones(len(src), bool)
+    for _ in range(4):                       # drop pixels where the poses differ
+        coef, *_ = np.linalg.lstsq(poly_terms(src[keep]), dst[keep], rcond=None)
+        res = np.abs(poly_terms(src) @ coef - dst).sum(1)
+        keep = res < np.percentile(res, 70)
+    out = []
+    for f in frames:
+        g = f.copy()
+        op = g[..., 3] > 0
+        g[..., :3][op] = np.clip(poly_terms(g[..., :3][op].astype(float)) @ coef, 0, 255).round()
+        out.append(g)
+    return out
+
+
+def direct(args, frames, masks):
+    """Keep the video's shading: scale so the shirt collar is as high above the ground
+    as in the still (as the walk is), sample, then match the overall colours."""
+    ref = np.asarray(Image.open(args.palette).convert("RGBA"))
+    idle_collar = landmarks(ref)[0]
+    heights = [np.nonzero(m.any(1))[0] for m in masks]
+    fig_h = np.median([h.max() - h.min() + 1 for h in heights])
+    scale = ref.shape[0] / fig_h
+    ch, cw = masks[0].shape
+    for _ in range(3):                       # measure the collar and rescale
+        out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
+        result = sample(frames, masks, out_w, out_h)
+        collar = np.mean([landmarks(f)[0] for f in result])
+        if abs(collar - idle_collar) < 0.35:
+            break
+        scale *= idle_collar / collar
+    if not args.keep_colours:
+        result = colour_match(result, ref)
+    if not args.no_strap:
+        result = [add_strap(f) for f in result]
     sheet = Image.new("RGBA", (out_w * len(result), out_h), (0, 0, 0, 0))
     for i, f in enumerate(result):
         sheet.paste(Image.fromarray(f, "RGBA"), (i * out_w, 0))
     sheet.save(args.out)
     marks = [landmarks(f) for f in result]
-    print(f"{len(result)} frames of {out_w}x{out_h} -> {args.out} (video colours kept); collar heights",
-          sorted({int(h) for h, _ in marks}), "torso x", round(float(np.mean([x for _, x in marks])), 2))
+    print(f"{len(result)} frames of {out_w}x{out_h} -> {args.out} (video shading kept); collar heights",
+          sorted({int(h) for h, _ in marks}), "mean", round(float(np.mean([h for h, _ in marks])), 2),
+          "(still", idle_collar, ") torso x", round(float(np.mean([x for _, x in marks])), 2))
 
 
 def main():
@@ -142,6 +201,8 @@ def main():
     ap.add_argument("--palette", required=True, help="idle sprite whose colours and proportions to match")
     ap.add_argument("--materials", type=int, default=9)
     ap.add_argument("--no-strap", action="store_true", help="don't draw the second backpack strap")
+    ap.add_argument("--keep-colours", action="store_true",
+                    help="don't match the overall colours to the still")
     ap.add_argument("--recolour", action="store_true",
                     help="map colours to the still's shades (only for videos whose colours are off)")
     args = ap.parse_args()
