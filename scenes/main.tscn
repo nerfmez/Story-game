@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -15,6 +15,9 @@
 [ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="13_dialogue"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/railway_fill.png" id="14_rail_fill"]
 [ext_resource type="Shader" path="res://shaders/water_reflection.gdshader" id="15_water"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/sky_reflect.png" id="16_sky_reflect"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/rail_reflect.png" id="17_rail_reflect"]
+[ext_resource type="Script" path="res://scripts/hero_walker.gd" id="18_walker"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -45,28 +48,35 @@ camera = NodePath("Camera2D")
 train = NodePath("Railway/TrainClip/Train")
 other_scene = "res://scenes/street_anime.tscn"
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("follow")]
 position = Vector2(320, 180)
 script = ExtResource("2_camera")
+follow = NodePath("../Characters/Hero")
+follow_offset = 30.0
+mouse_sway = 12.0
 
 [node name="Sky" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.03, 0.03)
+repeat_size = Vector2(1600, 0)
+repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="Sky"]
-position = Vector2(-80, 0)
+position = Vector2(0, 0)
 texture = ExtResource("5_sky")
 centered = false
 
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.25, 0.25)
+repeat_size = Vector2(720, 0)
+repeat_times = 3
 
 [node name="Fill" type="Sprite2D" parent="Railway"]
-position = Vector2(-80, -47)
+position = Vector2(0, -47)
 texture = ExtResource("14_rail_fill")
 centered = false
 
 [node name="Back" type="Sprite2D" parent="Railway"]
-position = Vector2(-80, -47)
+position = Vector2(0, -47)
 texture = ExtResource("6_rail_back")
 centered = false
 
@@ -74,8 +84,8 @@ centered = false
 clip_contents = true
 layout_mode = 3
 anchors_preset = 0
-offset_left = 148.0
-offset_right = 592.0
+offset_left = 179.0
+offset_right = 624.0
 offset_bottom = 360.0
 mouse_filter = 2
 
@@ -90,32 +100,41 @@ start_x = -700.0
 end_x = 460.0
 
 [node name="Front" type="Sprite2D" parent="Railway"]
-position = Vector2(-80, -47)
+position = Vector2(0, -47)
 texture = ExtResource("8_rail_front")
 centered = false
 
-[node name="Road" type="Parallax2D" parent="."]
-scroll_scale = Vector2(0.6, 0.6)
+[node name="SkyReflection" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.03, 0.03)
+repeat_size = Vector2(1600, 0)
+repeat_times = 3
 
-[node name="Sprite2D" type="Sprite2D" parent="Road"]
-position = Vector2(-80, 0)
-texture = ExtResource("9_road")
+[node name="Sprite2D" type="Sprite2D" parent="SkyReflection"]
+position = Vector2(0, 0)
+texture = ExtResource("16_sky_reflect")
 centered = false
 
-[node name="TrainReflection" type="Parallax2D" parent="."]
+[node name="RailReflection" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.25, 0.25)
+repeat_size = Vector2(720, 0)
+repeat_times = 3
 
-[node name="Clip" type="Control" parent="TrainReflection"]
+[node name="Sprite2D" type="Sprite2D" parent="RailReflection"]
+position = Vector2(0, 0)
+texture = ExtResource("17_rail_reflect")
+centered = false
+
+[node name="Clip" type="Control" parent="RailReflection"]
 clip_contents = true
 layout_mode = 3
 anchors_preset = 0
-offset_left = 148.0
+offset_left = 179.0
 offset_top = 262.0
-offset_right = 592.0
+offset_right = 624.0
 offset_bottom = 360.0
 mouse_filter = 2
 
-[node name="Reflection" type="Sprite2D" parent="TrainReflection/Clip" node_paths=PackedStringArray("target")]
+[node name="TrainReflection" type="Sprite2D" parent="RailReflection/Clip" node_paths=PackedStringArray("target")]
 modulate = Color(0.62, 0.55, 0.78, 0.75)
 position = Vector2(-700, 39)
 scale = Vector2(1, 0.625)
@@ -125,29 +144,43 @@ flip_v = true
 script = ExtResource("4_follow")
 target = NodePath("../../../Railway/TrainClip/Train")
 
+[node name="Road" type="Parallax2D" parent="."]
+repeat_size = Vector2(720, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="Road"]
+position = Vector2(0, 0)
+texture = ExtResource("9_road")
+centered = false
+
 [node name="Characters" type="Node2D" parent="."]
 
-[node name="HeroReflection" type="Sprite2D" parent="Characters"]
+[node name="Hero" type="Node2D" parent="Characters"]
+position = Vector2(290, 152)
+script = ExtResource("18_walker")
+
+[node name="Reflection" type="Sprite2D" parent="Characters/Hero"]
 material = SubResource("ShaderMaterial_reflection")
-position = Vector2(290, 273)
+position = Vector2(0, 121)
 texture = ExtResource("11_hero")
 centered = false
 
-[node name="HeroShadow" type="Sprite2D" parent="Characters"]
-position = Vector2(286, 269)
+[node name="Shadow" type="Sprite2D" parent="Characters/Hero"]
+position = Vector2(-4, 117)
 texture = ExtResource("12_shadow")
 centered = false
 
-[node name="Hero" type="Sprite2D" parent="Characters"]
-position = Vector2(290, 152)
+[node name="Body" type="Sprite2D" parent="Characters/Hero"]
 texture = ExtResource("11_hero")
 centered = false
 
 [node name="Foreground" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.25, 1.25)
+repeat_size = Vector2(960, 0)
+repeat_times = 3
 
 [node name="Sprite2D" type="Sprite2D" parent="Foreground"]
-position = Vector2(-180, 0)
+position = Vector2(-280, 0)
 texture = ExtResource("10_fg")
 centered = false
 

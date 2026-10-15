@@ -6,7 +6,11 @@ extends Camera2D
 @export var mouse_sway := 20.0
 ## ความไวในการเลื่อนกล้อง (ยิ่งมากยิ่งเร็ว)
 @export var follow_speed := 2.5
-## ขอบเขตกล้องแนวนอน (ภาพพื้นหลังกว้าง 800px เริ่มที่ x = -80)
+## ถ้าตั้งไว้ กล้องจะตามโหนดนี้ (ตัวละครที่เดินได้) และไม่จำกัดขอบเขต
+@export var follow: Node2D
+## ระยะจากตำแหน่งของ follow ถึงกึ่งกลางจอ
+@export var follow_offset := 0.0
+## ขอบเขตกล้องแนวนอนเมื่อไม่ได้ตามใคร (ภาพพื้นหลังกว้าง 800px เริ่มที่ x = -80)
 @export var min_x := 260.0
 @export var max_x := 380.0
 
@@ -21,5 +25,10 @@ func _process(delta: float) -> void:
 	var viewport_width := get_viewport_rect().size.x
 	var mouse_x := get_viewport().get_mouse_position().x
 	var sway := clampf(mouse_x / viewport_width - 0.5, -0.5, 0.5) * 2.0 * mouse_sway
-	var goal := clampf(_target_x + sway, min_x, max_x)
+	var goal: float
+	if follow:
+		# camera_x ในบทกลายเป็นการเลื่อนกล้องออกจากตัวละคร (320 = ตรงกลาง)
+		goal = follow.position.x + follow_offset + (_target_x - 320.0) + sway
+	else:
+		goal = clampf(_target_x + sway, min_x, max_x)
 	position.x = lerpf(position.x, goal, 1.0 - exp(-follow_speed * delta))

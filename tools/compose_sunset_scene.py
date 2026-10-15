@@ -5,14 +5,17 @@ Inputs (in art_source/):
   railway.png            trees, viaduct, city, crossing - transparent background
   railway_with_train.png same view with a train on the viaduct
 
-Outputs (assets/bg/sunset/), all sized for the 640x360 game with room to pan:
-  sky.png           sky, cropped so the sun sits just above the railway band
-  railway_back.png  the railway layer without the train (crossing signal removed)
+Outputs (assets/bg/sunset/). Every layer tiles seamlessly left-right, so the
+scene can scroll forever (Parallax2D.repeat_size in the game):
+  sky.png           sky + its mirror image (1600 wide), sun just above the railway band
+  railway_back.png  railway tile (720 wide) without the train, crossing signal removed
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
   railway_front.png leaves that stand in front of the train
   train.png         a 3-car train cut from the train image (loops along the viaduct)
-  road.png          wet road in side view that reflects the sky and the railway
-  foreground.png    near utility pole + wires
+  sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
+  rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
+  road.png          wet asphalt (semi-transparent over the reflections), fence, hedge
+  foreground.png    near utility pole + wires (960 wide tile)
 
 Usage: python3 tools/compose_sunset_scene.py
 """
@@ -31,6 +34,11 @@ OUT = ROOT / "assets" / "bg" / "sunset"
 LAYER_W = 800                       # 640 screen + pan margin
 SCALE = LAYER_W / 1671.0            # source art -> game pixels
 RAIL_Y = -47                        # where the railway layer sits (its sprite's y in the scene)
+TILE = 720                          # repeat width of railway/road layers (fence 24px, dashes 36px fit)
+CROP_X0 = 48                        # the railway art's trees start here in the 800px-wide scaled image
+SKY_TILE = 1600                     # sky + mirrored sky
+FG_TILE = 960                       # one near utility pole per foreground tile
+MIRROR = 1.6                        # reflection squash: we look down at the road
 ROAD_TOP = 258                      # first row of road in screen space
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
 rng = random.Random(5)
@@ -45,8 +53,11 @@ def build_sky():
     sky = scaled(Image.open(SRC / "sunset_sky.png").convert("RGBA"))
     # 800x450 -> keep 360 rows; the sun ends up near y 150
     sky = sky.crop((0, 45, LAYER_W, 405))
-    sky.save(OUT / "sky.png")
-    return sky
+    tile = Image.new("RGBA", (SKY_TILE, 360))
+    tile.paste(sky, (0, 0))
+    tile.paste(sky.transpose(Image.FLIP_LEFT_RIGHT), (LAYER_W, 0))  # mirror -> always seamless
+    tile.save(OUT / "sky.png")
+    return tile
 
 
 def remove_crossing(img):
@@ -100,8 +111,12 @@ def build_railway():
     front[band0:band1, span1:] = leaves_back[band0:band1, span1:]
     fr = b.copy()
     fr[~front, 3] = 0
+    # Crop to one tile: the art runs from its first tree to its last, so copies
+    # placed side by side meet tree-to-tree
+    box = (CROP_X0, 0, CROP_X0 + TILE, back.size[1])
+    back = back.crop(box)
     back.save(OUT / "railway_back.png")
-    Image.fromarray(fr.astype(np.uint8), "RGBA").save(OUT / "railway_front.png")
+    Image.fromarray(fr.astype(np.uint8), "RGBA").crop(box).save(OUT / "railway_front.png")
 
     # --- Backfill: dark foliage behind the railway so no sky shows under the trees
     fill = backfill()
@@ -124,49 +139,66 @@ def build_railway():
     return back, fill, train, deck_top
 
 
+def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
+    """Mirror image rows above the road into the road rows (screen coordinates).
+    src_y: screen y of src's row 0. Rows are squashed by MIRROR and wobbled with
+    whole-row shifts (np.roll keeps the tile seamless)."""
+    s = np.asarray(src).astype(float)
+    out = np.zeros((360, width, 4))
+    for y in range(ROAD_TOP, 360):
+        my = int(ROAD_TOP - (y - ROAD_TOP) * MIRROR) - 2 - src_y
+        if not 0 <= my < s.shape[0]:
+            continue
+        wob = int(round(1.5 * np.sin(y * 0.9) + 0.8 * np.sin(y * 2.3)))
+        row = np.roll(s[my], wob, axis=0)
+        out[y, :, :3] = row[:, :3] * darken + np.array(tint) * (1 - darken)
+        out[y, :, 3] = row[:, 3]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
+
+
 def build_road(sky, fill, back):
-    """Side-view wet road: dark asphalt that mirrors the scene above it."""
+    """Wet road in side view, as three tiling layers:
+    sky_reflect + rail_reflect (they scroll with what they reflect) under a
+    semi-transparent asphalt layer that scrolls with the ground."""
+    mirror(sky, 0, SKY_TILE).save(OUT / "sky_reflect.png")
+    rail = fill.copy()
+    rail.alpha_composite(back)
+    mirror(rail, RAIL_Y, TILE).save(OUT / "rail_reflect.png")
+
     h = 360
-    road = np.zeros((h, LAYER_W, 4))
-    # What the road reflects: sky + railway as they appear on screen
-    scene = sky.copy()
-    scene.alpha_composite(fill, (0, RAIL_Y))
-    scene.alpha_composite(back, (0, RAIL_Y))
-    src = np.asarray(scene).astype(float)
-    yy, xx = np.mgrid[0:h, 0:LAYER_W]
+    road = np.zeros((h, TILE, 4))
+    yy, xx = np.mgrid[0:h, 0:TILE]
     dither = BAYER[yy % 4, xx % 4]
+    # Puddles (wrap around the tile edge): the asphalt is thinner there, so more reflection
+    puddle = np.zeros((h, TILE), bool)
+    for _ in range(9):
+        cx, cy = rng.uniform(0, TILE), rng.uniform(ROAD_TOP + 12, 350)
+        for _k in range(3):
+            ex, ey = cx + rng.uniform(-25, 25), cy + rng.uniform(-3, 3)
+            rx, ry = rng.uniform(18, 50), rng.uniform(3, 7)
+            for off in (-TILE, 0, TILE):
+                puddle |= ((xx - ex - off) / rx) ** 2 + ((yy - ey) / ry) ** 2 < 1
     asphalt_far, asphalt_near = np.array((58, 52, 96)), np.array((30, 28, 58))
     for y in range(ROAD_TOP, h):
         t = (y - ROAD_TOP) / (h - ROAD_TOP)
-        base = asphalt_far * (1 - t) + asphalt_near * t
-        # mirror about the road's far edge, compressed (we look down at the road)
-        my = int(ROAD_TOP - (y - ROAD_TOP) * 1.6) - 2
-        wob = int(2 * np.sin(y * 0.9) + rng.choice((0, 0, 1, -1)))
-        if 0 <= my < h:
-            row = np.roll(src[my, :, :3], wob, axis=0)
-            strength = 0.62 * (1 - t) ** 0.6
-            # puddle patches reflect more, dry asphalt less
-            col = base * (1 - strength) + row * strength
-        else:
-            col = np.tile(base, (LAYER_W, 1))
-        q = np.floor(col / 6 + dither[y, :, None] * 0.9) * 6  # posterise with dithering
-        road[y, :, :3] = q
-        road[y, :, 3] = 255
+        road[y, :, :3] = np.floor((asphalt_far * (1 - t) + asphalt_near * t) / 6 + dither[y, :, None] * 0.9) * 6
+        alpha = 1 - 0.62 * (1 - t) ** 0.6
+        road[y, :, 3] = np.where(puddle[y], alpha * 0.45, alpha) * 255
     img = Image.fromarray(np.clip(road, 0, 255).astype(np.uint8), "RGBA")
     img.alpha_composite(hedge())
     d = ImageDraw.Draw(img)
     # Far curb + low fence under the trees, kerb highlight, edge line, cracks, a manhole
-    d.rectangle((0, ROAD_TOP - 8, LAYER_W, ROAD_TOP - 1), fill=(74, 66, 112, 255))
-    d.line([(0, ROAD_TOP - 8), (LAYER_W, ROAD_TOP - 8)], fill=(150, 120, 160, 255))
-    d.line([(0, ROAD_TOP - 1), (LAYER_W, ROAD_TOP - 1)], fill=(26, 20, 46, 255))
-    for x in range(4, LAYER_W, 22):  # fence posts
+    d.rectangle((0, ROAD_TOP - 8, TILE, ROAD_TOP - 1), fill=(74, 66, 112, 255))
+    d.line([(0, ROAD_TOP - 8), (TILE, ROAD_TOP - 8)], fill=(150, 120, 160, 255))
+    d.line([(0, ROAD_TOP - 1), (TILE, ROAD_TOP - 1)], fill=(26, 20, 46, 255))
+    for x in range(4, TILE, 24):  # fence posts (720 / 24 = 30 per tile)
         d.rectangle((x, ROAD_TOP - 20, x + 1, ROAD_TOP - 8), fill=(44, 40, 74, 255))
-    d.line([(0, ROAD_TOP - 18), (LAYER_W, ROAD_TOP - 18)], fill=(56, 50, 88, 255))
-    d.line([(0, ROAD_TOP - 13), (LAYER_W, ROAD_TOP - 13)], fill=(56, 50, 88, 255))
-    for x in range(0, LAYER_W, 36):  # dashed edge line
+    d.line([(0, ROAD_TOP - 18), (TILE, ROAD_TOP - 18)], fill=(56, 50, 88, 255))
+    d.line([(0, ROAD_TOP - 13), (TILE, ROAD_TOP - 13)], fill=(56, 50, 88, 255))
+    for x in range(0, TILE, 36):  # dashed edge line (720 / 36 = 20 per tile)
         d.line([(x, ROAD_TOP + 6), (x + 20, ROAD_TOP + 6)], fill=(200, 190, 210, 255))
     for _ in range(10):
-        x, y = rng.randint(0, LAYER_W), rng.randint(ROAD_TOP + 14, 350)
+        x, y = rng.randint(20, TILE - 60), rng.randint(ROAD_TOP + 14, 350)
         pts = [(x, y)]
         for _k in range(4):
             x += rng.randint(3, 9)
@@ -178,64 +210,79 @@ def build_road(sky, fill, back):
     img.save(OUT / "road.png")
 
 
+def periodic(clumps, w):
+    """Repeat clumps that touch an edge on the other side, so a tile of width w wraps cleanly."""
+    out = list(clumps)
+    for (x, y, r) in clumps:
+        if x - r < 0:
+            out.append((x + w, y, r))
+        if x + r > w:
+            out.append((x - w, y, r))
+    return out
+
+
 def backfill(block=3):
     """Low wall of shadowed foliage behind the railway layer (in railway-layer
     coordinates). It fills the gaps under and between the trees down to the road."""
-    w, h = LAYER_W // block, 451 // block
+    w, h = TILE // block, 451 // block
     pal = [(16, 24, 56), (22, 38, 66), (30, 54, 72), (44, 76, 74)]
     top = (ROAD_TOP - 75 - RAIL_Y) / block   # foliage top line, a little above the hedge
     clumps = []
-    x = -6
-    while x < w + 8:
+    x = 0
+    while x < w:
         r = rng.uniform(7, 12)
         clumps.append((x, top + rng.uniform(-4, 3), r))
         x += r * rng.uniform(0.8, 1.2)
+    clumps = periodic(clumps, w)
     clumps.sort(key=lambda c: c[1])
     arr = shapes.render_clumps((w, h), clumps, (w * 0.5, 0, 30), pal, shapes.leaf_field((w, h), 33, amp=0.18), (90, 90, 110), rng)
     below = int(top)
     arr[below:, :, :3] = pal[0]   # solid shadow under the clumps
     arr[below:, :, 3] = 255
     small = Image.fromarray(arr.astype(np.uint8), "RGBA")
-    return small.resize((LAYER_W, 451), Image.NEAREST)
+    return small.resize((TILE, 451), Image.NEAREST)
 
 
 def hedge(block=3):
     """Row of bushes behind the fence. Rendered at 1/block resolution and scaled up
     so its pixels are as chunky as the supplied art."""
-    w, h = LAYER_W // block, 360 // block
+    w, h = TILE // block, 360 // block
     pal = [(22, 34, 70), (30, 58, 78), (44, 84, 80), (78, 118, 74), (130, 150, 80)]
     clumps = []
-    x = -4
-    while x < w + 6:
+    x = 0
+    while x < w:
         r = rng.uniform(5, 9)
         clumps.append((x, (ROAD_TOP - 14) / block + rng.uniform(-1.5, 1.5), r))
         x += r * rng.uniform(0.9, 1.4)
+    clumps = periodic(clumps, w)
     clumps.sort(key=lambda c: c[1])
     arr = shapes.render_clumps((w, h), clumps, (w * 0.5, 0, 40), pal, shapes.leaf_field((w, h), 21, amp=0.2), (230, 170, 120), rng)
     arr[int((ROAD_TOP - 8) / block):] = 0  # stops at the curb
     small = Image.fromarray(arr.astype(np.uint8), "RGBA")
-    return small.resize((LAYER_W, 360), Image.NEAREST)
+    return small.resize((TILE, 360), Image.NEAREST)
 
 
 def build_foreground():
-    w, h = LAYER_W + 200, 360
+    w, h = FG_TILE, 360
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    px = 805  # near utility pole at the right edge of the screen
+    px = 900  # near utility pole; the previous tile's pole is at px - FG_TILE
     d.rectangle((px - 13, 0, px + 13, h), fill=(30, 24, 50, 255))
     d.rectangle((px - 13, 0, px - 11, h), fill=(150, 90, 110, 255))  # warm rim from the sunset
-    d.rectangle((px - 60, 36, px + 60, 43), fill=(30, 24, 50, 255))
-    d.line([(px - 60, 36), (px + 60, 36)], fill=(230, 140, 110, 255))
+    d.rectangle((px - 60, 36, px + 59, 43), fill=(30, 24, 50, 255))
+    d.line([(px - 60, 36), (px + 59, 36)], fill=(230, 140, 110, 255))
     d.rectangle((px + 16, 70, px + 34, 100), fill=(44, 38, 66, 255))  # transformer
     d.line([(px + 16, 70), (px + 34, 70)], fill=(180, 110, 110, 255))
-    # Wires sagging across the whole frame
-    for k, (y0, y1, sag) in enumerate(((40, 64, 34), (40, 84, 40), (40, 52, 26), (78, 120, 30), (92, 104, 22))):
-        x0 = px - 56 + k * 22
+    # Wires sag from this pole to the previous one (drawn in the previous tile)
+    for k, (y0, sag) in enumerate(((40, 70), (40, 84), (40, 58), (84, 60), (96, 48))):
+        x0 = px - 56 + k * 22 if k < 3 else px - 30 + (k - 3) * 60
+        x1 = x0 - FG_TILE
         pts = []
-        for i in range(41):
-            t = i / 40
-            pts.append((x0 + (-40 - x0) * t, y0 + (y1 - y0) * t + sag * 4 * t * (1 - t)))
+        for i in range(81):
+            t = i / 80
+            pts.append((x0 + (x1 - x0) * t, y0 + sag * 4 * t * (1 - t)))
         d.line(pts, fill=(18, 14, 34, 255), width=2 if k < 3 else 1)
+        d.line([(p[0] + FG_TILE, p[1]) for p in pts], fill=(18, 14, 34, 255), width=2 if k < 3 else 1)
     img.save(OUT / "foreground.png")
 
 
@@ -246,4 +293,4 @@ if __name__ == "__main__":
     build_road(sky, fill, back)
     build_foreground()
     print(f"layers written to {OUT}; train {train.size}, train top y in layer = {deck_top - train.size[1]}, "
-          f"train clip x = {int(476 * SCALE)}..{int(1405 * SCALE)}")
+          f"train clip x in tile = {int(476 * SCALE) - CROP_X0}..{int(1405 * SCALE) - CROP_X0}")
