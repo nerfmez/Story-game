@@ -9,6 +9,10 @@ For standing still it also:
   - scales the character so the shirt collar is as high above the ground as in the
     idle sprite, so walking and standing match
   - keeps one sampling grid for all frames, so still parts don't shimmer
+  - draws the backpack's second strap over the free shoulder (the source art wears
+    the bag on one shoulder, so flipping the sprite moved the bag to the other side;
+    the walk shows both straps). It follows the collar and the shoulder outline
+    frame by frame.
 
 Usage:
   python3 tools/import_idle_video.py VIDEO assets/characters/hero_idle_video.png \\
@@ -28,6 +32,26 @@ from import_walk_video import (add_outline, cell_sample, features, is_green,  # 
                                kmeans, landmarks, nearest, shift_img)
 
 
+# Second strap, relative to the collar row (first row with 6+ white shirt pixels) and
+# the outline of the free shoulder 8 rows below it: (dy, dx) of the strap's left column.
+STRAP = [(-1, 8), (0, 8), (1, 7), (2, 7), (3, 7), (4, 7)] + [(dy, 6) for dy in range(5, 19)]
+STRAP_DARK, STRAP_LIT = (30, 38, 84, 255), (54, 66, 122, 255)
+
+
+def add_strap(frame):
+    a = frame[..., 3] > 0
+    white = a & (frame[..., :3].min(2) > 185)
+    collar = next(y for y in range(frame.shape[0]) if white[y].sum() >= 6)
+    left = int(np.nonzero(a[collar + 8])[0].min())
+    out = frame.copy()
+    for dy, dx in STRAP:
+        y, x = collar + dy, left + dx
+        if a[y, x] and a[y, x + 1]:
+            out[y, x] = STRAP_DARK
+            out[y, x + 1] = STRAP_LIT
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -37,6 +61,7 @@ def main():
     ap.add_argument("--step", type=int, default=2, help="keep every n-th frame (24 fps / 2 = 12 fps)")
     ap.add_argument("--palette", required=True, help="idle sprite whose colours and proportions to match")
     ap.add_argument("--materials", type=int, default=9)
+    ap.add_argument("--no-strap", action="store_true", help="don't draw the second backpack strap")
     args = ap.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -115,6 +140,8 @@ def main():
     sheet = Image.new("RGBA", (out_w * len(cells), out_h), (0, 0, 0, 0))
     for i, ((mt, _), rgb) in enumerate(zip(cells, out_rgb)):
         frame = add_outline(np.dstack([rgb, (mt >= 0) * 255]).astype(np.uint8), edge_colour)
+        if not args.no_strap:
+            frame = add_strap(frame)
         sheet.paste(Image.fromarray(frame, "RGBA"), (i * out_w, 0))
     sheet.save(args.out)
     marks = [landmarks(np.asarray(sheet.crop((i * out_w, 0, (i + 1) * out_w, out_h)))) for i in range(len(cells))]
