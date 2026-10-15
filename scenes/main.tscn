@@ -30,8 +30,8 @@
 shader = ExtResource("15_water")
 shader_parameter/wobble = 0.012
 shader_parameter/speed = 2.5
-shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.7)
-shader_parameter/fade_length = 0.85
+shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.32)
+shader_parameter/fade_length = 0.6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0
@@ -142,7 +142,7 @@ centered = false
 scroll_scale = Vector2(0.12, 0.12)
 
 [node name="TrainReflection" type="Sprite2D" parent="TrainReflectionLayer" node_paths=PackedStringArray("target")]
-modulate = Color(0.62, 0.55, 0.78, 0.75)
+modulate = Color(0.62, 0.55, 0.78, 0.35)
 position = Vector2(-700, 301)
 scale = Vector2(1, 0.625)
 texture = ExtResource("7_train")

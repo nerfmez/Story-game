@@ -13,7 +13,8 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
   railway_back.png  railway tile made from railway_long.png, joined end to end along the
                     least visible cut (width printed at the end = RAIL_TILE in the scene)
   railway_fill.png  dark foliage behind the railway (no sky under the trees)
-  train.png         a 4-car commuter train drawn in pixel art (wheels on the near rail)
+  train.png         a 4-car skytrain (white / blue / red livery) drawn in pixel art,
+                    wheels on the near rail
   sky_reflect.png   the sky mirrored in the wet road (moves with the sky)
   city_reflect.png  the city mirrored in the wet road (moves with the city)
   rail_reflect.png  the railway mirrored in the wet road (moves with the railway)
@@ -201,74 +202,81 @@ def build_railway():
 
 
 def make_train(cars=4, car_w=112, gap=3):
-    """Side view of a commuter train at dusk, wheels on the bottom row.
-    The side faces away from the low sun: muted body, warm lit windows,
-    an orange rim of sunlight along the roof. Moves right (cab at both ends)."""
+    """Side view of a Bangkok-skytrain-style train at dusk (no logos), wheels on
+    the bottom row: light grey roof, red line under it, white upper body with a
+    black glass window band, royal-blue lower body, black cab faces outlined in
+    red. The side is in shade (the sun is behind), so colours are a bit muted;
+    the roof edge catches the sunset. Moves right; cab at both ends."""
     H = 24
     W = cars * car_w + (cars - 1) * gap
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    ink = (22, 18, 40, 255)
-    roof, rim, gutter = (70, 72, 112, 255), (246, 176, 120, 255), (42, 40, 72, 255)
-    body, body_lo, door = (124, 128, 168, 255), (96, 98, 138, 255), (104, 108, 148, 255)
-    stripe, under, bogie = (232, 146, 92, 255), (40, 36, 64, 255), (30, 26, 50, 255)
-    lit, lit_top, glass = (250, 202, 128, 255), (255, 232, 176, 255), (58, 66, 108, 255)
+    ink = (20, 18, 36, 255)
+    rim, roof, roof_lo = (250, 184, 136, 255), (156, 156, 178, 255), (122, 122, 150, 255)
+    red, red_lo = (206, 46, 58, 255), (150, 34, 52, 255)
+    white, white_lo = (206, 208, 226, 255), (170, 174, 202, 255)
+    glass, glass_hi, glow = (26, 26, 40, 255), (64, 68, 96, 255), (120, 96, 76, 255)
+    blue, blue_lo, skirt = (40, 70, 168, 255), (30, 52, 132, 255), (24, 32, 80, 255)
+    door_gap, under, bogie = (110, 114, 146, 255), (36, 34, 54, 255), (28, 26, 44, 255)
     trng = random.Random(3)
     for c in range(cars):
         x0 = c * (car_w + gap)
         x1 = x0 + car_w - 1
-        d.rectangle((x0, 1, x1, 19), fill=body)
-        d.rectangle((x0, 1, x1, 3), fill=roof)
-        d.line([(x0 + 2, 0), (x1 - 2, 0)], fill=rim)          # sunlit roof edge
-        d.line([(x0, 4), (x1, 4)], fill=gutter)
-        d.rectangle((x0, 15, x1, 18), fill=body_lo)
-        d.line([(x0, 13), (x1, 13)], fill=stripe)
-        d.line([(x0, 14), (x1, 14)], fill=(196, 112, 82, 255))
-        d.line([(x0, 19), (x1, 19)], fill=under)
-        # doors (4 per side) and windows between them
+        d.rectangle((x0, 1, x1, 2), fill=roof)
+        d.line([(x0 + 2, 0), (x1 - 2, 0)], fill=rim)            # sunlit roof edge
+        d.line([(x0, 3), (x1, 3)], fill=roof_lo)
+        d.line([(x0, 4), (x1, 4)], fill=red)                    # red line under the roof
+        d.rectangle((x0, 5, x1, 12), fill=white)
+        d.line([(x0, 12), (x1, 12)], fill=white_lo)
+        d.rectangle((x0, 13, x1, 18), fill=blue)                # blue lower body
+        d.line([(x0, 18), (x1, 18)], fill=blue_lo)
+        d.line([(x0, 19), (x1, 19)], fill=skirt)
+        # black glass window band, interrupted by 4 doors with tall windows
         doors = [x0 + 10 + k * (car_w - 26) // 3 for k in range(4)]
+        d.rectangle((x0 + 2, 6, x1 - 2, 10), fill=glass)
+        for wx in range(x0 + 3, x1 - 2, 9):                     # window pillars + dim cabin light
+            d.line([(wx, 6), (wx, 10)], fill=white_lo)
+            if trng.random() < 0.6:
+                d.line([(wx + 2, 9), (wx + 6, 9)], fill=glow)
+        d.line([(x0 + 2, 6), (x1 - 2, 6)], fill=glass_hi)       # sky glint on the glass
         for dx in doors:
-            d.rectangle((dx, 5, dx + 6, 18), fill=door)
-            d.line([(dx + 3, 5), (dx + 3, 18)], fill=gutter)
-            for wx in (dx + 1, dx + 4):
-                d.rectangle((wx, 6, wx + 1, 10), fill=lit)
-        for a_, b_ in zip([x0 + 2] + [dx + 8 for dx in doors], doors + [x1 - 1]):
-            wx = a_ + 1
-            while wx + 7 <= b_ - 1:
-                on = trng.random() > 0.15
-                d.rectangle((wx, 6, wx + 6, 11), fill=lit if on else glass)
-                if on:
-                    d.line([(wx, 6), (wx + 6, 6)], fill=lit_top)
-                    if trng.random() < 0.45:          # a passenger's head
-                        hx = wx + trng.randint(1, 4)
-                        d.rectangle((hx, 9, hx + 1, 11), fill=(70, 50, 70, 255))
-                        d.point((hx, 8), fill=(70, 50, 70, 255))
-                wx += 8
+            d.rectangle((dx - 1, 5, dx + 7, 18), fill=door_gap)
+            for wx in (dx, dx + 4):
+                d.rectangle((wx, 5, wx + 2, 18), fill=white if wx == dx else white_lo)
+                d.rectangle((wx + 1, 6, wx + 1, 12), fill=glass)
+                d.rectangle((wx, 13, wx + 2, 18), fill=blue if wx == dx else blue_lo)
         # bogies with two wheels each, equipment boxes between them
         for bx in (x0 + 10, x1 - 22):
             d.rectangle((bx, 20, bx + 12, 21), fill=bogie)
             for wx in (bx + 2, bx + 8):
-                d.ellipse((wx - 1, 20, wx + 2, 23), fill=(18, 16, 32, 255))
-                d.point((wx, 21), fill=(90, 86, 120, 255))
+                d.ellipse((wx - 1, 20, wx + 2, 23), fill=(16, 14, 28, 255))
+                d.point((wx, 21), fill=(96, 92, 120, 255))
         d.rectangle((x0 + 30, 20, x1 - 32, 21), fill=under)
-        if c < cars - 1:                                       # gangway to the next car
-            d.rectangle((x1 + 1, 6, x1 + gap, 17), fill=(34, 30, 58, 255))
-    # cab ends: sloped nose with windscreen, headlight in front, tail light behind
+        if c < cars - 1:                                         # gangway to the next car
+            d.rectangle((x1 + 1, 5, x1 + gap, 18), fill=(30, 28, 48, 255))
+    # Cab ends: rounded, sloped black face outlined in red, white and blue below it,
+    # headlight in front (right end), tail light at the back
     for end, sign in ((W - 1, -1), (0, 1)):
-        for k in range(5):                                     # cut the top corner diagonally
-            for y in range(1, 6 - k):
+        for k in range(6):                                       # round off the top corner
+            for y in range(0, max(0, 5 - k)):
                 img.putpixel((end + sign * k, y), (0, 0, 0, 0))
-        for y in range(5, 12):
-            for k in range(1, 6):
-                img.putpixel((end + sign * k, y), glass if y > 6 else (120, 130, 170, 255))
-        img.putpixel((end + sign * 2, 16), (255, 240, 200, 255) if sign < 0 else (230, 60, 60, 255))
-        img.putpixel((end + sign * 3, 16), (255, 240, 200, 255) if sign < 0 else (230, 60, 60, 255))
-    # 1px dark outline around the silhouette
+        for y in range(3, 14):
+            depth = 7 if y > 4 else 7 - (5 - y) * 2
+            for k in range(0, depth):
+                img.putpixel((end + sign * k, y), glass)
+            img.putpixel((end + sign * depth, y), red)           # red outline of the face
+        for k in range(0, 8):
+            img.putpixel((end + sign * k, 13), red_lo if k < 7 else red)
+        img.putpixel((end + sign * 1, 6), glass_hi)
+        img.putpixel((end + sign * 2, 6), glass_hi)
+        light = (255, 244, 214, 255) if sign < 0 else (236, 52, 52, 255)
+        for k in (1, 2, 3):
+            img.putpixel((end + sign * k, 12), light)
+    # 1px dark outline around the silhouette (the sunlit roof edge stays)
     a = np.asarray(img).copy()
     solid = a[..., 3] > 0
     edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
-    edge[0, :] &= solid[0, :]
-    keep = (a[..., 0] == rim[0]) & (a[..., 1] == rim[1])       # keep the sunlit roof edge
+    keep = (a[..., 0] == rim[0]) & (a[..., 1] == rim[1])
     a[edge & ~keep] = ink
     return Image.fromarray(a, "RGBA")
 
@@ -306,7 +314,7 @@ def build_road(sky, city, fill, back):
     dither = BAYER[yy % 4, xx % 4]
     # Puddles (wrap around the tile edge): the asphalt is thinner there, so more reflection
     puddle = np.zeros((h, TILE), bool)
-    for _ in range(9):
+    for _ in range(7):
         cx, cy = rng.uniform(0, TILE), rng.uniform(ROAD_TOP + 12, 350)
         for _k in range(3):
             ex, ey = cx + rng.uniform(-25, 25), cy + rng.uniform(-3, 3)
@@ -317,8 +325,10 @@ def build_road(sky, city, fill, back):
     for y in range(ROAD_TOP, h):
         t = (y - ROAD_TOP) / (h - ROAD_TOP)
         road[y, :, :3] = np.floor((asphalt_far * (1 - t) + asphalt_near * t) / 6 + dither[y, :, None] * 0.9) * 6
-        alpha = 1 - 0.62 * (1 - t) ** 0.6
-        road[y, :, 3] = np.where(puddle[y], alpha * 0.45, alpha) * 255
+        # Damp asphalt shows only a faint sheen (more at the far edge, where we look
+        # at it at a grazing angle); the puddles are real mirrors
+        sheen = 0.12 + 0.10 * (1 - t) ** 2
+        road[y, :, 3] = np.where(puddle[y], 0.28, 1 - sheen) * 255
     img = Image.fromarray(np.clip(road, 0, 255).astype(np.uint8), "RGBA")
     img.alpha_composite(hedge())
     d = ImageDraw.Draw(img)
