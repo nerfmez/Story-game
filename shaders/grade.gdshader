@@ -4,7 +4,7 @@ shader_type canvas_item;
 
 uniform sampler2D screen : hint_screen_texture, filter_nearest;
 uniform vec3 shadow_tint = vec3(0.09, 0.03, 0.15);
-uniform vec3 highlight_tint = vec3(0.08, 0.04, -0.04);
+uniform vec3 highlight_tint = vec3(0.06, 0.0, 0.02);
 uniform float tint_amount = 0.4;
 uniform float vignette = 0.3;
 

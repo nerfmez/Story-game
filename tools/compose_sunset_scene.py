@@ -341,8 +341,8 @@ def build_atmosphere():
     glow = 0.85 * np.exp(-(r / 70.0) ** 2) + 0.35 * np.exp(-(r / 170.0) ** 2)
     g = dithered(np.clip(glow, 0, 1))
     img = np.zeros((h, w, 4))
-    img[..., :3] = np.array((255, 168, 96))
-    img[..., 3] = g * 95
+    img[..., :3] = np.array((236, 112, 104))
+    img[..., 3] = g * 80
     Image.fromarray(img.astype(np.uint8), "RGBA").save(OUT / "sun_glow.png")
     # --- light shafts fanning down from the sun, broken up by the trees they pass
     ang = np.arctan2(dy, np.where(dx == 0, 1e-3, dx))
@@ -354,8 +354,8 @@ def build_atmosphere():
     fade = np.clip(dy / 40.0, 0, 1) * np.exp(-np.clip(dy - 40, 0, None) / 120.0) * np.exp(-(dx / 330.0) ** 2)
     shafts = dithered(np.clip(rays * fade * 0.55, 0, 1))
     img = np.zeros((h, w, 4))
-    img[..., :3] = np.array((255, 190, 120))
-    img[..., 3] = shafts * 55
+    img[..., :3] = np.array((240, 136, 132))
+    img[..., 3] = shafts * 45
     Image.fromarray(img.astype(np.uint8), "RGBA").save(OUT / "sun_rays.png")
     # --- haze: densest at the horizon (behind the trees), warm near the sun, violet elsewhere
     for name, peak, centre, spread, strength in (("haze_far.png", 0.55, 205, 55, 1.0),
@@ -363,7 +363,7 @@ def build_atmosphere():
         band = np.exp(-((yy - centre) / spread) ** 2)
         band = np.where(yy > centre, np.exp(-((yy - centre) / (spread * 0.45)) ** 2), band)
         a = dithered(np.clip(band * (0.55 + 0.45 * near_sun) * strength, 0, 1)) * peak
-        warm, violet = np.array((255, 170, 128)), np.array((150, 112, 178))
+        warm, violet = np.array((236, 140, 146)), np.array((150, 112, 178))
         col = violet[None, None] * (1 - near_sun[..., None]) + warm[None, None] * near_sun[..., None]
         img = np.dstack([col, a * 255])
         Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGBA").save(OUT / name)
