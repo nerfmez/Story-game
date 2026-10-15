@@ -124,7 +124,12 @@ python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/charac
 python3 tools/import_walk_video.py art_source/hero_walk_greenscreen.mp4 assets/characters/hero_walk.png \
     --start 20 --cycle 30 --height 122 --palette assets/characters/hero_uniform.png \
     --frames 15 --shoe-scale 0.8
+python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15
 ```
+
+ขั้นที่สอง: หัวกับไหล่ในวิดีโอเด้งขึ้น 2-3px บางเฟรม (หลังก้าว) ในเกมจึงดูกระเด้ง
+`steady_walk_head.py` วัดว่าช่วงหัว-อกแต่ละเฟรมห่างจากค่ากลางของทุกเฟรมเท่าไร แล้วเลื่อนเฉพาะส่วนบนเหนือกลางเสื้อ
+(ซ่อน/ซ้ำแถวเสื้อเรียบๆ ตรงรอยตัด จึงไม่เห็นรอย) ขา เท้า และแนวพื้นไม่ถูกแตะ
 
 วิดีโอต้องเป็นตัวละครเดินอยู่กับที่ (กล้องนิ่ง) สคริปต์ตัดหนึ่งรอบก้าว (`--cycle` เฟรม) เลือกมา `--frames` เฟรม
 ลบพื้นเขียว แบ่งสีภาพยืน (`--palette`) เป็นกลุ่มวัสดุ (ผม ผิว เสื้อ กางเกง กระเป๋า ...)
