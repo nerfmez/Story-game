@@ -8,7 +8,7 @@ extends Node2D
 ## - สร้างจากภาพนิ่ง (idle_fps = 0): 6 เฟรมจาก tools/make_idle_anim.py (หายใจ 3 ท่า + หลับตา)
 ## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
-@export var idle_frames := 37
+@export var idle_frames := 36
 @export var idle_fps := 12.0
 ## เลื่อนภาพยืนให้ลำตัวตรงกับท่าเดิน (หันซ้าย / พลิกหันขวา)
 @export var idle_offset := Vector2(-1, 0)

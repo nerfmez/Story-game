@@ -143,8 +143,6 @@ def main():
     collar = next(y for y in range(white.shape[0]) if white[y].sum() >= 25)
     scale = idle_collar / (white.shape[0] - 1 - collar)
     ch, cw = masks[0].shape
-    out_w = round(cw * scale / 2) * 2
-    out_h = round(ch * scale)
 
     refp = ref.astype(float)
     opaque = refp[..., 3] > 0
@@ -155,37 +153,48 @@ def main():
     inner = opaque & np.roll(opaque, 1, 0) & np.roll(opaque, -1, 0) & np.roll(opaque, 1, 1) & np.roll(opaque, -1, 1)
     edge_colour = refp[..., :3][opaque & ~inner].mean(0) * 0.6
 
-    cells = []
-    for rgb, mk in zip(frames, masks):
-        feat = features(rgb.reshape(-1, 3))
-        mat = nearest(feat, centres).reshape(mk.shape)
-        cells.append(cell_sample(feat[:, 0].reshape(mk.shape), mat, mk, out_w, out_h, args.materials))
+    def build(scale):
+        out_w = round(cw * scale / 2) * 2
+        out_h = round(ch * scale)
+        cells = []
+        for rgb, mk in zip(frames, masks):
+            feat = features(rgb.reshape(-1, 3))
+            mat = nearest(feat, centres).reshape(mk.shape)
+            cells.append(cell_sample(feat[:, 0].reshape(mk.shape), mat, mk, out_w, out_h, args.materials))
+        out_rgb = [np.zeros(mt.shape + (3,)) for mt, _ in cells]
+        for k in range(args.materials):
+            pool = ref_px[ref_mat == k][np.argsort(ref_lum[ref_mat == k])]
+            sel = [mt == k for mt, _ in cells]
+            vals = np.concatenate([lum[s] for (_, lum), s in zip(cells, sel)])
+            if len(vals) == 0 or len(pool) == 0:
+                continue
+            ranks = np.empty(len(vals), int)
+            ranks[np.argsort(vals, kind="stable")] = np.arange(len(vals))
+            mapped = pool[(ranks * (len(pool) - 1) / max(1, len(vals) - 1)).astype(int)]
+            n = 0
+            for o, s in zip(out_rgb, sel):
+                c = int(s.sum())
+                o[s] = mapped[n:n + c]
+                n += c
+        result = []
+        for (mt, _), rgb in zip(cells, out_rgb):
+            frame = add_outline(np.dstack([rgb, (mt >= 0) * 255]).astype(np.uint8), edge_colour)
+            if not args.no_strap:
+                frame = add_strap(frame)
+            result.append(frame)
+        return result, out_w, out_h
 
-    out_rgb = [np.zeros(mt.shape + (3,)) for mt, _ in cells]
-    for k in range(args.materials):
-        pool = ref_px[ref_mat == k][np.argsort(ref_lum[ref_mat == k])]
-        sel = [mt == k for mt, _ in cells]
-        vals = np.concatenate([lum[s] for (_, lum), s in zip(cells, sel)])
-        if len(vals) == 0 or len(pool) == 0:
-            continue
-        ranks = np.empty(len(vals), int)
-        ranks[np.argsort(vals, kind="stable")] = np.arange(len(vals))
-        mapped = pool[(ranks * (len(pool) - 1) / max(1, len(vals) - 1)).astype(int)]
-        n = 0
-        for o, s in zip(out_rgb, sel):
-            c = int(s.sum())
-            o[s] = mapped[n:n + c]
-            n += c
-
-    sheet = Image.new("RGBA", (out_w * len(cells), out_h), (0, 0, 0, 0))
-    for i, ((mt, _), rgb) in enumerate(zip(cells, out_rgb)):
-        frame = add_outline(np.dstack([rgb, (mt >= 0) * 255]).astype(np.uint8), edge_colour)
-        if not args.no_strap:
-            frame = add_strap(frame)
+    # The collar test on the video is rough, so measure the result and rescale once
+    result, out_w, out_h = build(scale)
+    mean_collar = np.mean([landmarks(f)[0] for f in result])
+    scale *= idle_collar / mean_collar
+    result, out_w, out_h = build(scale)
+    sheet = Image.new("RGBA", (out_w * len(result), out_h), (0, 0, 0, 0))
+    for i, frame in enumerate(result):
         sheet.paste(Image.fromarray(frame, "RGBA"), (i * out_w, 0))
     sheet.save(args.out)
-    marks = [landmarks(np.asarray(sheet.crop((i * out_w, 0, (i + 1) * out_w, out_h)))) for i in range(len(cells))]
-    print(f"{len(cells)} frames of {out_w}x{out_h} -> {args.out}; collar heights",
+    marks = [landmarks(f) for f in result]
+    print(f"{len(result)} frames of {out_w}x{out_h} -> {args.out}; collar heights",
           sorted({int(h) for h, _ in marks}), "torso x", round(float(np.mean([x for _, x in marks])), 2))
 
 
