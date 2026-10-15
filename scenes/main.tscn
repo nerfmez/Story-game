@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -13,6 +13,15 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hero_uniform.png" id="11_hero"]
 [ext_resource type="Texture2D" path="res://assets/characters/shadow.png" id="12_shadow"]
 [ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="13_dialogue"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/railway_fill.png" id="14_rail_fill"]
+[ext_resource type="Shader" path="res://shaders/water_reflection.gdshader" id="15_water"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
+shader = ExtResource("15_water")
+shader_parameter/wobble = 0.012
+shader_parameter/speed = 2.5
+shader_parameter/tint = Color(0.62, 0.56, 0.82, 0.7)
+shader_parameter/fade_length = 0.85
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
 content_margin_left = 10.0
@@ -51,6 +60,11 @@ centered = false
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.25, 0.25)
 
+[node name="Fill" type="Sprite2D" parent="Railway"]
+position = Vector2(-80, -47)
+texture = ExtResource("14_rail_fill")
+centered = false
+
 [node name="Back" type="Sprite2D" parent="Railway"]
 position = Vector2(-80, -47)
 texture = ExtResource("6_rail_back")
@@ -60,20 +74,20 @@ centered = false
 clip_contents = true
 layout_mode = 3
 anchors_preset = 0
-offset_left = 89.0
+offset_left = 148.0
 offset_right = 592.0
 offset_bottom = 360.0
 mouse_filter = 2
 
 [node name="Train" type="Sprite2D" parent="Railway/TrainClip"]
-position = Vector2(-680, 168)
+position = Vector2(-700, 168)
 texture = ExtResource("7_train")
 centered = false
 script = ExtResource("3_train")
 speed = 90.0
 auto_interval = 12.0
-start_x = -680.0
-end_x = 520.0
+start_x = -700.0
+end_x = 460.0
 
 [node name="Front" type="Sprite2D" parent="Railway"]
 position = Vector2(-80, -47)
@@ -95,7 +109,7 @@ scroll_scale = Vector2(0.25, 0.25)
 clip_contents = true
 layout_mode = 3
 anchors_preset = 0
-offset_left = 89.0
+offset_left = 148.0
 offset_top = 262.0
 offset_right = 592.0
 offset_bottom = 360.0
@@ -103,7 +117,7 @@ mouse_filter = 2
 
 [node name="Reflection" type="Sprite2D" parent="TrainReflection/Clip" node_paths=PackedStringArray("target")]
 modulate = Color(0.62, 0.55, 0.78, 0.75)
-position = Vector2(-680, 39)
+position = Vector2(-700, 39)
 scale = Vector2(1, 0.625)
 texture = ExtResource("7_train")
 centered = false
@@ -112,6 +126,12 @@ script = ExtResource("4_follow")
 target = NodePath("../../../Railway/TrainClip/Train")
 
 [node name="Characters" type="Node2D" parent="."]
+
+[node name="HeroReflection" type="Sprite2D" parent="Characters"]
+material = SubResource("ShaderMaterial_reflection")
+position = Vector2(290, 273)
+texture = ExtResource("11_hero")
+centered = false
 
 [node name="HeroShadow" type="Sprite2D" parent="Characters"]
 position = Vector2(286, 269)

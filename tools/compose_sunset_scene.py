@@ -7,8 +7,9 @@ Inputs (in art_source/):
 
 Outputs (assets/bg/sunset/), all sized for the 640x360 game with room to pan:
   sky.png           sky, cropped so the sun sits just above the railway band
-  railway_back.png  the railway layer without the train
-  railway_front.png bushes and crossing poles that stand in front of the train
+  railway_back.png  the railway layer without the train (crossing signal removed)
+  railway_fill.png  dark foliage behind the railway (no sky under the trees)
+  railway_front.png leaves that stand in front of the train
   train.png         a 3-car train cut from the train image (loops along the viaduct)
   road.png          wet road in side view that reflects the sky and the railway
   foreground.png    near utility pole + wires
@@ -48,27 +49,63 @@ def build_sky():
     return sky
 
 
+def remove_crossing(img):
+    """Erase the crossing signal (poles, X sign, red lamps) from the railway art
+    by clone-stamping the trees/viaduct/city from just left of it."""
+    im = np.asarray(img).astype(int).copy()
+    r, g, b, a = (im[..., i] for i in range(4))
+    x0, x1, y0, y1 = 815, 995, 395, 570          # source-pixel box around the signal
+    reg = np.zeros(a.shape, bool)
+    reg[y0:y1, x0:x1] = True
+    red = (r > 140) & (g < 110) & (b < 110)
+    light = (r > 160) & (g > 140) & (b > 120)
+    brown = (r >= b - 5) & (r >= g) & (np.maximum(np.maximum(r, g), b) < 130)
+    very_dark = np.maximum(np.maximum(r, g), b) < 70          # cable and insulators of the signal
+    mask = reg & (red | light | brown | very_dark) & (a > 0)
+    for _ in range(3):  # grow to catch anti-aliased edges
+        mask = mask | np.roll(mask, 1, 0) | np.roll(mask, -1, 0) | np.roll(mask, 1, 1) | np.roll(mask, -1, 1)
+    mask &= reg
+    shift = 170
+    ys, xs = np.where(mask)
+    im[ys, xs] = im[ys, xs - shift]
+    return Image.fromarray(im.astype(np.uint8), "RGBA")
+
+
+def foliage_mask(rgba):
+    """Leaves (green to dark teal hues) vs viaduct/city/sky (blue to purple)."""
+    rgb = rgba[..., :3].astype(float) / 255.0
+    mx, mn = rgb.max(2), rgb.min(2)
+    delta = np.maximum(mx - mn, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    hue = np.where(mx == r, ((g - b) / delta) % 6, np.where(mx == g, (b - r) / delta + 2, (r - g) / delta + 4)) * 60
+    return (hue > 50) & (hue < 205) & (rgba[..., 3] > 0)
+
+
 def build_railway():
-    back = scaled(Image.open(SRC / "railway.png").convert("RGBA"))
+    back = scaled(remove_crossing(Image.open(SRC / "railway.png").convert("RGBA")))
     with_train = scaled(Image.open(SRC / "railway_with_train.png").convert("RGBA"))
     b = np.asarray(back).astype(int)
 
-    # --- Front occluders: green bushes and the crossing poles inside the band the train runs through
+    # --- Front occluders. Inside the train's span, a leaf is in front only if it
+    # also covers the train in the train image (otherwise the train hides it, so it
+    # is behind). Past the ends of the train, the side trees cover it.
+    t = np.asarray(with_train).astype(int)
+    leaves_back, leaves_train = foliage_mask(b), foliage_mask(t)
+    front = np.zeros(b.shape[:2], bool)
     band0, band1 = int(440 * SCALE), int(522 * SCALE)
-    r, g, bl, a = b[..., 0], b[..., 1], b[..., 2], b[..., 3]
-    greenish = (g > bl) & (g > r) & (a > 0)
-    poles = np.zeros(a.shape, bool)
-    px0, px1 = int(820 * SCALE), int(990 * SCALE)
-    not_blue = ~((bl > r + 25) & (bl > g + 25)) & (a > 0)  # not the blue viaduct/sky
-    poles[:, px0:px1] = not_blue[:, px0:px1]
-    front = np.zeros(a.shape, bool)
-    front[band0:band1] = (greenish | poles)[band0:band1]
-    # keep whole pole/X-sign columns above the band too, so the sign stays in front of the train roof
-    front[int(400 * SCALE):band0, px0:px1] = poles[int(400 * SCALE):band0, px0:px1]
+    body0 = int(464 * SCALE)              # top of the train body in the train image
+    span0, span1 = int(476 * SCALE), int(1400 * SCALE)
+    front[body0:band1] = (leaves_back & leaves_train)[body0:band1]
+    front[band0:band1, :span0] = leaves_back[band0:band1, :span0]
+    front[band0:band1, span1:] = leaves_back[band0:band1, span1:]
     fr = b.copy()
     fr[~front, 3] = 0
     back.save(OUT / "railway_back.png")
     Image.fromarray(fr.astype(np.uint8), "RGBA").save(OUT / "railway_front.png")
+
+    # --- Backfill: dark foliage behind the railway so no sky shows under the trees
+    fill = backfill()
+    fill.save(OUT / "railway_fill.png")
 
     # --- Train: one clean car from the left half (before the crossing), repeated 3 times
     car = with_train.crop((int(362 * SCALE), int(464 * SCALE), int(822 * SCALE), int(505 * SCALE)))
@@ -84,15 +121,16 @@ def build_railway():
         d.rectangle((x, ch // 2, x + gap - 1, ch - 6), fill=(40, 36, 70, 255))
     train.save(OUT / "train.png")
     deck_top = int(489 * SCALE)  # top of the viaduct deck in the no-train image
-    return back, Image.fromarray(fr.astype(np.uint8), "RGBA"), train, deck_top
+    return back, fill, train, deck_top
 
 
-def build_road(sky, back):
+def build_road(sky, fill, back):
     """Side-view wet road: dark asphalt that mirrors the scene above it."""
     h = 360
     road = np.zeros((h, LAYER_W, 4))
     # What the road reflects: sky + railway as they appear on screen
     scene = sky.copy()
+    scene.alpha_composite(fill, (0, RAIL_Y))
     scene.alpha_composite(back, (0, RAIL_Y))
     src = np.asarray(scene).astype(float)
     yy, xx = np.mgrid[0:h, 0:LAYER_W]
@@ -140,6 +178,27 @@ def build_road(sky, back):
     img.save(OUT / "road.png")
 
 
+def backfill(block=3):
+    """Low wall of shadowed foliage behind the railway layer (in railway-layer
+    coordinates). It fills the gaps under and between the trees down to the road."""
+    w, h = LAYER_W // block, 451 // block
+    pal = [(16, 24, 56), (22, 38, 66), (30, 54, 72), (44, 76, 74)]
+    top = (ROAD_TOP - 75 - RAIL_Y) / block   # foliage top line, a little above the hedge
+    clumps = []
+    x = -6
+    while x < w + 8:
+        r = rng.uniform(7, 12)
+        clumps.append((x, top + rng.uniform(-4, 3), r))
+        x += r * rng.uniform(0.8, 1.2)
+    clumps.sort(key=lambda c: c[1])
+    arr = shapes.render_clumps((w, h), clumps, (w * 0.5, 0, 30), pal, shapes.leaf_field((w, h), 33, amp=0.18), (90, 90, 110), rng)
+    below = int(top)
+    arr[below:, :, :3] = pal[0]   # solid shadow under the clumps
+    arr[below:, :, 3] = 255
+    small = Image.fromarray(arr.astype(np.uint8), "RGBA")
+    return small.resize((LAYER_W, 451), Image.NEAREST)
+
+
 def hedge(block=3):
     """Row of bushes behind the fence. Rendered at 1/block resolution and scaled up
     so its pixels are as chunky as the supplied art."""
@@ -183,8 +242,8 @@ def build_foreground():
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     sky = build_sky()
-    back, front, train, deck_top = build_railway()
-    build_road(sky, back)
+    back, fill, train, deck_top = build_railway()
+    build_road(sky, fill, back)
     build_foreground()
     print(f"layers written to {OUT}; train {train.size}, train top y in layer = {deck_top - train.size[1]}, "
-          f"viaduct x = {int(355 * SCALE)}..{int(1405 * SCALE)}")
+          f"train clip x = {int(476 * SCALE)}..{int(1405 * SCALE)}")
