@@ -144,6 +144,25 @@ def stretch_rows(img, top, bottom, factor):
     return img[rows]
 
 
+def shift_img(img, dx, dy):
+    """Move an image by whole pixels, filling with zeros."""
+    out = np.zeros_like(img)
+    h, w = img.shape[:2]
+    out[max(0, dy):min(h, h + dy), max(0, dx):min(w, w + dx)] = \
+        img[max(0, -dy):min(h, h - dy), max(0, -dx):min(w, w - dx)]
+    return out
+
+
+def landmarks(frame):
+    """Height of the shirt collar above the ground (lowest opaque row) and x centre of the torso."""
+    a = frame[..., 3] > 0
+    ground = np.nonzero(a.any(1))[0].max()
+    white = a & (frame[..., :3].min(2) > 185)
+    collar = next(y for y in range(frame.shape[0]) if white[y].sum() >= 6)
+    torso = np.nonzero(a[collar:collar + 30])[1]
+    return ground - collar, torso.mean()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
@@ -152,17 +171,12 @@ def main():
     ap.add_argument("--cycle", type=int, required=True, help="frames in one full walk cycle")
     ap.add_argument("--frames", type=int, default=8, help="frames to keep from the cycle")
     ap.add_argument("--height", type=int, default=122, help="character height in game pixels")
-    ap.add_argument("--palette", required=True, help="idle sprite whose colours the frames take on")
+    ap.add_argument("--palette", required=True, help="idle sprite whose colours and proportions the frames take on")
     ap.add_argument("--materials", type=int, default=9, help="colour groups (hair, skin, shirt...)")
-    ap.add_argument("--legs", type=float, nargs=3, metavar=("TOP", "BOTTOM", "FACTOR"),
-                    help="stretch the rows between TOP and BOTTOM (fractions of the height, "
-                         "e.g. shorts hem to ankle) by FACTOR so the legs match the idle sprite")
-    ap.add_argument("--bob", type=float, default=1.0,
-                    help="with --legs: keep this fraction of the video's up-down body bob (0.4 = calmer)")
-    ap.add_argument("--lock-upper", type=int, default=0, metavar="ROWS",
-                    help="use one frame's body above ROWS pixels from the ground (e.g. mid-shorts) "
-                         "for every frame, so only the legs animate (no wobbling hair/shirt)")
-    ap.add_argument("--lock-from", type=int, default=0, help="frame whose upper body is used")
+    ap.add_argument("--legs", type=float, nargs=2, default=(0.65, 0.9), metavar=("TOP", "BOTTOM"),
+                    help="rows (fractions of the height, shorts hem to ankle) that are stretched or "
+                         "squeezed per frame so the collar sits exactly where the idle sprite's does")
+    ap.add_argument("--bob", type=int, default=1, help="pixels the body dips on the wide steps")
     ap.add_argument("--shoe-scale", type=float, default=1.0,
                     help="squash each shoe to this fraction of its height; the frame moves down "
                          "so feet stay grounded")
@@ -174,12 +188,23 @@ def main():
         picks = [files[args.start + round(i * args.cycle / args.frames)] for i in range(args.frames)]
         frames = [np.asarray(Image.open(f).convert("RGB")).astype(float) for f in picks]
 
-    # One crop box for all frames (union of the character), so the feet stay put
+    # One crop box for all frames (union of the character) with a margin for the alignment
     masks = [~is_green(f) for f in frames]
     union = np.any(masks, axis=0)
     ys, xs = np.where(union)
     x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1
     scale = args.height / (y1 - y0)
+    m = int(0.12 * (y1 - y0))
+    crops = []
+    for rgb, mask in zip(frames, masks):
+        rgb = np.pad(rgb, ((m, m), (m, m), (0, 0)))[y0:y1 + 2 * m, x0:x1 + 2 * m]
+        mask = np.pad(mask, m)[y0:y1 + 2 * m, x0:x1 + 2 * m]
+        # despill green fringe
+        rgb[..., 1] = np.minimum(rgb[..., 1], np.maximum(rgb[..., 0], rgb[..., 2]))
+        crops.append((rgb, mask))
+    ch, cw = crops[0][1].shape
+    out_w = round(cw * scale / 2) * 2  # even width: no half-pixel centre
+    top, bottom = int((args.legs[0] * (y1 - y0)) + m), int((args.legs[1] * (y1 - y0)) + m)
 
     # Materials (hair, skin, shirt, shorts, bag...) come from the idle sprite's own colours
     ref = np.asarray(Image.open(args.palette).convert("RGBA")).astype(float)
@@ -187,35 +212,30 @@ def main():
     ref_px = ref[..., :3][opaque]
     centres = kmeans(features(ref_px), args.materials)
     ref_mat = nearest(features(ref_px), centres)
-
     inner = opaque & np.roll(opaque, 1, 0) & np.roll(opaque, -1, 0) & np.roll(opaque, 1, 1) & np.roll(opaque, -1, 1)
     edge_colour = ref[..., :3][opaque & ~inner].mean(0) * 0.6
     ref_lum = features(ref_px)[:, 0]
+    idle_collar = landmarks(ref.astype(np.uint8))[0]
 
-    def build(leg_factors):
+    def build(params):
         cells = []
-        for rgb, mask, factor in zip(frames, masks, leg_factors):
-            rgb = rgb[y0:y1, x0:x1].copy()
-            mask = mask[y0:y1, x0:x1]
-            # despill green fringe
-            rgb[..., 1] = np.minimum(rgb[..., 1], np.maximum(rgb[..., 0], rgb[..., 2]))
-            if args.legs:
-                h = rgb.shape[0]
-                top, bottom = int(args.legs[0] * h), int(args.legs[1] * h)
-                rgb = stretch_rows(rgb, top, bottom, factor)
-                mask = stretch_rows(mask, top, bottom, factor)
+        for (rgb, mask), (dx, dy, factor) in zip(crops, params):
+            rgb, mask = shift_img(rgb, dx, dy), shift_img(mask, dx, dy)
+            rgb = stretch_rows(rgb, top, bottom, factor)
+            mask = stretch_rows(mask, top, bottom, factor)
+            # every frame keeps the same top and the same sampling grid, so the upper body
+            # (moved into place above) is cut into pixels the same way in every frame
             out_h = round(rgb.shape[0] * scale)
-            out_w = round(rgb.shape[1] * scale / 2) * 2  # even width: no half-pixel centre
             feat = features(rgb.reshape(-1, 3))
             mat = nearest(feat, centres).reshape(mask.shape)
             cells.append(cell_sample(feat[:, 0].reshape(mask.shape), mat, mask, out_w, out_h, args.materials))
 
         # Per material, give the frames the same spread of shades as the idle sprite:
         # the n-th lightest hair pixel becomes the idle's n-th lightest hair colour, etc.
-        out_rgb = [np.zeros(m.shape + (3,)) for m, _ in cells]
+        out_rgb = [np.zeros(mt.shape + (3,)) for mt, _ in cells]
         for k in range(args.materials):
             pool = ref_px[ref_mat == k][np.argsort(ref_lum[ref_mat == k])]
-            sel = [m == k for m, _ in cells]
+            sel = [mt == k for mt, _ in cells]
             vals = np.concatenate([l[s] for (_, l), s in zip(cells, sel)])
             if len(vals) == 0 or len(pool) == 0:
                 continue
@@ -229,70 +249,75 @@ def main():
                 n += c
 
         result = []
-        for (m, _), rgb in zip(cells, out_rgb):
-            frame = np.dstack([rgb, (m >= 0) * 255]).astype(np.uint8)
+        for (mt, _), rgb in zip(cells, out_rgb):
+            frame = np.dstack([rgb, (mt >= 0) * 255]).astype(np.uint8)
+            frame = frame[:np.nonzero((frame[..., 3] > 0).any(1))[0].max() + 1]
             if args.shoe_scale < 1.0:
                 frame, _ = squash_shoes(frame, args.shoe_scale)
-            result.append(add_outline(frame, edge_colour))
+            frame = add_outline(frame, edge_colour)
+            ground = np.nonzero((frame[..., 3] > 0).any(1))[0].max()
+            result.append(frame[:ground + 1])  # bottom row = the planted foot
         return result
 
-    def landmarks(frame):
-        """Height of the shirt collar above the ground and x centre of the torso."""
-        a = frame[..., 3] > 0
-        white = a & (frame[..., :3].min(2) > 185)
-        collar = next(y for y in range(frame.shape[0]) if white[y].sum() >= 6)
-        torso = np.nonzero(a[collar:collar + 30])[1]
-        return frame.shape[0] - 1 - collar, torso.mean()
+    # Start: line the frames up on the collar and torso in the video itself
+    src = []
+    for rgb, mask in crops:
+        white = mask & (rgb.min(2) > 200)
+        collar = next(y for y in range(ch) if white[y].sum() >= 25)
+        torso = np.nonzero(mask[collar:collar + int(30 / scale)])[1].mean()
+        src.append((collar, torso))
+    c_mean = np.mean([c for c, _ in src])
+    t_mean = np.mean([t for _, t in src])
+    params = [[round(t_mean - t), round(c_mean - c), 1.15] for c, t in src]
 
-    base = args.legs[2] if args.legs else 1.0
-    factors = [base] * args.frames
-    out_frames = build(factors)
-    if args.legs and args.bob < 1.0:
-        # The video bobs a lot; lengthen/shorten the legs per frame so the body bobs
-        # only `bob` as much (feet stay on the ground, no up-down shake)
-        heights = np.array([landmarks(f)[0] for f in out_frames], float)
-        region = (args.legs[1] - args.legs[0]) * args.height
-        target = heights.mean() + args.bob * (heights - heights.mean())
-        factors = [f + (t - h) / region for f, t, h in zip(factors, target, heights)]
-        out_frames = build(factors)
+    # Then adjust each frame until its collar is exactly at the idle sprite's height
+    # (minus a clean `bob` dip on the wide steps) and the torsos line up
+    region = (bottom - top) * scale
+    out_frames = build(params)
+    spread = []
+    for f in out_frames:
+        xs = np.nonzero(f[-12:, :, 3].any(0))[0]
+        spread.append(xs.max() - xs.min())
+    low = (np.array(spread) > np.median(spread)).astype(int)
+    target = idle_collar - args.bob * low
+    best = [(99, None)] * len(params)
+    for it in range(16):
+        marks = [landmarks(f) for f in out_frames]
+        heights = np.array([h for h, _ in marks])
+        tx = np.array([x for _, x in marks])
+        for i, (h, t) in enumerate(zip(heights, target)):
+            if abs(h - t) < best[i][0]:
+                best[i] = (abs(h - t), list(params[i]))
+        if (heights == target).all() and np.ptp(tx) < 0.75:
+            break
+        for p, h, t, x in zip(params, heights, target, tx):
+            p[2] += (t - h) / region * (1.0 if it < 2 else 0.3 + 0.5 * np.random.default_rng(it).random())
+            p[0] += round((tx.mean() - x) / scale)
+        out_frames = build(params)
+    else:
+        params = [b[1] for b in best]  # best seen for each frame
+        out_frames = build(params)
+    marks = [landmarks(f) for f in out_frames]
+    print("collar heights", [int(h) for h, _ in marks], "target", target.tolist())
+    print("torso x", [round(x, 2) for _, x in marks])
 
-    # Line every frame up on the torso (no side-to-side shake) and on the ground
-    centres_x = np.array([landmarks(f)[1] for f in out_frames])
-    shifts = np.round(centres_x.mean() - centres_x).astype(int)
-    pad = int(np.abs(shifts).max())
+    # Bottom-align (feet on the last row) and trim the shared empty margins
     out_h = max(f.shape[0] for f in out_frames)
-    out_w = out_frames[0].shape[1] + 2 * pad
-    canvases = []
-    for frame, dx in zip(out_frames, shifts):
-        c = np.zeros((out_h, out_w, 4), np.uint8)
-        c[out_h - frame.shape[0]:, pad + dx:pad + dx + frame.shape[1]] = frame
-        canvases.append(c)
-
-    if args.lock_upper:
-        # AI video redraws hair, shirt and bag a little differently every frame, which
-        # reads as shaking. Use one frame's upper body for all frames (only the legs
-        # move) and give it a clean 1px bob: down on the wide steps, up when passing.
-        def spread(c):
-            xs = np.nonzero(c[-12:, :, 3].any(0))[0]
-            return xs.max() - xs.min()
-        spreads = np.array([spread(c) for c in canvases])
-        low = (spreads > np.median(spreads)).astype(int)  # feet wide apart = body lowest
-        cut = out_h - 1 - args.lock_upper
-        ref_up = canvases[args.lock_from][:cut].copy()
-        for c, lo in zip(canvases, low):
-            d = int(lo) - int(low[args.lock_from])
-            c[:cut + d] = 0
-            if d >= 0:
-                c[d:cut + d] = ref_up
-            else:
-                c[:cut + d] = ref_up[-d:]
-        print("upper body from frame", args.lock_from, "bob", low.tolist(), "feet spread", spreads.tolist())
-
-    sheet = Image.new("RGBA", (out_w * args.frames, out_h), (0, 0, 0, 0))
+    canvases = np.zeros((len(out_frames), out_h, out_w, 4), np.uint8)
+    for c, f in zip(canvases, out_frames):
+        c[out_h - f.shape[0]:] = f
+    alpha = canvases[..., 3].any(0)
+    ys, xs = np.nonzero(alpha)
+    xa, xb = xs.min(), xs.max() + 1
+    if (xb - xa) % 2:
+        xb += 1
+    canvases = canvases[:, ys.min():, xa:xb]
+    fh, fw = canvases.shape[1:3]
+    sheet = Image.new("RGBA", (fw * args.frames, fh), (0, 0, 0, 0))
     for i, c in enumerate(canvases):
-        sheet.paste(Image.fromarray(c, "RGBA"), (i * out_w, 0))
+        sheet.paste(Image.fromarray(c, "RGBA"), (i * fw, 0))
     sheet.save(args.out)
-    print(f"{args.frames} frames of {out_w}x{out_h} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
+    print(f"{args.frames} frames of {fw}x{fh} -> {args.out} (crop {x0},{y0} {x1 - x0}x{y1 - y0})")
 
 
 if __name__ == "__main__":
