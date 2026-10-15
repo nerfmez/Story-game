@@ -1,11 +1,13 @@
 """Synthesize the ambient sounds of the sunset railway scene (no recorded samples).
 
 Outputs (assets/audio/, Ogg Vorbis):
-  ambience_evening.ogg  24 s seamless loop: city hum, breeze, crickets, a cicada
-                        swell, distant birds and a couple of far-off cars
+  ambience_evening.ogg  24 s seamless loop: city hum, breeze, crickets, a cicada swell
+                        (only things you hear but don't see; birds and the train make
+                        their sounds when they are on screen)
   train_pass.ogg        3.2 s seamless loop of a train on a viaduct: rumble, motor
                         whine and the clack-clack of the wheels over rail joints
   step_1..3.ogg         footsteps on wet asphalt (soft scuff + tiny splash)
+  bird_1..3.ogg         short calls of a small bird (2-4 tweets), played by the flocks
 
 Everything that loops is built circularly (noise shaped in the frequency domain,
 events wrapped around the end), so the loops have no seam.
@@ -80,16 +82,6 @@ def ambience(seconds=24):
     buzz *= 0.5 * (1 + np.sin(2 * np.pi * 95 * tt))
     swell = np.sin(np.pi * tt / 7) ** 2
     place(out, 0.014 * buzz * swell, int(9 * SR))
-    for at in (3.2, 3.5, 14.8, 15.05, 15.3, 20.4):                               # distant birds
-        ln = int(rng.uniform(0.07, 0.12) * SR)
-        tt = np.arange(ln) / SR
-        f = np.linspace(rng.uniform(2400, 2900), rng.uniform(3600, 4300), ln)
-        tweet = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(ln, 0.01, 0.04)
-        place(out, 0.03 * tweet, int(at * SR))
-    for at, dur in ((5.0, 5.5), (16.5, 4.5)):                                   # far-off cars
-        ln = int(dur * SR)
-        car = shaped_noise(ln, 80, 900, -0.5) * np.sin(np.pi * np.arange(ln) / ln) ** 3
-        place(out, 0.07 * car, int(at * SR))
     return out * 0.9
 
 
@@ -108,6 +100,21 @@ def train_loop(seconds=3.2):
             for axle in (0.0, 0.13):
                 place(out, 0.35 * clack * rng.uniform(0.8, 1.0), int((car_start + bogie + axle) * SR))
     return out
+
+
+def bird_call(seed):
+    """A few quick rising tweets, like a small bird calling to the flock."""
+    r = np.random.default_rng(seed)
+    out = np.zeros(int(0.6 * SR))
+    at = 0.0
+    for _ in range(r.integers(2, 5)):
+        ln = int(r.uniform(0.05, 0.09) * SR)
+        f = np.linspace(r.uniform(2600, 3200), r.uniform(3900, 4700), ln)
+        f += 300 * np.sin(np.linspace(0, np.pi, ln))
+        tweet = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(ln, 0.006, 0.03)
+        place(out, tweet * r.uniform(0.7, 1.0), int(at * SR), loop=False)
+        at += ln / SR + r.uniform(0.03, 0.08)
+    return out[: int((at + 0.05) * SR)]
 
 
 def step(seed):
@@ -144,4 +151,5 @@ if __name__ == "__main__":
     save_ogg("train_pass.ogg", train_loop(), 0.8)
     for i in range(3):
         save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
+        save_ogg(f"bird_{i + 1}.ogg", bird_call(200 + i), 0.6)
     print("audio written to", OUT)

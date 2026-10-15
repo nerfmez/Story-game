@@ -1,4 +1,4 @@
-[gd_scene load_steps=50 format=3]
+[gd_scene load_steps=54 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -39,6 +39,9 @@
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/sun_rays.png" id="38_rays"]
 [ext_resource type="Shader" path="res://shaders/light_shafts.gdshader" id="39_shafts"]
 [ext_resource type="Shader" path="res://shaders/grade.gdshader" id="40_grade"]
+[ext_resource type="AudioStream" path="res://assets/audio/bird_1.ogg" id="41_bird1"]
+[ext_resource type="AudioStream" path="res://assets/audio/bird_2.ogg" id="42_bird2"]
+[ext_resource type="AudioStream" path="res://assets/audio/bird_3.ogg" id="43_bird3"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -49,6 +52,17 @@ stream_0/weight = 1.0
 stream_1/stream = ExtResource("30_step2")
 stream_1/weight = 1.0
 stream_2/stream = ExtResource("31_step3")
+stream_2/weight = 1.0
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_birds"]
+random_pitch = 1.15
+random_volume_offset_db = 3.0
+streams_count = 3
+stream_0/stream = ExtResource("41_bird1")
+stream_0/weight = 1.0
+stream_1/stream = ExtResource("42_bird2")
+stream_1/weight = 1.0
+stream_2/stream = ExtResource("43_bird3")
 stream_2/weight = 1.0
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_add"]
@@ -142,9 +156,14 @@ centered = false
 [node name="Birds" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.05, 0.05)
 
-[node name="Flock" type="Node2D" parent="Birds"]
+[node name="Flock" type="Node2D" parent="Birds" node_paths=PackedStringArray("call_sound")]
 script = ExtResource("33_birds")
 bird_texture = ExtResource("32_bird")
+call_sound = NodePath("Calls")
+
+[node name="Calls" type="AudioStreamPlayer" parent="Birds/Flock"]
+stream = SubResource("AudioStreamRandomizer_birds")
+volume_db = -14.0
 
 [node name="Railway" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.12, 0.12)
