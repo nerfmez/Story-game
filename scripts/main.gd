@@ -28,7 +28,8 @@ const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 ## ชั้นที่มีเฉพาะตอนเย็น (แสงอาทิตย์ แสงเรืองหน้าต่างรถไฟ เมฆเส้นสีส้ม)
 @export var evening_only: Array[NodePath] = [^"SunLight", ^"Wisps", ^"TrainLayer/Train/Glow"]
 ## ตอนเช้าถนนแห้ง (ไม่มีน้ำ): ซ่อนเงาสะท้อนที่วาดอยู่บนถนน (เงาสะท้อนชั้นอื่นอยู่ใต้ถนนทึบอยู่แล้ว)
-@export var wet_only: Array[NodePath] = [^"Characters/Hero/Reflection"]
+## (เงาสะท้อนตัวละครปิดไว้ทั้งเช้าและเย็น: Characters/Hero/Reflection visible = false ในฉาก)
+@export var wet_only: Array[NodePath] = []
 const MORNING_AMBIENCE := "res://assets/audio/ambience_morning.ogg"
 
 

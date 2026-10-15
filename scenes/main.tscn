@@ -303,6 +303,7 @@ stream = SubResource("AudioStreamRandomizer_steps")
 volume_db = -9.0
 
 [node name="Reflection" type="Sprite2D" parent="Characters/Hero"]
+visible = false
 material = SubResource("ShaderMaterial_reflection")
 position = Vector2(0, 121)
 texture = ExtResource("11_hero")
