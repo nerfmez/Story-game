@@ -4,8 +4,11 @@ Same layer names and sizes as assets/bg/sunset/ (the game swaps each sunset text
 for the morning one with the same name), made from:
   sky.png           art_source/morning_sky.png (blue sky, white clouds), scaled and
                     mirrored into a seamless tile like the sunset sky
-  railway_back.png  the railway art is already in daylight greens: a touch brighter
+  railway_back.png  the railway art is already in daylight greens: brighter, with the
+                    shadows lifted more than the highlights
   city.png          the distant city fades towards the sky colour (daylight haze)
+  road.png          the same road drawn dry (no puddles, nothing reflects), recoloured
+                    as below; hedge brighter with lighter shadows
   railway_fill.png, road.png, foreground.png
                     the sunset layers recoloured by hue for morning light: violet greys
                     become light blue-grey concrete/asphalt, the orange-pink sunset rims
@@ -20,6 +23,7 @@ morning version; the game hides them.
 Run tools/compose_sunset_scene.py first (this reads its output).
 Usage: python3 tools/compose_morning_scene.py
 """
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -98,6 +102,29 @@ def build_sky():
     return tile
 
 
+def dry_road():
+    """The road layer without water. It draws hedge clumps and cracks with the sunset
+    script's shared random numbers, so replay the steps that run before it there
+    (writing their files to a scratch folder) to get the very same hedge and cracks."""
+    keep = sunset.OUT
+    with tempfile.TemporaryDirectory() as tmp:
+        sunset.OUT = Path(tmp)
+        sunset.build_sky()
+        sunset.build_railway()
+        road = sunset.road_layer(dry=True)
+    sunset.OUT = keep
+    return road
+
+
+def lift(img, gamma=0.8, exposure=1.0, rows=None):
+    """Brighten with a curve that lifts the shadows more than the highlights
+    (leaves stay readable, the dark undersides open up)."""
+    a = np.asarray(img.convert("RGBA")).astype(float)
+    part = a if rows is None else a[rows]
+    part[..., :3] = 255 * np.clip(part[..., :3] / 255 * exposure, 0, 1) ** gamma
+    return Image.fromarray(np.clip(a, 0, 255).round().astype(np.uint8), "RGBA")
+
+
 def haze(name, colour=(214, 232, 248), strength=0.55):
     a = np.asarray(Image.open(SUNSET / name).convert("RGBA")).astype(float)
     out = np.zeros_like(a)
@@ -112,12 +139,14 @@ def main():
     sky.save(OUT / "sky.png")
     city = fade_to_sky(Image.open(SUNSET / "city.png"), 0.5)
     city.save(OUT / "city.png")
-    back = brighten(Image.open(SUNSET / "railway_back.png"), 1.06)
+    back = lift(Image.open(SUNSET / "railway_back.png"), 0.78, 1.05)      # trees: brighter, lighter shadows
     back.save(OUT / "railway_back.png")
-    fill = to_morning(Image.open(SUNSET / "railway_fill.png"), 1.25)
+    fill = lift(to_morning(Image.open(SUNSET / "railway_fill.png"), 1.25), 0.75, 1.2)
     fill.save(OUT / "railway_fill.png")
-    # the hedge tops on the road layer: sun on the leaves, light yellow-green
-    to_morning(Image.open(SUNSET / "road.png"), rim=(78, 1.0, 0.72)).save(OUT / "road.png")
+    # dry road (no water in the morning); the hedge tops: sun on the leaves, light
+    # yellow-green; the hedge (above the curb) brighter with lighter shadows
+    road = to_morning(dry_road(), rim=(78, 1.0, 0.72))
+    lift(road, 0.78, 1.05, rows=slice(0, sunset.ROAD_TOP - 8)).save(OUT / "road.png")
     to_morning(Image.open(SUNSET / "foreground.png"), 1.5).save(OUT / "foreground.png")
     train, _ = sunset.make_train(daylight=True)
     train.save(OUT / "train.png")

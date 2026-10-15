@@ -458,7 +458,14 @@ def build_road(sky, city, fill, back):
     rail.alpha_composite(back)
     mirror(rail, RAIL_Y, rail.size[0]).save(OUT / "rail_reflect.png")
 
-    road = road_surface()
+    road_layer().save(OUT / "road.png")
+
+
+def road_layer(dry=False):
+    """The road layer: asphalt (wet, or dry for the morning) + sidewalk + hedge + fence,
+    edge line, cracks and a manhole. dry=True draws the same road with no water (and
+    uses the same random numbers, so patches, cracks and hedge are where they are wet)."""
+    road = road_surface(dry=dry)
     img = road
     img.alpha_composite(sidewalk())
     img.alpha_composite(hedge())
@@ -486,7 +493,7 @@ def build_road(sky, city, fill, back):
             d.line([(bx, by), (bx + rng.randint(-4, 4), by + rng.choice((-2, 2)))], fill=(26, 22, 46, 255))
     d.ellipse((520, 324, 566, 333), fill=(40, 36, 66, 255), outline=(20, 16, 36, 255))
     d.ellipse((526, 326, 560, 331), outline=(70, 64, 100, 255))
-    img.save(OUT / "road.png")
+    return img
 
 
 def tile_noise(h, w, cell, nrng):
@@ -554,7 +561,7 @@ def sidewalk(block=2):
     return img.resize((TILE, 360), Image.NEAREST)
 
 
-def road_surface(block=2):
+def road_surface(block=2, dry=False):
     """Asphalt for the road layer, drawn at 1/block resolution (chunky pixels) and
     semi-transparent where it is wet, so the reflection layers below show through.
     Wetness fades out gradually (dithered steps) instead of hard puddle edges; even the
@@ -584,6 +591,8 @@ def road_surface(block=2):
     levels = 4                                               # dithered steps, pixel-art style
     wetq = np.floor(np.clip(wet, 0, 1) * levels + dither * 0.999) / levels
     wetq = np.clip(wetq, 0, 1)
+    if dry:                                                  # morning: no water at all
+        wetq = np.zeros_like(wetq)
 
     # --- dry asphalt colour and texture
     far, near = np.array((60, 54, 96.0)), np.array((32, 30, 58.0))
@@ -615,6 +624,8 @@ def road_surface(block=2):
     # far away), at most about half in the deepest puddles
     show = (0.05 + 0.04 * (1 - t) ** 2) + wetq * (0.4 + 0.04 * (1 - t))
     alpha = 1 - np.clip(show, 0, 0.62)
+    if dry:
+        alpha[:] = 1                                         # nothing reflects in dry asphalt
 
     # --- ripples / sky glints on the puddles: short light dashes on the surface
     glint = (wetq >= 0.75) & (nrng.random((h, w)) < 0.05)
