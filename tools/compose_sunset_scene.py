@@ -468,7 +468,7 @@ def tile_noise(h, w, cell, nrng):
 
 def sidewalk(block=2):
     """Thai sidewalk where the hero walks: rows of concrete paving slabs (smaller far
-    away), worn and patched, then a kerb painted red and white down to the street.
+    away), worn and patched, then a plain concrete kerb down to the street.
     Mostly opaque: damp slabs only let a little reflection through."""
     sr = random.Random(17)
     w, h = TILE // block, 360 // block
@@ -504,12 +504,13 @@ def sidewalk(block=2):
         d.line([(0, y1), (w, y1)], fill=grout)
     ky = KERB_Y // block
     d.line([(0, ky - 1), (w, ky - 1)], fill=(176, 154, 172, 250))    # kerb top edge catches the light
-    for x0 in range(0, w, 18):                                       # red / white kerb paint
-        red = (x0 // 18) % 2 == 0
-        col = (172, 58, 68, 255) if red else (196, 186, 204, 255)
+    for x0 in range(0, w, 18):                                       # plain concrete kerb blocks
+        tone = sr.uniform(-6, 6)
+        col = (int(104 + tone), int(92 + tone), int(118 + tone), 255)
         d.rectangle((x0, ky, x0 + 17, STREET_TOP // block - 2), fill=col)
-        for _ in range(3):                                            # chipped paint
-            d.point((x0 + sr.randint(0, 17), sr.randint(ky, STREET_TOP // block - 2)), fill=(110, 96, 120, 255))
+        d.line([(x0, ky), (x0, STREET_TOP // block - 2)], fill=(78, 68, 96, 255))   # joint
+        for _ in range(3):                                            # chips and stains
+            d.point((x0 + sr.randint(1, 17), sr.randint(ky, STREET_TOP // block - 2)), fill=(84, 74, 100, 255))
     d.line([(0, STREET_TOP // block - 1), (w, STREET_TOP // block - 1)], fill=(30, 24, 44, 255))
     return img.resize((TILE, 360), Image.NEAREST)
 
