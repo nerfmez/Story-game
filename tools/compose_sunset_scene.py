@@ -474,7 +474,7 @@ def sidewalk(block=2):
     w, h = TILE // block, 360 // block
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    grout, moss = (72, 60, 92, 245), (58, 86, 70, 245)
+    grout, moss = (60, 52, 80, 245), (54, 66, 66, 245)
     y = ROAD_TOP // block
     rows = []
     for k, rh in enumerate((3, 4, 4)):                 # slab rows, far to near (foreshortened)
@@ -483,8 +483,8 @@ def sidewalk(block=2):
     for y0, y1, k in rows:
         shift = (k % 2) * 6                            # staggered like bricks
         for x0 in range(-12 + shift, w, 12):
-            tone = sr.uniform(-9, 9) - k * 6
-            base = (int(128 + tone), int(112 + tone), int(138 + tone))
+            tone = sr.uniform(-3, 3) - k * 3                          # subtle: the ground stays quiet
+            base = (int(78 + tone), int(68 + tone), int(96 + tone))
             damp = sr.random() < 0.18
             a = 205 if damp else 245
             if damp:
@@ -492,25 +492,26 @@ def sidewalk(block=2):
             xs = [(x % w) for x in range(x0, x0 + 12)]
             for x in xs:
                 d.line([(x, y0), (x, y1)], fill=base + (a,))
-                d.point((x, y0), fill=(min(255, base[0] + 26), min(255, base[1] + 18), min(255, base[2] + 22), a))
+                if k == 0:                                             # only the far row catches a little light
+                    d.point((x, y0), fill=(base[0] + 8, base[1] + 5, base[2] + 7, a))
             d.line([(xs[0], y0), (xs[0], y1)], fill=grout)           # grout between slabs
-            if sr.random() < 0.15:                                    # cracked slab
+            if sr.random() < 0.08:                                    # cracked slab
                 cx = xs[0] + sr.randint(3, 8)
                 d.line([((cx) % w, y0 + 1), ((cx + 2) % w, y1)], fill=grout)
             if sr.random() < 0.12:                                    # stain
-                d.point(((xs[0] + sr.randint(2, 10)) % w, sr.randint(y0 + 1, y1)), fill=(84, 70, 96, 245))
-            if sr.random() < 0.3:                                     # moss in the joint
+                d.point(((xs[0] + sr.randint(2, 10)) % w, sr.randint(y0 + 1, y1)), fill=(66, 56, 82, 245))
+            if sr.random() < 0.15:                                    # moss in the joint
                 d.point((xs[0], sr.randint(y0, y1)), fill=moss)
         d.line([(0, y1), (w, y1)], fill=grout)
     ky = KERB_Y // block
-    d.line([(0, ky - 1), (w, ky - 1)], fill=(176, 154, 172, 250))    # kerb top edge catches the light
+    d.line([(0, ky - 1), (w, ky - 1)], fill=(98, 86, 112, 250))      # kerb top edge, faintly lit
     for x0 in range(0, w, 18):                                       # plain concrete kerb blocks
         tone = sr.uniform(-6, 6)
-        col = (int(104 + tone), int(92 + tone), int(118 + tone), 255)
+        col = (int(66 + tone / 2), int(57 + tone / 2), int(82 + tone / 2), 255)
         d.rectangle((x0, ky, x0 + 17, STREET_TOP // block - 2), fill=col)
-        d.line([(x0, ky), (x0, STREET_TOP // block - 2)], fill=(78, 68, 96, 255))   # joint
+        d.line([(x0, ky), (x0, STREET_TOP // block - 2)], fill=(58, 50, 74, 255))   # joint
         for _ in range(3):                                            # chips and stains
-            d.point((x0 + sr.randint(1, 17), sr.randint(ky, STREET_TOP // block - 2)), fill=(84, 74, 100, 255))
+            d.point((x0 + sr.randint(1, 17), sr.randint(ky, STREET_TOP // block - 2)), fill=(60, 52, 76, 255))
     d.line([(0, STREET_TOP // block - 1), (w, STREET_TOP // block - 1)], fill=(30, 24, 44, 255))
     return img.resize((TILE, 360), Image.NEAREST)
 
