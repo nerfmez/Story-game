@@ -3,12 +3,10 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
-## ภาพยืน: แผ่นภาพ 6 เฟรม (หายใจ 3 ท่า + หลับตา 3 ท่า) จาก tools/make_idle_anim.py
-## หรือภาพเดียวก็ได้ (idle_frames = 1)
+## ภาพยืน: 2 เฟรม (ลืมตา / หลับตา) จาก tools/make_idle_anim.py หรือภาพเดียวก็ได้ (idle_frames = 1)
+## การหายใจทำใน shaders/breathe.gdshader (material ของ Body) ซึ่งเปิดเฉพาะตอนยืน
 @export var idle_texture: Texture2D
-@export var idle_frames := 6
-## จังหวะหายใจ: (ท่า, วินาที) ท่า 0 = ปกติ, 1 = ไหล่ลง, 2 = ไหล่+หัวลง
-@export var breath_steps: Array[Vector2] = [Vector2(0, 1.1), Vector2(1, 0.3), Vector2(2, 1.0), Vector2(1, 0.3)]
+@export var idle_frames := 2
 ## กะพริบตาทุกๆ กี่วินาที (สุ่มในช่วงนี้) และนานเท่าไร
 @export var blink_every := Vector2(2.2, 5.0)
 @export var blink_time := 0.13
@@ -39,7 +37,6 @@ var touch_dir := 0.0
 ## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
 var _facing_right := false
 var _last_frame := -1
-var _idle_time := 0.0
 var _blink_wait := 3.0
 var _blink_left := 0.0
 
@@ -66,7 +63,6 @@ func _process(delta: float) -> void:
 	else:
 		_anim_time = 0.0
 		_last_frame = -1
-		_idle_time += delta
 		_blink_wait -= delta
 		if _blink_wait <= 0.0:
 			_blink_left = blink_time
@@ -76,6 +72,8 @@ func _process(delta: float) -> void:
 
 
 func _set_pose(walking: bool, facing_right: bool) -> void:
+	if _body.material is ShaderMaterial:
+		(_body.material as ShaderMaterial).set_shader_parameter("strength", 0.0 if walking else 1.0)
 	for sprite in [_body, _reflection]:
 		if walking and walk_texture:
 			sprite.texture = walk_texture
@@ -95,18 +93,6 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.flip_h = facing_right
 
 
-## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา + 3 ถ้ากำลังกะพริบตา
+## เฟรมของท่ายืนตอนนี้: 1 = กำลังกะพริบตา
 func _idle_frame() -> int:
-	if idle_frames < 6:
-		return 0
-	var total := 0.0
-	for step in breath_steps:
-		total += step.y
-	var t := fmod(_idle_time, total)
-	var pose := 0
-	for step in breath_steps:
-		if t < step.y:
-			pose = int(step.x)
-			break
-		t -= step.y
-	return pose + (3 if _blink_left > 0.0 else 0)
+	return 1 if idle_frames > 1 and _blink_left > 0.0 else 0
