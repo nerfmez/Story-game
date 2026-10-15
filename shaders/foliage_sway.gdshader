@@ -1,12 +1,15 @@
 shader_type canvas_item;
-// Leaves swaying in a light breeze, for the railway layer: only foliage moves (the
-// viaduct, rails and trunks stay), by whole pixels (pixel-art look), in slow waves
-// that travel along the tree line. Tree tops move more than the leaves near the deck.
-// Sampled sharp-bilinear (needs linear filtering) so the slow layer still glides.
+// Leaves rustling in a light breeze, for the railway layer. Nothing is displaced
+// (moving pixels made the trees ripple like water): instead single leaf pixels
+// (2x2 art pixels) catch the light for a moment, more often where a gust is passing,
+// and gusts travel slowly along the tree line. Only lit foliage reacts; the viaduct,
+// rails and trunks stay as they are. Sharp-bilinear sampling (needs linear filtering)
+// keeps the slow layer gliding.
 
-uniform float strength = 1.0;      // max shift in texels
-uniform float speed = 0.9;
-uniform float deck_y = 232.0;      // texel row of the rails; canopy above, lower trees below
+uniform float amount = 0.16;       // how much a rustling leaf brightens
+uniform float density = 0.06;      // share of leaf pixels lit at a gust's peak
+uniform float gust_speed = 0.5;
+uniform float art_pixel = 2.0;     // the layer's chunky pixel size, in texels
 
 varying vec4 modulate;
 
@@ -14,27 +17,26 @@ void vertex() {
 	modulate = COLOR;
 }
 
-// sharp-bilinear texel position (sampled in fragment(): TEXTURE can't be passed to functions)
-vec2 sharp_uv(vec2 texel, vec2 per_px, vec2 size) {
-	vec2 seam = floor(texel + 0.5);
-	return (seam + clamp((texel - seam) / per_px, -0.5, 0.5)) / size;
-}
-
-bool leafy(vec4 c) {
-	return c.a < 0.5 || (c.g > c.r && c.g >= c.b - 0.04);
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
 void fragment() {
 	vec2 size = vec2(textureSize(TEXTURE, 0));
 	vec2 texel = UV * size;
-	float h = texel.y < deck_y
-		? clamp((deck_y - texel.y) / 50.0, 0.0, 1.0)
-		: clamp((texel.y - deck_y - 20.0) / 50.0, 0.0, 0.7);
-	float wave = 0.65 * sin(TIME * speed + texel.x * 0.03 + texel.y * 0.04)
-		+ 0.35 * sin(TIME * speed * 1.7 + texel.x * 0.011);
-	float dx = round(wave * h * strength * 1.3);
+	vec2 seam = floor(texel + 0.5);
 	vec2 per_px = max(fwidth(texel), vec2(1e-4));
-	vec4 c0 = texture(TEXTURE, sharp_uv(texel, per_px, size));
-	vec4 c1 = texture(TEXTURE, sharp_uv(texel + vec2(dx, 0.0), per_px, size));
-	COLOR = ((leafy(c0) && leafy(c1)) ? c1 : c0) * modulate;
+	vec4 c = texture(TEXTURE, (seam + clamp((texel - seam) / per_px, -0.5, 0.5)) / size);
+	bool leaf = c.a > 0.5 && c.g > c.r && c.g >= c.b - 0.04 && c.g > 0.25;
+	if (leaf) {
+		vec2 cell = floor(texel / art_pixel);
+		float n = hash(cell);
+		float gust = 0.5 + 0.5 * sin(TIME * gust_speed - texel.x * 0.012);
+		// each leaf pixel blinks on its own slow clock; gusts make more of them blink
+		float phase = fract(TIME * (0.35 + 0.5 * n) + n * 7.0);
+		float on = step(1.0 - density * gust * gust, hash(cell + floor(TIME * (0.35 + 0.5 * n) + n * 7.0)))
+			* step(phase, 0.5);
+		c.rgb += on * amount * vec3(0.55, 0.75, 0.35);
+	}
+	COLOR = c * modulate;
 }

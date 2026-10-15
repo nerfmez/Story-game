@@ -6,21 +6,12 @@ moves the bands by whole pixels; where two bands part, the row between is double
 where they meet, one row is hidden. Cuts sit at the row that looks most like its
 neighbour (in the hair, below the chin, mid-shirt), so the face keeps its exact shape.
 
-Breathing in also widens the chest and arms by 1px on each side: the torso rows
-(neck to hands) are split at a quiet column in the middle of the shirt, the left half
-moves left and the right half right (the middle column is doubled). Frames get a 1px
-margin on both sides for this (so they are 2px wider than the source).
-
-Poses (hair / head / body offsets down in pixels, width +1px per side):
-  0 rest              0 0 0
-  1 wide (inhale)     0 0 0  wide
-  2 shoulders down    0 0 1
-  3 head follows      0 1 1   (hair tips lag behind)
-  4 down              1 1 1
-  5 hair overshoots   2 1 1
-  6 shoulders rise    1 1 0   (head still down)
-  7 head rises        1 0 0   (hair lags)
-then 8-15 are the same poses with the eyes closed.
+Kept calm on purpose (widening the body and bouncing hair looked odd):
+  0 rest
+  1 shoulders and arms 1px down, head still (a neck row below the chin is doubled)
+  2 head follows: everything above the chest 1px down
+then 3-5 are the same poses with the eyes closed. Frames keep a 1px side margin
+(2px wider than the source), so the game offsets them by -1px.
 
 Usage:
   python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png
@@ -62,22 +53,6 @@ def pose(a, cuts, offsets):
     return out
 
 
-def widen(a, top, bottom, col):
-    """Rows top..bottom-1: everything left of `col` moves 1px left, everything right of
-    it 1px right; column `col` is doubled. Needs a free column at each edge."""
-    out = a.copy()
-    out[top:bottom, :col] = a[top:bottom, 1:col + 1]
-    out[top:bottom, col + 1:] = a[top:bottom, col:-1]
-    return out
-
-
-def quiet_col(a, top, bottom, lo, hi):
-    """The column in lo..hi (rows top..bottom) most like its left neighbour."""
-    f = a[top:bottom].astype(int)
-    cost = [np.abs(f[:, x] - f[:, x - 1]).sum() for x in range(lo, hi)]
-    return lo + int(np.argmin(cost))
-
-
 def quiet_row(a, lo, hi):
     """The row in lo..hi that differs least from the row above it (its loss is invisible)."""
     f = a.astype(int)
@@ -98,7 +73,6 @@ def main():
                     help="neck/collar rows to choose the doubled row from (below the chin)")
     ap.add_argument("--hair", type=int, nargs=2, default=(3, 9), metavar=("FROM", "TO"),
                     help="hair rows to choose the doubled row from")
-    ap.add_argument("--arms-end", type=int, default=72, help="last row that widens (below the hands)")
     args = ap.parse_args()
     eyes = [tuple(int(v) for v in e.split(",")) for e in args.eyes]
 
@@ -108,14 +82,12 @@ def main():
     chest = quiet_row(a, *args.chest)
     neck = quiet_row(a, *args.neck)
     hair = quiet_row(a, *args.hair)
-    mid = quiet_col(a, neck, args.arms_end, a.shape[1] // 2 - 6, a.shape[1] // 2 + 4)
-    wide = widen(a, neck, args.arms_end, mid)
     cuts = (hair, neck, chest)
-    poses = [(a, 0), (wide, 0)]
-    for o in [(0, 0, 1), (0, 1, 1), (1, 1, 1), (2, 1, 1), (1, 1, 0), (1, 0, 0)]:
+    poses = [(a, 0)]
+    for o in [(0, 0, 1), (1, 1, 1)]:
         poses.append((pose(a, cuts, o), o[1]))
     frames = [p for p, _ in poses] + [close_eyes(p, [(x, y + dy) for x, y in eyes]) for p, dy in poses]
-    print("rows: hair", hair, "neck", neck, "chest", chest, "| middle column", mid)
+    print("rows: hair", hair, "neck", neck, "chest", chest)
     h, w = a.shape[:2]
     sheet = Image.new("RGBA", (w * len(frames), h), (0, 0, 0, 0))
     for i, f in enumerate(frames):
