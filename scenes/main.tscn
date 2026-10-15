@@ -1,4 +1,4 @@
-[gd_scene load_steps=57 format=3]
+[gd_scene load_steps=55 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -43,7 +43,6 @@
 [ext_resource type="AudioStream" path="res://assets/audio/bird_2.ogg" id="42_bird2"]
 [ext_resource type="AudioStream" path="res://assets/audio/bird_3.ogg" id="43_bird3"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_idle.png" id="44_idle"]
-[ext_resource type="Shader" path="res://shaders/breathe.gdshader" id="45_breathe"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -66,9 +65,6 @@ stream_1/stream = ExtResource("42_bird2")
 stream_1/weight = 1.0
 stream_2/stream = ExtResource("43_bird3")
 stream_2/weight = 1.0
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_breathe"]
-shader = ExtResource("45_breathe")
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_add"]
 blend_mode = 1
@@ -302,8 +298,6 @@ texture = ExtResource("12_shadow")
 centered = false
 
 [node name="Body" type="Sprite2D" parent="Characters/Hero"]
-texture_filter = 2
-material = SubResource("ShaderMaterial_breathe")
 texture = ExtResource("11_hero")
 centered = false
 

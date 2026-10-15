@@ -3,10 +3,13 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
-## ภาพยืน: 2 เฟรม (ลืมตา / หลับตา) จาก tools/make_idle_anim.py หรือภาพเดียวก็ได้ (idle_frames = 1)
-## การหายใจทำใน shaders/breathe.gdshader (material ของ Body) ซึ่งเปิดเฉพาะตอนยืน
+## ภาพยืน: 4 เฟรมจาก tools/make_idle_anim.py (ปกติ, หายใจออก = ช่วงบนลง 1px, และสองท่านี้แบบหลับตา)
+## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
-@export var idle_frames := 2
+@export var idle_frames := 4
+## เวลาค้างท่าปกติ / ท่าหายใจออก (วินาที)
+@export var breath_in_time := 1.5
+@export var breath_out_time := 1.2
 ## กะพริบตาทุกๆ กี่วินาที (สุ่มในช่วงนี้) และนานเท่าไร
 @export var blink_every := Vector2(2.2, 5.0)
 @export var blink_time := 0.13
@@ -37,6 +40,7 @@ var touch_dir := 0.0
 ## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
 var _facing_right := false
 var _last_frame := -1
+var _idle_time := 0.0
 var _blink_wait := 3.0
 var _blink_left := 0.0
 
@@ -63,6 +67,7 @@ func _process(delta: float) -> void:
 	else:
 		_anim_time = 0.0
 		_last_frame = -1
+		_idle_time += delta
 		_blink_wait -= delta
 		if _blink_wait <= 0.0:
 			_blink_left = blink_time
@@ -72,8 +77,6 @@ func _process(delta: float) -> void:
 
 
 func _set_pose(walking: bool, facing_right: bool) -> void:
-	if _body.material is ShaderMaterial:
-		(_body.material as ShaderMaterial).set_shader_parameter("strength", 0.0 if walking else 1.0)
 	for sprite in [_body, _reflection]:
 		if walking and walk_texture:
 			sprite.texture = walk_texture
@@ -93,6 +96,9 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.flip_h = facing_right
 
 
-## เฟรมของท่ายืนตอนนี้: 1 = กำลังกะพริบตา
+## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+2 ถ้ากำลังกะพริบตา)
 func _idle_frame() -> int:
-	return 1 if idle_frames > 1 and _blink_left > 0.0 else 0
+	if idle_frames < 4:
+		return 0
+	var pose := 0 if fmod(_idle_time, breath_in_time + breath_out_time) < breath_in_time else 1
+	return pose + (2 if _blink_left > 0.0 else 0)
