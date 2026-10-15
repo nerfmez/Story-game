@@ -20,8 +20,6 @@ extends Node2D
 @onready var _reflection: Sprite2D = $Reflection
 
 var _anim_time := 0.0
-## ตำแหน่งจริงแบบทศนิยม ตำแหน่งที่วาด (position) ปัดเป็นพิกเซลเต็มเสมอ ภาพจึงไม่สั่น/ไม่เบลอ
-var _x := 0.0
 ## ทิศจากปุ่มบนจอ (-1 ซ้าย, 0 หยุด, 1 ขวา) ตั้งโดย touch_controls.gd
 var touch_dir := 0.0
 ## หันขวาอยู่หรือไม่ (หยุดเดินแล้วท่ายืนหันไปทางที่เดินล่าสุด)
@@ -29,7 +27,6 @@ var _facing_right := false
 
 
 func _ready() -> void:
-	_x = position.x
 	_set_pose(false, false)
 
 
@@ -39,8 +36,7 @@ func _process(delta: float) -> void:
 		dir = float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 	if dir == 0.0:
 		dir = touch_dir
-	_x += dir * speed * delta
-	position.x = roundf(_x)
+	position.x += dir * speed * delta
 	if dir != 0.0:
 		_facing_right = dir > 0.0
 		_anim_time += delta

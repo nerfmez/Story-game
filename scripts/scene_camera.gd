@@ -22,6 +22,9 @@ var _x := 0.0
 
 func _ready() -> void:
 	_x = position.x
+	# ทำงานหลังตัวละครเดินในเฟรมเดียวกัน (ค่ามากทำทีหลัง) ไม่งั้นกล้องตามหลังหนึ่งเฟรม
+	# และระยะตัวละครกับกล้องจะแกว่งตามเวลาของแต่ละเฟรม = ภาพสั่น
+	process_priority = 10
 	# บนจอสัมผัส "ตำแหน่งเมาส์" คือจุดที่นิ้วแตะ (เช่นปุ่มเดิน) กล้องจะกระตุกตาม จึงปิดการโยก
 	if DisplayServer.is_touchscreen_available() or OS.has_feature("mobile"):
 		mouse_sway = 0.0
@@ -37,10 +40,11 @@ func _process(delta: float) -> void:
 	var sway := clampf(mouse_x / viewport_width - 0.5, -0.5, 0.5) * 2.0 * mouse_sway
 	var t := 1.0 - exp(-follow_speed * delta)
 	if follow:
-		# ล็อกกล้องกับตัวละครตรงๆ (ตัวละครไม่สั่นบนจอตอนเดิน) ส่วนที่ค่อยๆ เลื่อนคือระยะเยื้อง:
+		# ล็อกกล้องกับตัวละครตรงๆ (ตัวละครอยู่นิ่งบนจอตอนเดิน) ส่วนที่ค่อยๆ เลื่อนคือระยะเยื้อง:
 		# camera_x ในบทกลายเป็นการเลื่อนกล้องออกจากตัวละคร (320 = ตรงกลาง)
+		# ไม่ปัดเป็นพิกเซลเกม: ฉากเลื่อนทีละพิกเซลจอได้ลื่นๆ (ปัดแล้วฉากกระตุกเป็นจังหวะ 1-1-1-0)
 		_extra = lerpf(_extra, follow_offset + (_target_x - 320.0) + sway, t)
-		position.x = follow.position.x + roundf(_extra)
+		position.x = follow.position.x + _extra
 	else:
 		_x = lerpf(_x, clampf(_target_x + sway, min_x, max_x), t)
 		# ปัดเป็นพิกเซลเต็ม ภาพพิกเซลจึงคมไม่สั่น
