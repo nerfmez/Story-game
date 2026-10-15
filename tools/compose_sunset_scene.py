@@ -488,7 +488,8 @@ def road_surface(block=2):
             wet = np.maximum(wet, np.clip(1.3 - dist, 0, 1))
     damp = tile_noise(h, w, 30, nrng)
     wet = np.maximum(wet, np.clip(damp - 0.45, 0, 1) * 0.9)
-    wet = np.maximum(wet, np.clip(1 - (yy - top) / 6, 0, 1) * 0.55)   # gutter by the kerb
+    gutter = np.clip(1 - (yy - top) / 4, 0, 1) * (tile_noise(h, w, 10, nrng) > 0.58)
+    wet = np.maximum(wet, gutter * 0.4)                                # broken puddles by the kerb
     levels = 4                                               # dithered steps, pixel-art style
     wetq = np.floor(np.clip(wet, 0, 1) * levels + dither * 0.999) / levels
     wetq = np.clip(wetq, 0, 1)
@@ -521,7 +522,7 @@ def road_surface(block=2):
 
     # --- how much reflection shows: a little on damp asphalt (more at a grazing angle,
     # far away), at most about half in the deepest puddles
-    show = (0.06 + 0.1 * (1 - t) ** 2) + wetq * (0.42 + 0.1 * (1 - t))
+    show = (0.05 + 0.04 * (1 - t) ** 2) + wetq * (0.4 + 0.04 * (1 - t))
     alpha = 1 - np.clip(show, 0, 0.62)
 
     # --- ripples / sky glints on the puddles: short light dashes on the surface
@@ -590,28 +591,77 @@ def hedge(block=3):
     return small.resize((TILE, 360), Image.NEAREST)
 
 
-def build_foreground():
-    w, h = FG_TILE, 360
+def build_foreground(block=2):
+    """Near utility pole (Thai concrete pole) with wires to the previous pole, drawn at
+    1/block resolution so its pixels are chunky. Backlit by the low sun on the left:
+    dark body, a pink-orange rim on the sun side."""
+    w, h = FG_TILE // block, 360 // block
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    px = 900  # near utility pole; the previous tile's pole is at px - FG_TILE
-    d.rectangle((px - 13, 0, px + 13, h), fill=(30, 24, 50, 255))
-    d.rectangle((px - 13, 0, px - 11, h), fill=(150, 90, 110, 255))  # warm rim from the sunset
-    d.rectangle((px - 60, 36, px + 59, 43), fill=(30, 24, 50, 255))
-    d.line([(px - 60, 36), (px + 59, 36)], fill=(230, 140, 110, 255))
-    d.rectangle((px + 16, 70, px + 34, 100), fill=(44, 38, 66, 255))  # transformer
-    d.line([(px + 16, 70), (px + 34, 70)], fill=(180, 110, 110, 255))
-    # Wires sag from this pole to the previous one (drawn in the previous tile)
-    for k, (y0, sag) in enumerate(((40, 70), (40, 84), (40, 58), (84, 60), (96, 48))):
-        x0 = px - 56 + k * 22 if k < 3 else px - 30 + (k - 3) * 60
-        x1 = x0 - FG_TILE
-        pts = []
-        for i in range(81):
-            t = i / 80
-            pts.append((x0 + (x1 - x0) * t, y0 + sag * 4 * t * (1 - t)))
-        d.line(pts, fill=(18, 14, 34, 255), width=2 if k < 3 else 1)
-        d.line([(p[0] + FG_TILE, p[1]) for p in pts], fill=(18, 14, 34, 255), width=2 if k < 3 else 1)
-    img.save(OUT / "foreground.png")
+    pr = random.Random(4)
+    px = 900 // block                     # pole centre; the previous tile's pole is at px - w
+    rim, lit, body, shade, dark = (226, 136, 132), (84, 68, 104), (50, 40, 72), (34, 27, 52), (20, 16, 34)
+    wire = (16, 12, 30)
+    # --- wires first (behind the pole): power lines from the insulators, then a sagging
+    # bundle of telecom cables lower down, all hanging towards the previous pole
+    def sag_line(x0, y0, sag, width=1, colour=wire, step=0):
+        x1 = x0 - w
+        pts = [(x0 + (x1 - x0) * t, y0 + sag * 4 * t * (1 - t)) for t in np.linspace(0, 1, 120)]
+        for off in (0, w):
+            d.line([(p[0] + off, p[1]) for p in pts], fill=colour, width=width)
+    for k, (dx, y0) in enumerate(((-17, 8), (-9, 8), (8, 8), (-7, 16))):
+        sag_line(px + dx, y0, 30 + 7 * k)
+    for k in range(3):                    # telecom bundle
+        sag_line(px - 4, 42 + k, 24 + 4 * k, colour=(24, 18, 38) if k % 2 else wire)
+    # --- tapered concrete pole
+    for y in range(h):
+        half = int(round(4.5 + 1.6 * y / h))
+        x0, x1 = px - half, px + half
+        d.line([(x0, y), (x1, y)], fill=body)
+        d.line([(x1 - 1, y), (x1, y)], fill=shade)
+        d.point((x0, y), fill=rim)
+        d.point((x0 + 1, y), fill=lit)
+    for y in range(20, h, 9):             # concrete seams / stains
+        d.line([(px - 3, y), (px + 3, y)], fill=shade)
+    for _ in range(40):
+        d.point((px + pr.randint(-4, 4), pr.randint(10, h - 1)), fill=dark)
+    for i, y in enumerate(range(66, h - 10, 7)):  # climbing steps, left and right
+        sx = px - 7 if i % 2 == 0 else px + 6
+        d.line([(sx, y), (sx + 1, y)], fill=(70, 62, 92))
+    # --- cross-arms with ceramic insulators
+    for y, x0, x1, cups in ((10, px - 20, px + 18, (-17, -9, 8, 15)), (18, px - 10, px + 9, (-7, 6))):
+        d.rectangle((x0, y, x1, y + 1), fill=shade)
+        d.line([(x0, y), (x1, y)], fill=rim)
+        d.line([(px - 4, y + 2), (x0 + 4, y + 6)], fill=shade)      # brace
+        for c in cups:
+            d.rectangle((px + c, y - 3, px + c + 1, y - 1), fill=(190, 172, 196))
+            d.point((px + c, y - 3), fill=(236, 210, 220))
+    # --- transformer drum on a bracket, with cooling fins and bushings
+    tx, ty = px + 7, 26
+    d.rectangle((px + 4, ty + 3, tx, ty + 4), fill=dark)
+    d.rectangle((tx, ty, tx + 9, ty + 13), fill=(58, 54, 84))
+    for fx in range(tx + 1, tx + 9, 2):
+        d.line([(fx, ty + 3), (fx, ty + 11)], fill=(42, 38, 64))
+    d.line([(tx, ty), (tx + 9, ty)], fill=(160, 120, 140))
+    for bx in (tx + 2, tx + 7):
+        d.rectangle((bx, ty - 2, bx, ty - 1), fill=(190, 172, 196))
+    # --- street lamp arm reaching over the road, lamp just switched on
+    d.line([(px - 5, 30), (px - 14, 27), (px - 20, 27)], fill=shade, width=1)
+    d.rectangle((px - 24, 26, px - 19, 28), fill=(40, 34, 60))
+    d.line([(px - 23, 29), (px - 20, 29)], fill=(255, 226, 180))
+    # --- coiled cable loop and junction box
+    d.ellipse((px + 3, 46, px + 11, 54), outline=wire)
+    d.ellipse((px + 4, 47, px + 10, 53), outline=(28, 22, 42))
+    d.rectangle((px - 11, 56, px - 6, 63), fill=(70, 66, 92))
+    d.line([(px - 11, 56), (px - 6, 56)], fill=(150, 130, 150))
+    d.point((px - 9, 59), fill=(220, 90, 80))
+    # --- notices stuck on the pole (faded paper, a line of text each)
+    for y, colour in ((92, (176, 160, 176)), (100, (196, 150, 150)), (130, (170, 170, 190))):
+        d.rectangle((px - 3, y, px + 2, y + 5), fill=colour)
+        d.line([(px - 2, y + 2), (px + 1, y + 2)], fill=(90, 80, 110))
+        d.point((px - 2, y + 4), fill=(90, 80, 110))
+    big = img.resize((w * block, h * block), Image.NEAREST)
+    big.save(OUT / "foreground.png")
 
 
 if __name__ == "__main__":
