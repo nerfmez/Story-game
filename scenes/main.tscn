@@ -1,4 +1,4 @@
-[gd_scene load_steps=57 format=3]
+[gd_scene load_steps=58 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -43,6 +43,7 @@
 [ext_resource type="AudioStream" path="res://assets/audio/bird_2.ogg" id="42_bird2"]
 [ext_resource type="AudioStream" path="res://assets/audio/bird_3.ogg" id="43_bird3"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_idle_video.png" id="44_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_phone.png" id="45_phone"]
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
@@ -286,6 +287,7 @@ position = Vector2(290, 152)
 script = ExtResource("18_walker")
 idle_texture = ExtResource("44_idle")
 walk_texture = ExtResource("21_walk")
+phone_texture = ExtResource("45_phone")
 step_sound = NodePath("Steps")
 
 [node name="Steps" type="AudioStreamPlayer" parent="Characters/Hero"]

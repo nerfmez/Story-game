@@ -108,6 +108,19 @@ python3 tools/import_idle_video.py art_source/hero_idle_greenscreen.mp4 assets/c
 โดยตามปกเสื้อและขอบไหล่ทีละเฟรม (`--no-strap` เพื่อไม่วาด)
 `hero_walker.gd`: `idle_fps` > 0 = เล่นแผ่นภาพนี้, `ground_row` = แถวที่เท้าแตะพื้น (ภาพยืน/ท่าเดินวางเท้าแถวเดียวกัน)
 
+### ท่าดูโทรศัพท์ (ยืนนานๆ)
+
+```
+python3 tools/import_idle_video.py art_source/hero_phone_greenscreen.mp4 assets/characters/hero_phone.png \
+    --start 4 --step 2 --palette assets/characters/hero_uniform.png --no-strap \
+    --match assets/characters/hero_idle_video.png 36 4
+```
+
+ยืนนิ่ง 5-8 วินาที (สุ่ม) ตัวละครหยิบโทรศัพท์ขึ้นมาดู: เฟรม 0-17 หยิบออกมา, 18-59 ถือดู (เล่นไป-กลับวน ไม่มีรอยต่อ)
+พอกดเดินจะเก็บโทรศัพท์ (เล่นท่าหยิบย้อนกลับเร็ว 2 เท่า) แล้วค่อยเดิน
+`--match` เลือกขนาดให้เฟรมแรกทับเฟรม 4 ของท่ายืนพอดีที่สุด และเกมสลับเข้าท่านี้เฉพาะตอนท่ายืนวนมาถึงเฟรม 4
+ภาพจึงไม่กระโดดตอนสลับ ตั้งค่าได้ใน `hero_walker.gd`: `phone_after`, `phone_take_out`, `phone_put_away_speed`, `phone_offset(_flipped)`
+
 ### ท่ายืนเคลื่อนไหวจากภาพนิ่ง (สำรอง, `idle_fps = 0`)
 
 ```

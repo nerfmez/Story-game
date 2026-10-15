@@ -128,21 +128,19 @@ def colour_match(frames, ref):
     function of colour (quadratic in RGB) for every pixel of every frame: shading
     stays exactly as in the video, only the overall tone shifts, so no blotches.
     Fitted on the first frame laid over the still (the clip starts from that pose)."""
-    f0 = frames[0]
-    fh, fw = f0.shape[:2]
     rh, rw = ref.shape[:2]
+    f0 = frames[0]
+    ph, pw = max(0, rh - f0.shape[0]), max(0, rw - f0.shape[1])
+    f0 = np.pad(f0, ((ph, 0), (pw // 2, pw - pw // 2), (0, 0)))   # smaller than the still: pad
+    fh, fw = f0.shape[:2]
     best = None
-    for dy in range(-3, 4):
-        for dx in range(-4, 5):
-            ys0, xs0 = max(0, dy), max(0, dx)
-            a = f0[ys0:ys0 + rh, xs0:xs0 + rw] if dy >= 0 and dx >= 0 else None
-            if a is None or a.shape[:2] != (rh, rw):
-                continue
+    for dy in range(fh - rh + 1):          # every place the still fits inside the frame
+        for dx in range(fw - rw + 1):
+            a = f0[dy:dy + rh, dx:dx + rw]
             both = (a[..., 3] > 0) & (ref[..., 3] > 0)
             err = np.abs(a[..., :3].astype(float) - ref[..., :3])[both].mean() + 60 * (1 - both.mean())
             if best is None or err < best[0]:
                 best = (err, a)
-    # the frames are wider/taller than the still: also try the still placed inside
     a = best[1]
     both = (a[..., 3] > 0) & (ref[..., 3] > 0)
     src = a[..., :3][both].astype(float)
@@ -177,6 +175,38 @@ def direct(args, frames, masks):
         if abs(collar - idle_collar) < 0.35:
             break
         scale *= idle_collar / collar
+    if args.match:
+        # Another clip that starts from a frame of an existing sheet (e.g. taking out a
+        # phone from the idle): pick the size at which our first frame lies best over that
+        # frame, so switching between them doesn't pop. Compared on the feet line, at
+        # the best sideways position.
+        path, n, k = args.match[0], int(args.match[1]), int(args.match[2])
+        sheet = np.asarray(Image.open(path).convert("RGBA")).astype(int)
+        sw = sheet.shape[1] // n
+        target = sheet[:, k * sw:(k + 1) * sw]
+
+        def mismatch(sc):
+            w_, h_ = round(cw * sc / 2) * 2, round(ch * sc)
+            f = colour_match(sample(frames[:1], masks[:1], w_, h_), ref)[0].astype(int)
+            hh, ww = max(h_, target.shape[0]), max(w_, sw) + 24
+            A = np.zeros((hh, ww, 4), int)
+            x0 = (ww - w_) // 2
+            A[hh - h_:, x0:x0 + w_] = f
+            errs = []
+            for dx in range(ww - sw + 1):          # every sideways position, feet on one line
+                B = np.zeros_like(A)
+                B[hh - target.shape[0]:, dx:dx + sw] = target
+                both = (A[..., 3] > 0) | (B[..., 3] > 0)
+                errs.append(np.abs(A - B)[both].mean())
+            return min(errs)
+
+        trials = [(mismatch(scale * r), r) for r in np.linspace(0.95, 1.05, 21)]
+        err, r = min(trials)
+        print("match", path, "frame", k, ": size x", round(float(r), 3), "mismatch",
+              round(float(err), 1), "(was", round(float(trials[10][0]), 1), ")")
+        scale *= r
+        out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
+        result = sample(frames, masks, out_w, out_h)
     if not args.keep_colours:
         result = colour_match(result, ref)
     if not args.no_strap:
@@ -201,6 +231,8 @@ def main():
     ap.add_argument("--palette", required=True, help="idle sprite whose colours and proportions to match")
     ap.add_argument("--materials", type=int, default=9)
     ap.add_argument("--no-strap", action="store_true", help="don't draw the second backpack strap")
+    ap.add_argument("--match", nargs=3, metavar=("SHEET", "FRAMES", "FRAME"),
+                    help="size the clip so its first frame matches FRAME of SHEET (FRAMES frames)")
     ap.add_argument("--keep-colours", action="store_true",
                     help="don't match the overall colours to the still")
     ap.add_argument("--recolour", action="store_true",

@@ -39,6 +39,22 @@ extends Node2D
 ## ภาพยืนตอนพลิกหันขวา เลื่อนให้ลำตัวอยู่ที่เดิม
 @export var idle_offset_flipped := Vector2(0, 0)
 
+## ยืนนานๆ แล้วหยิบโทรศัพท์ขึ้นมาดู (แผ่นภาพจาก tools/import_idle_video.py --match)
+## เฟรม 0..phone_take_out-1 = หยิบออกมา, ที่เหลือ = ถือดู (เล่นไป-กลับวน ไม่มีรอยต่อ)
+## พอกดเดิน เล่นท่าหยิบย้อนกลับเร็วๆ (เก็บโทรศัพท์) แล้วค่อยเดิน
+@export var phone_texture: Texture2D
+@export var phone_frames := 60
+@export var phone_take_out := 18
+@export var phone_fps := 12.0
+## ยืนกี่วินาทีถึงหยิบโทรศัพท์ (สุ่มในช่วงนี้)
+@export var phone_after := Vector2(5.0, 8.0)
+## เฟรมของท่ายืนที่ตรงกับเฟรมแรกของท่าโทรศัพท์ (สลับตรงนี้ภาพจึงไม่กระโดด)
+@export var phone_from_idle_frame := 4
+## เก็บโทรศัพท์เร็วกว่าตอนหยิบกี่เท่า
+@export var phone_put_away_speed := 2.0
+@export var phone_offset := Vector2(-5, 0)
+@export var phone_offset_flipped := Vector2(0, 0)
+
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
 
@@ -51,9 +67,18 @@ var _last_frame := -1
 var _idle_time := 0.0
 var _blink_wait := 3.0
 var _blink_left := 0.0
+enum Phone { NONE, TAKING_OUT, HOLDING, PUTTING_AWAY }
+var _phone := Phone.NONE
+var _phone_time := 0.0
+var _phone_wait := 6.0
+## ยืนนิ่งมากี่วินาทีแล้ว (เริ่มนับใหม่ทุกครั้งที่เดินหรือเก็บโทรศัพท์)
+var _still_time := 0.0
+## เฟรมที่เริ่มเก็บโทรศัพท์ (ย้อนจากเฟรมนี้ลงไปถึง 0)
+var _put_away_from := 0
 
 
 func _ready() -> void:
+	_phone_wait = randf_range(phone_after.x, phone_after.y)
 	_set_pose(false, false)
 
 
@@ -63,9 +88,12 @@ func _process(delta: float) -> void:
 		dir = float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 	if dir == 0.0:
 		dir = touch_dir
+	if _phone != Phone.NONE and _update_phone(delta, dir):
+		return
 	position.x += dir * speed * delta
 	if dir != 0.0:
 		_facing_right = dir > 0.0
+		_still_time = 0.0
 		_anim_time += delta
 		_set_pose(true, _facing_right)
 		var frame := int(_anim_time * walk_fps) % walk_frames
@@ -76,12 +104,69 @@ func _process(delta: float) -> void:
 		_anim_time = 0.0
 		_last_frame = -1
 		_idle_time += delta
+		_still_time += delta
 		_blink_wait -= delta
 		if _blink_wait <= 0.0:
 			_blink_left = blink_time
 			_blink_wait = randf_range(blink_every.x, blink_every.y)
 		_blink_left -= delta
+		# ยืนนานพอแล้ว: รอให้ท่ายืนวนมาถึงเฟรมที่ตรงกับท่าโทรศัพท์ แล้วเริ่มหยิบ
+		if phone_texture and _still_time >= _phone_wait and _idle_frame() == phone_from_idle_frame:
+			_phone = Phone.TAKING_OUT
+			_phone_time = 0.0
+			_set_phone_pose(0)
+			return
 		_set_pose(false, _facing_right)
+
+
+## เล่นท่าโทรศัพท์ คืน true ถ้ายังอยู่ในท่านี้ (ตัวละครยังไม่เดิน)
+func _update_phone(delta: float, dir: float) -> bool:
+	_phone_time += delta
+	var frame := 0
+	if _phone != Phone.PUTTING_AWAY and dir != 0.0:
+		_put_away_from = _phone_frame()
+		if _put_away_from >= phone_take_out:
+			_put_away_from = phone_take_out - 1      # ท่าถือทุกเฟรมใกล้กับเฟรมสุดท้ายของท่าหยิบ
+		_phone = Phone.PUTTING_AWAY
+		_phone_time = 0.0
+	if _phone == Phone.PUTTING_AWAY:
+		frame = _put_away_from - int(_phone_time * phone_fps * phone_put_away_speed)
+		if frame < 0:
+			# เก็บเสร็จ: กลับเป็นท่ายืนที่เฟรมเดียวกับที่สลับเข้ามา แล้วเริ่มนับใหม่
+			_phone = Phone.NONE
+			_idle_time = (phone_from_idle_frame + 0.5) / idle_fps if idle_fps > 0.0 else 0.0
+			_still_time = 0.0
+			_phone_wait = randf_range(phone_after.x, phone_after.y)
+			return false
+	else:
+		frame = _phone_frame()
+		if _phone == Phone.TAKING_OUT and frame >= phone_take_out:
+			_phone = Phone.HOLDING
+	_set_phone_pose(frame)
+	return true
+
+
+## เฟรมของท่าโทรศัพท์ตอนหยิบ/ถือ: หยิบเล่นครั้งเดียว ถือเล่นไป-กลับวน
+func _phone_frame() -> int:
+	var f := int(_phone_time * phone_fps)
+	if f < phone_take_out:
+		return f
+	var span := phone_frames - 1 - phone_take_out
+	if span <= 0:
+		return phone_frames - 1
+	var k := (f - phone_take_out) % (2 * span)
+	return phone_take_out + (k if k <= span else 2 * span - k)
+
+
+func _set_phone_pose(frame: int) -> void:
+	for sprite in [_body, _reflection]:
+		sprite.texture = phone_texture
+		sprite.hframes = phone_frames
+		sprite.frame = clampi(frame, 0, phone_frames - 1)
+		sprite.offset = phone_offset_flipped if _facing_right else phone_offset
+		if sprite == _body:
+			sprite.offset.y += ground_row - (phone_texture.get_height() - 1)
+		sprite.flip_h = _facing_right
 
 
 func _set_pose(walking: bool, facing_right: bool) -> void:
