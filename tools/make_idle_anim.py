@@ -1,16 +1,16 @@
 """Make the idle (standing) frames from the single idle sprite, no video needed.
 
-Pixel-art breathing: the head and shoulders drop by exactly one pixel as a rigid
-block (nothing is stretched or duplicated, so the face keeps its shape); one row of
-the shirt disappears under them. The script picks the shirt row that looks most like
-the row above it, so the missing row doesn't show.
-
-Output: 4 frames side by side, the same size as the input:
-  0 rest, 1 breathed out (upper body 1px lower), 2 and 3 the same with eyes closed
+Pixel-art breathing with overlapping action, whole pixels only (nothing stretched):
+  0 rest
+  1 shoulders 1px down, head still (the neck gains one row)
+  2 head follows, hair tips still up (the hair gains one row)
+  3 everything 1px down, hair settled (one shirt row hidden under the chest)
+then 4-7 are the same four poses with the eyes closed. Every added or hidden row is
+the one in its area that looks most like its neighbour, so the face and chin keep
+their exact shape and no seam shows.
 
 Usage:
-  python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png \\
-      --eyes 11,15 12,15 17,15 18,15
+  python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png
 """
 import argparse
 
@@ -31,11 +31,13 @@ def close_eyes(a, eyes):
     return out
 
 
-def drop_upper(a, row):
-    """Move every row above `row` down one pixel; `row` itself is covered."""
+def drop(a, top, row):
+    """Move rows top..row-1 down one pixel (row `row` is covered). Row `top` keeps its
+    old content, i.e. it is doubled (top = 0 leaves an empty first row instead)."""
     out = a.copy()
-    out[1:row + 1] = a[0:row]
-    out[0] = 0
+    out[top + 1:row + 1] = a[top:row]
+    if top == 0:
+        out[0] = 0
     return out
 
 
@@ -55,14 +57,23 @@ def main():
                     help="x,y of the eye pixels (the white glint and the iris)")
     ap.add_argument("--chest", type=int, nargs=2, default=(36, 56), metavar=("FROM", "TO"),
                     help="shirt rows to choose the hidden row from")
+    ap.add_argument("--neck", type=int, nargs=2, default=(21, 27), metavar=("FROM", "TO"),
+                    help="neck/collar rows to choose the doubled row from (below the chin)")
+    ap.add_argument("--hair", type=int, nargs=2, default=(3, 9), metavar=("FROM", "TO"),
+                    help="hair rows to choose the doubled row from")
     args = ap.parse_args()
     eyes = [tuple(int(v) for v in e.split(",")) for e in args.eyes]
 
     a = np.asarray(Image.open(args.src).convert("RGBA"))
-    row = quiet_row(a, *args.chest)
-    down = drop_upper(a, row)
-    frames = [a, down, close_eyes(a, eyes), close_eyes(down, [(x, y + 1) for x, y in eyes])]
-    print("hidden row", row)
+    chest = quiet_row(a, *args.chest)
+    neck = quiet_row(a, *args.neck)
+    hair = quiet_row(a, *args.hair)
+    shoulders = drop(a, neck, chest)
+    head = drop(a, hair, chest)
+    down = drop(a, 0, chest)
+    poses = [(a, 0), (shoulders, 0), (head, 1), (down, 1)]
+    frames = [p for p, _ in poses] + [close_eyes(p, [(x, y + dy) for x, y in eyes]) for p, dy in poses]
+    print("rows: hair", hair, "neck", neck, "chest", chest)
     h, w = a.shape[:2]
     sheet = Image.new("RGBA", (w * len(frames), h), (0, 0, 0, 0))
     for i, f in enumerate(frames):

@@ -469,12 +469,12 @@ def tile_noise(h, w, cell, nrng):
 def sidewalk(block=2):
     """Thai sidewalk where the hero walks: rows of concrete paving slabs (smaller far
     away), worn and patched, then a plain concrete kerb down to the street.
-    Mostly opaque: damp slabs only let a little reflection through."""
+    Fully opaque (damp slabs are just darker), so nothing below shows through."""
     sr = random.Random(17)
     w, h = TILE // block, 360 // block
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    grout, moss = (60, 52, 80, 245), (54, 66, 66, 245)
+    grout, moss = (60, 52, 80, 255), (54, 66, 66, 255)
     y = ROAD_TOP // block
     rows = []
     for k, rh in enumerate((3, 4, 4)):                 # slab rows, far to near (foreshortened)
@@ -486,7 +486,7 @@ def sidewalk(block=2):
             tone = sr.uniform(-3, 3) - k * 3                          # subtle: the ground stays quiet
             base = (int(78 + tone), int(68 + tone), int(96 + tone))
             damp = sr.random() < 0.18
-            a = 205 if damp else 245
+            a = 255
             if damp:
                 base = tuple(int(c * 0.8) for c in base)
             xs = [(x % w) for x in range(x0, x0 + 12)]
@@ -499,12 +499,12 @@ def sidewalk(block=2):
                 cx = xs[0] + sr.randint(3, 8)
                 d.line([((cx) % w, y0 + 1), ((cx + 2) % w, y1)], fill=grout)
             if sr.random() < 0.12:                                    # stain
-                d.point(((xs[0] + sr.randint(2, 10)) % w, sr.randint(y0 + 1, y1)), fill=(66, 56, 82, 245))
+                d.point(((xs[0] + sr.randint(2, 10)) % w, sr.randint(y0 + 1, y1)), fill=(66, 56, 82, 255))
             if sr.random() < 0.15:                                    # moss in the joint
                 d.point((xs[0], sr.randint(y0, y1)), fill=moss)
         d.line([(0, y1), (w, y1)], fill=grout)
     ky = KERB_Y // block
-    d.line([(0, ky - 1), (w, ky - 1)], fill=(98, 86, 112, 250))      # kerb top edge, faintly lit
+    d.line([(0, ky - 1), (w, ky - 1)], fill=(98, 86, 112, 255))      # kerb top edge, faintly lit
     for x0 in range(0, w, 18):                                       # plain concrete kerb blocks
         tone = sr.uniform(-6, 6)
         col = (int(66 + tone / 2), int(57 + tone / 2), int(82 + tone / 2), 255)
