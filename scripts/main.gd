@@ -7,6 +7,8 @@ extends Node
 @export_file("*.json") var dialogue_file_morning := "res://data/chapter1_morning.json"
 ## ข้อความภารกิจมุมจอ (เย็น / เช้า)
 @export var mission_text := "ถ่ายวิดีโอหลังเลิกเรียน"
+## แสดงกล่องข้อความและเล่นบทหรือไม่ (ปิดไว้ก่อน: เดินเล่นในฉากเฉยๆ รถไฟยังวิ่งผ่านเองตามเวลา)
+@export var show_dialogue := false
 @export var mission_text_morning := "ถ่ายวิดีโอก่อนเข้าเรียน"
 ## กล้องที่มีฟังก์ชัน pan_to(x)
 @export var camera: Node
@@ -49,7 +51,7 @@ func _ready() -> void:
 		dialogue_box.hide()
 		_show_start_screen()
 	else:
-		dialogue_box.start(load_lines(_dialogue_path()))
+		_begin_dialogue()
 
 
 ## เตรียมเสียงทุกไฟล์ไว้ล่วงหน้า (บนเว็บ Godot จะเตรียมตอนเล่นครั้งแรก ทำให้เสียงแรกช้า)
@@ -133,10 +135,17 @@ func _start(is_morning: bool) -> void:
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience:
 		ambience.play()
-	dialogue_box.start(load_lines(_dialogue_path()))
+	_begin_dialogue()
 
 
 var _evening_ambience: AudioStream
+
+
+func _begin_dialogue() -> void:
+	if show_dialogue:
+		dialogue_box.start(load_lines(_dialogue_path()))
+	else:
+		dialogue_box.hide()
 
 
 func _dialogue_path() -> String:

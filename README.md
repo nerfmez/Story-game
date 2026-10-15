@@ -46,6 +46,8 @@ assets/textures/         texture พิกเซลสำหรับฉาก H
 ซ่อนชั้นที่มีเฉพาะตอนเย็น (`evening_only`: แสงอาทิตย์ เมฆเส้นสีส้ม แสงเรืองหน้าต่างรถไฟ) ปรับโทนสีทั้งจอ ฝุ่นในแสง
 เสียงบรรยากาศ (`ambience_morning.ogg`: นกร้อง ไม่มีจิ้งหรีด) บท (`data/chapter1_morning.json`) และข้อความภารกิจ
 
+กล่องข้อความ/บทพูดปิดไว้ก่อน (`main.gd` `show_dialogue = false`): เดินเล่นในฉากได้เลย รถไฟยังวิ่งผ่านเองตามเวลา เปิดกลับได้ที่ค่านี้
+
 ```
 python3 tools/compose_sunset_scene.py      # ฉากเย็นก่อน (ฉากเช้าสร้างจากผลของมัน)
 python3 tools/compose_morning_scene.py
