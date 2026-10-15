@@ -88,7 +88,19 @@ assets/textures/         texture พิกเซลสำหรับฉาก H
 
 ![เดิน](docs/walk.gif)
 
-### ท่ายืนเคลื่อนไหว (ไม่ต้องใช้วิดีโอ)
+### ท่ายืนจากวิดีโอฉากเขียว (ที่ใช้อยู่)
+
+```
+python3 tools/import_idle_video.py art_source/hero_idle_greenscreen.mp4 assets/characters/hero_idle_video.png \
+    --start 39 --end 111 --step 2 --palette assets/characters/hero_uniform.png
+```
+
+ใช้ช่วงเฟรม 39-111 ของวิดีโอ (3 วินาที เฟรมท้ายต่อเฟรมแรกได้เนียน) เก็บทุก 2 เฟรม = 37 เฟรม เล่นวนที่ 12 เฟรม/วินาที
+ขั้นตอนเหมือนท่าเดิน (ลบฉากเขียว ตัดพิกเซลตามวัสดุ ใช้สีจากภาพยืน เส้นขอบ) และเพิ่ม: ตรึงเท้าให้อยู่ที่เดิมทุกเฟรม
+(ตัวยังโยกได้ แต่ภาพไม่ไหลตามกล้อง/AI) ย่อให้ปกเสื้อสูงเท่าภาพยืน และใช้ตารางพิกเซลเดียวกันทุกเฟรม (ส่วนที่นิ่งจึงไม่ยิบ)
+`hero_walker.gd`: `idle_fps` > 0 = เล่นแผ่นภาพนี้, `ground_row` = แถวที่เท้าแตะพื้น (ภาพยืน/ท่าเดินวางเท้าแถวเดียวกัน)
+
+### ท่ายืนเคลื่อนไหวจากภาพนิ่ง (สำรอง, `idle_fps = 0`)
 
 ```
 python3 tools/make_idle_anim.py assets/characters/hero_uniform.png assets/characters/hero_idle.png

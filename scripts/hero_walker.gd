@@ -3,12 +3,17 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
-## ภาพยืน: 6 เฟรมจาก tools/make_idle_anim.py (3 ท่าหายใจ + 3 ท่าเดียวกันแบบหลับตา)
-## เฟรมกว้างกว่าภาพต้นฉบับข้างละ 1px จึงเลื่อนซ้าย 1px
-## หรือภาพเดียวก็ได้ (idle_frames = 1, idle_offset = 0)
+## ภาพยืน มี 2 แบบ:
+## - วิดีโอ (idle_fps > 0): แผ่นภาพจาก tools/import_idle_video.py เล่นวนทุกเฟรมที่ idle_fps
+## - สร้างจากภาพนิ่ง (idle_fps = 0): 6 เฟรมจาก tools/make_idle_anim.py (หายใจ 3 ท่า + หลับตา)
+## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
-@export var idle_frames := 6
+@export var idle_frames := 37
+@export var idle_fps := 12.0
+## เลื่อนภาพยืนให้ลำตัวตรงกับท่าเดิน (หันซ้าย / พลิกหันขวา)
 @export var idle_offset := Vector2(-1, 0)
+## แถวของพื้นที่เท้าแตะ นับจากตำแหน่งตัวละคร (ภาพยืนและท่าเดินวางเท้าแถวนี้)
+@export var ground_row := 121
 ## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 ไหล่และแขนลง 1px, 2 หัวตามลง
 @export var breath_steps: Array[Vector2] = [
 	Vector2(0, 1.3), Vector2(1, 0.22), Vector2(2, 1.1), Vector2(1, 0.22),
@@ -87,20 +92,24 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.frame = int(_anim_time * walk_fps) % walk_frames
 			sprite.offset.x = walk_offset_flipped.x if facing_right else walk_offset.x
 			sprite.flip_h = facing_right
-			# ภาพท่าเดินสูงกว่าภาพยืน: ให้เท้าอยู่แถวเดียวกัน (เงาสะท้อนวาดกลับหัวจากเท้า จึงไม่ต้องเลื่อน)
-			if sprite == _body and idle_texture:
-				sprite.offset.y = idle_texture.get_height() - walk_texture.get_height()
+			# ให้เท้าอยู่แถว ground_row (เงาสะท้อนวาดกลับหัวจากเท้า จึงไม่ต้องเลื่อน)
+			if sprite == _body:
+				sprite.offset.y = ground_row - (walk_texture.get_height() - 1)
 		elif idle_texture:
 			sprite.texture = idle_texture
 			sprite.hframes = idle_frames
 			sprite.frame = _idle_frame()
 			# ภาพยืนต้นฉบับหันซ้ายเหมือนท่าเดิน
 			sprite.offset = idle_offset_flipped if facing_right else idle_offset
+			if sprite == _body:
+				sprite.offset.y += ground_row - (idle_texture.get_height() - 1)
 			sprite.flip_h = facing_right
 
 
 ## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+3 ถ้ากำลังกะพริบตา)
 func _idle_frame() -> int:
+	if idle_fps > 0.0:
+		return int(_idle_time * idle_fps) % idle_frames
 	if idle_frames < 6:
 		return 0
 	var total := 0.0

@@ -42,7 +42,7 @@
 [ext_resource type="AudioStream" path="res://assets/audio/bird_1.ogg" id="41_bird1"]
 [ext_resource type="AudioStream" path="res://assets/audio/bird_2.ogg" id="42_bird2"]
 [ext_resource type="AudioStream" path="res://assets/audio/bird_3.ogg" id="43_bird3"]
-[ext_resource type="Texture2D" path="res://assets/characters/hero_idle.png" id="44_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_idle_video.png" id="44_idle"]
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
