@@ -25,6 +25,73 @@ func _ready() -> void:
 	_use_smooth_pixels(self, smooth)
 	dialogue_box.line_started.connect(_on_line_started)
 	dialogue_box.finished.connect(_on_finished)
+	if OS.has_feature("web"):
+		_prepare_sounds(self)
+		# เบราว์เซอร์ไม่ให้เล่นเสียงจนกว่าผู้เล่นจะแตะ/คลิก: ให้แตะเริ่มก่อน แล้วค่อยเปิดเสียงและบท
+		var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
+		if ambience:
+			ambience.stop()
+		dialogue_box.hide()
+		_show_start_screen()
+	else:
+		dialogue_box.start(load_lines(dialogue_file))
+
+
+## เตรียมเสียงทุกไฟล์ไว้ล่วงหน้า (บนเว็บ Godot จะเตรียมตอนเล่นครั้งแรก ทำให้เสียงแรกช้า)
+func _prepare_sounds(node: Node) -> void:
+	for child in node.get_children():
+		if child is AudioStreamPlayer and child.stream:
+			var stream: AudioStream = child.stream
+			var streams: Array = [stream]
+			if stream is AudioStreamRandomizer:
+				streams = []
+				for i in stream.streams_count:
+					streams.append(stream.get_stream(i))
+			for st in streams:
+				if st and not AudioServer.is_stream_registered_as_sample(st):
+					AudioServer.register_stream_as_sample(st)
+		_prepare_sounds(child)
+
+
+var _start_layer: CanvasLayer
+
+
+func _show_start_screen() -> void:
+	_start_layer = CanvasLayer.new()
+	_start_layer.layer = 10
+	add_child(_start_layer)
+	var shade := ColorRect.new()
+	shade.color = Color(0.06, 0.03, 0.12, 0.55)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_start_layer.add_child(shade)
+	var label := Label.new()
+	label.text = "แตะเพื่อเริ่ม\n(เปิดเสียงด้วยนะ)"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.15))
+	label.add_theme_constant_override("outline_size", 6)
+	_start_layer.add_child(label)
+	var tween := label.create_tween().set_loops()  # ผูกกับ label: หยุดเองเมื่อ label ถูกลบ
+	tween.tween_property(label, "modulate:a", 0.45, 0.8)
+	tween.tween_property(label, "modulate:a", 1.0, 0.8)
+
+
+func _input(event: InputEvent) -> void:
+	if _start_layer == null:
+		return
+	var tapped: bool = (event is InputEventMouseButton and event.pressed) \
+		or (event is InputEventScreenTouch and event.pressed) \
+		or (event is InputEventKey and event.pressed)
+	if not tapped:
+		return
+	get_viewport().set_input_as_handled()
+	_start_layer.queue_free()
+	_start_layer = null
+	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
+	if ambience:
+		ambience.play()
 	dialogue_box.start(load_lines(dialogue_file))
 
 
