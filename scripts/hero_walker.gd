@@ -3,15 +3,18 @@ extends Node2D
 ## ยืนนิ่ง = ภาพ idle, เดิน = เล่นแผ่นภาพท่าเดิน (หลายเฟรมเรียงแนวนอน)
 ## ภาพท่าเดินต้นฉบับหันไปทางซ้าย เวลาเดินขวาจึงพลิกภาพ
 
-## ภาพยืน: 14 เฟรมจาก tools/make_idle_anim.py (7 ท่าหายใจ + 7 ท่าเดียวกันแบบหลับตา)
-## หรือภาพเดียวก็ได้ (idle_frames = 1)
+## ภาพยืน: 16 เฟรมจาก tools/make_idle_anim.py (8 ท่าหายใจ + 8 ท่าเดียวกันแบบหลับตา)
+## เฟรมกว้างกว่าภาพต้นฉบับข้างละ 1px (ที่ให้อก/แขนกางออก) จึงเลื่อนซ้าย 1px
+## หรือภาพเดียวก็ได้ (idle_frames = 1, idle_offset = 0)
 @export var idle_texture: Texture2D
-@export var idle_frames := 14
-## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 ไหล่ลง, 2 หัวตาม (ผมค้าง), 3 ลงสุด, 4 ผมเด้งเกิน,
-## 5 ไหล่ขึ้น (หัวยังลง), 6 หัวขึ้น (ผมค้าง)
+@export var idle_frames := 16
+@export var idle_offset := Vector2(-1, 0)
+## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 หายใจเข้า อก/แขนกาง, 2 ไหล่ลง, 3 หัวตาม (ผมค้าง),
+## 4 ลงสุด, 5 ผมเด้งเกิน, 6 ไหล่ขึ้น (หัวยังลง), 7 หัวขึ้น (ผมค้าง)
+## เปลี่ยนทีละส่วน ทีละ 1px ในจังหวะใกล้เคียงกัน จึงดูต่อเนื่อง
 @export var breath_steps: Array[Vector2] = [
-	Vector2(0, 0.9), Vector2(1, 0.14), Vector2(2, 0.14), Vector2(3, 0.12), Vector2(4, 0.14),
-	Vector2(3, 0.8), Vector2(5, 0.14), Vector2(6, 0.14),
+	Vector2(1, 0.7), Vector2(0, 0.2), Vector2(2, 0.16), Vector2(3, 0.16), Vector2(4, 0.16),
+	Vector2(5, 0.16), Vector2(4, 0.6), Vector2(6, 0.18), Vector2(7, 0.18), Vector2(0, 0.2),
 ]
 ## กะพริบตาทุกๆ กี่วินาที (สุ่มในช่วงนี้) และนานเท่าไร
 @export var blink_every := Vector2(2.2, 5.0)
@@ -32,7 +35,7 @@ extends Node2D
 @export var walk_offset := Vector2(-20, 0)
 @export var walk_offset_flipped := Vector2(-5, 0)
 ## ภาพยืนตอนพลิกหันขวา เลื่อนให้ลำตัวอยู่ที่เดิม
-@export var idle_offset_flipped := Vector2(1, 0)
+@export var idle_offset_flipped := Vector2(0, 0)
 
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
@@ -95,13 +98,13 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 			sprite.hframes = idle_frames
 			sprite.frame = _idle_frame()
 			# ภาพยืนต้นฉบับหันซ้ายเหมือนท่าเดิน
-			sprite.offset = idle_offset_flipped if facing_right else Vector2.ZERO
+			sprite.offset = idle_offset_flipped if facing_right else idle_offset
 			sprite.flip_h = facing_right
 
 
-## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+7 ถ้ากำลังกะพริบตา)
+## เฟรมของท่ายืนตอนนี้: ท่าหายใจตามเวลา (+8 ถ้ากำลังกะพริบตา)
 func _idle_frame() -> int:
-	if idle_frames < 14:
+	if idle_frames < 16:
 		return 0
 	var total := 0.0
 	for step in breath_steps:
@@ -113,4 +116,4 @@ func _idle_frame() -> int:
 			pose = int(step.x)
 			break
 		t -= step.y
-	return pose + (7 if _blink_left > 0.0 else 0)
+	return pose + (8 if _blink_left > 0.0 else 0)
