@@ -1,4 +1,4 @@
-[gd_scene load_steps=38 format=3]
+[gd_scene load_steps=50 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -32,6 +32,13 @@
 [ext_resource type="AudioStream" path="res://assets/audio/step_3.ogg" id="31_step3"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/bird.png" id="32_bird"]
 [ext_resource type="Script" path="res://scripts/birds.gd" id="33_birds"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/wisps.png" id="34_wisps"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/haze_far.png" id="35_haze_far"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/haze_near.png" id="36_haze_near"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/sun_glow.png" id="37_glow"]
+[ext_resource type="Texture2D" path="res://assets/bg/sunset/sun_rays.png" id="38_rays"]
+[ext_resource type="Shader" path="res://shaders/light_shafts.gdshader" id="39_shafts"]
+[ext_resource type="Shader" path="res://shaders/grade.gdshader" id="40_grade"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -43,6 +50,19 @@ stream_1/stream = ExtResource("30_step2")
 stream_1/weight = 1.0
 stream_2/stream = ExtResource("31_step3")
 stream_2/weight = 1.0
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_add"]
+blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_shafts"]
+shader = ExtResource("39_shafts")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grade"]
+shader = ExtResource("40_grade")
+
+[sub_resource type="Gradient" id="Gradient_dust"]
+offsets = PackedFloat32Array(0, 0.2, 0.7, 1)
+colors = PackedColorArray(1, 0.85, 0.6, 0, 1, 0.85, 0.6, 0.9, 1, 0.75, 0.55, 0.6, 1, 0.7, 0.5, 0)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -90,6 +110,16 @@ position = Vector2(-48, 0)
 texture = ExtResource("5_sky")
 centered = false
 
+[node name="Wisps" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.015, 0.015)
+repeat_size = Vector2(1600, 0)
+autoscroll = Vector2(-3, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="Wisps"]
+texture = ExtResource("34_wisps")
+centered = false
+
 [node name="City" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.03, 0.03)
 repeat_size = Vector2(720, 0)
@@ -98,6 +128,15 @@ repeat_times = 3
 [node name="Sprite2D" type="Sprite2D" parent="City"]
 position = Vector2(0, -47)
 texture = ExtResource("19_city")
+centered = false
+
+[node name="HazeFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.01, 0.01)
+repeat_size = Vector2(1600, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="HazeFar"]
+texture = ExtResource("35_haze_far")
 centered = false
 
 [node name="Birds" type="Parallax2D" parent="."]
@@ -138,6 +177,30 @@ sound = NodePath("Sound")
 [node name="Sound" type="AudioStreamPlayer" parent="TrainLayer/Train"]
 stream = ExtResource("28_train_snd")
 volume_db = -34.0
+
+[node name="HazeNear" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.01, 0.01)
+repeat_size = Vector2(1600, 0)
+repeat_times = 3
+
+[node name="Sprite2D" type="Sprite2D" parent="HazeNear"]
+texture = ExtResource("36_haze_near")
+centered = false
+
+[node name="SunLight" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.01, 0.01)
+repeat_size = Vector2(1600, 0)
+repeat_times = 3
+
+[node name="Glow" type="Sprite2D" parent="SunLight"]
+material = SubResource("CanvasItemMaterial_add")
+texture = ExtResource("37_glow")
+centered = false
+
+[node name="Rays" type="Sprite2D" parent="SunLight"]
+material = SubResource("ShaderMaterial_shafts")
+texture = ExtResource("38_rays")
+centered = false
 
 [node name="SkyReflection" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.01, 0.01)
@@ -227,6 +290,36 @@ repeat_times = 3
 position = Vector2(-280, 0)
 texture = ExtResource("10_fg")
 centered = false
+
+[node name="Dust" type="CPUParticles2D" parent="." node_paths=PackedStringArray("target")]
+position = Vector2(320, 150)
+amount = 46
+lifetime = 9.0
+preprocess = 9.0
+local_coords = false
+emission_shape = 3
+emission_rect_extents = Vector2(360, 120)
+direction = Vector2(-0.3, -1)
+spread = 60.0
+gravity = Vector2(0, -1.5)
+initial_velocity_min = 1.0
+initial_velocity_max = 5.0
+scale_amount_min = 1.0
+scale_amount_max = 2.0
+color_ramp = SubResource("Gradient_dust")
+script = ExtResource("4_follow")
+target = NodePath("../Camera2D")
+
+[node name="Grade" type="CanvasLayer" parent="."]
+
+[node name="Screen" type="ColorRect" parent="Grade"]
+material = SubResource("ShaderMaterial_grade")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="Ambience" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("27_amb")

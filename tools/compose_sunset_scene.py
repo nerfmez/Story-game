@@ -21,6 +21,13 @@ scene can scroll forever (Parallax2D.repeat_size in the game):
   road.png          wet asphalt (semi-transparent over the reflections), fence, hedge
   foreground.png    near utility pole + wires (960 wide tile)
   bird.png          a small bird silhouette, 2 wing frames side by side (for the flocks)
+  Atmosphere (all line up with the sky tile: 1600 wide, sun at SUN_X / SUN_Y and its
+  mirror image, so they scroll with the sky):
+  sun_glow.png      warm bloom around the sun, drawn additively over the tree tops
+  sun_rays.png      faint light shafts fanning down from the sun (additive)
+  haze_far.png      evening haze over the distant city (lighter and warmer near the sun)
+  haze_near.png     thinner haze over the railway trees
+  wisps.png         thin drifting cloud streaks (the layer auto-scrolls)
 
 Usage: python3 tools/compose_sunset_scene.py
 """
@@ -45,6 +52,7 @@ SKY_TILE = 1600                     # sky + mirrored sky
 FG_TILE = 960                       # one near utility pole per foreground tile
 RAIL_BLOCK = 3                      # railway trees/viaduct: 3x3 game pixels per art pixel (like the hedge)
 TRAIN_BLOCK = 2                     # train: 2x2 game pixels per art pixel
+SUN_X, SUN_Y = 248, 150             # sun centre in the sky layer (its sprite sits at x -48)
 MIRROR = 1.6                        # reflection squash: we look down at the road
 ROAD_TOP = 258                      # first row of road in screen space
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
@@ -310,6 +318,79 @@ def make_bird():
     return img
 
 
+def dithered(value, block=2, steps=12):
+    """Quantize a [0, 1] field to flat steps (pixel-art style bands). A dither pattern
+    would show as a screen-door grid in these faint, wide overlays, so there is none."""
+    return np.clip(np.round(value * steps) / steps, 0, 1)
+
+
+def sun_fields(w=SKY_TILE, h=360):
+    """Distance to the nearest sun (the sky tile holds the sun and its mirror image)."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    suns = (SUN_X, w - SUN_X - 96)          # mirror: sprite offset -48 on both sides
+    dx = np.min([np.minimum(np.abs(xx - sx), w - np.abs(xx - sx)) for sx in suns], axis=0)
+    return xx, yy, dx, yy - SUN_Y
+
+
+def build_atmosphere():
+    xx, yy, dx, dy = sun_fields()
+    h, w = yy.shape
+    near_sun = np.exp(-(dx / 260.0) ** 2)
+    # --- bloom around the sun
+    r = np.sqrt(dx ** 2 + (dy * 1.25) ** 2)
+    glow = 0.85 * np.exp(-(r / 70.0) ** 2) + 0.35 * np.exp(-(r / 170.0) ** 2)
+    g = dithered(np.clip(glow, 0, 1))
+    img = np.zeros((h, w, 4))
+    img[..., :3] = np.array((255, 168, 96))
+    img[..., 3] = g * 95
+    Image.fromarray(img.astype(np.uint8), "RGBA").save(OUT / "sun_glow.png")
+    # --- light shafts fanning down from the sun, broken up by the trees they pass
+    ang = np.arctan2(dy, np.where(dx == 0, 1e-3, dx))
+    rays = np.zeros((h, w))
+    rr = random.Random(9)
+    for _ in range(9):
+        a0, width, strength = rr.uniform(0.25, 1.35), rr.uniform(0.03, 0.08), rr.uniform(0.4, 1.0)
+        rays += strength * np.exp(-((ang - a0) / width) ** 2)
+    fade = np.clip(dy / 40.0, 0, 1) * np.exp(-np.clip(dy - 40, 0, None) / 120.0) * np.exp(-(dx / 330.0) ** 2)
+    shafts = dithered(np.clip(rays * fade * 0.55, 0, 1))
+    img = np.zeros((h, w, 4))
+    img[..., :3] = np.array((255, 190, 120))
+    img[..., 3] = shafts * 55
+    Image.fromarray(img.astype(np.uint8), "RGBA").save(OUT / "sun_rays.png")
+    # --- haze: densest at the horizon (behind the trees), warm near the sun, violet elsewhere
+    for name, peak, centre, spread, strength in (("haze_far.png", 0.55, 205, 55, 1.0),
+                                                 ("haze_near.png", 0.2, 160, 30, 0.8)):
+        band = np.exp(-((yy - centre) / spread) ** 2)
+        band = np.where(yy > centre, np.exp(-((yy - centre) / (spread * 0.45)) ** 2), band)
+        a = dithered(np.clip(band * (0.55 + 0.45 * near_sun) * strength, 0, 1)) * peak
+        warm, violet = np.array((255, 170, 128)), np.array((150, 112, 178))
+        col = violet[None, None] * (1 - near_sun[..., None]) + warm[None, None] * near_sun[..., None]
+        img = np.dstack([col, a * 255])
+        Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGBA").save(OUT / name)
+    # --- thin cloud streaks, chunky pixels, wrapping (the layer drifts slowly)
+    block = 3
+    sw, sh = w // block, 140 // block
+    small = np.zeros((sh, sw, 4))
+    for _ in range(14):
+        cx, cy = rr.uniform(0, sw), rr.uniform(4, sh - 6)
+        ln, th = rr.uniform(25, 70), rr.uniform(1.0, 2.2)
+        lit = rr.uniform(0.6, 1.0)
+        yv, xv = np.mgrid[0:sh, 0:sw]
+        for off in (-sw, 0, sw):
+            d = ((xv - cx - off) / ln) ** 2 + ((yv - cy) / th) ** 2
+            m = np.clip(1 - d, 0, 1)
+            small[..., 3] = np.maximum(small[..., 3], m * lit)
+    yv, xv = np.mgrid[0:sh, 0:sw]
+    sun_side = np.exp(-((np.minimum(np.abs(xv * block - SUN_X), sw * block - np.abs(xv * block - SUN_X))) / 400.0) ** 2)
+    small[..., :3] = np.array((236, 150, 150)) * (1 - sun_side[..., None]) + np.array((255, 196, 140)) * sun_side[..., None]
+    a = dithered(small[..., 3], 1) * 0.55
+    small[..., 3] = a * 255
+    wisp = Image.fromarray(np.clip(small, 0, 255).astype(np.uint8), "RGBA").resize((sw * block, sh * block), Image.NEAREST)
+    canvas = Image.new("RGBA", (w, 360), (0, 0, 0, 0))
+    canvas.paste(wisp, (0, 10))
+    canvas.save(OUT / "wisps.png")
+
+
 def mirror(src, src_y, width, darken=0.8, tint=(30, 24, 70)):
     """Mirror image rows above the road into the road rows (screen coordinates).
     src_y: screen y of src's row 0. Rows are squashed by MIRROR and wobbled with
@@ -540,5 +621,6 @@ if __name__ == "__main__":
     build_road(sky, city, fill, back)
     build_foreground()
     make_bird().save(OUT / "bird.png")
+    build_atmosphere()
     print(f"layers written to {OUT}; railway tile {back.size[0]}px (RAIL_TILE), "
           f"train {train.size}, train top y in layer = {deck_top - train.size[1]}")
