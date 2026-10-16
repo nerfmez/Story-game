@@ -64,15 +64,15 @@ def unmix(rgb, mask, bg, plastic, rows):
     v = rgb - bg
     a = (v @ u) / (u @ u)
     resid = np.sqrt(((v - a[..., None] * u) ** 2).sum(2))
-    glass = mask & (resid < 45) & (a > 0.06) & (a < 0.92)   # between the background and the plastic
-                                                             # (darker than the background = hair, not plastic)
-    glass[rows:] = False
+    prop = mask & (resid < 45) & (a > 0.06)       # between the background and the plastic
+    prop[rows:] = False                           # (darker than the background = hair, not plastic)
+    glass = prop & (a < 0.92)                     # see-through; the rest of the prop: solid ribs, rim
     a = np.clip(a, 0.15, 1.0)
     # one even colour for the plastic (the unmixed colours wander a little); its shape
     # and the brighter ribs and edges are carried by the alpha
-    out = np.where(glass[..., None], plastic, rgb)
+    out = np.where(prop[..., None], plastic, rgb)
     alpha = np.where(glass, a * 255, np.where(mask, 255.0, 0.0))
-    return out, alpha
+    return out, alpha, prop
 
 
 def materials(px):
@@ -91,34 +91,66 @@ def materials(px):
     }
 
 
-def skin_weight(px):
-    """0..1: how much a colour is skin or skin in shadow (warm orange, fairly saturated)."""
-    rgb = px / 255.0
-    mx, mn = rgb.max(-1), rgb.min(-1)
-    sat = (mx - mn) / np.maximum(mx, 1e-6)
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    warm = np.clip((r - g) / np.maximum(mx - mn, 1e-6), 0, 1) * (r >= b)    # hue near orange
-    return (np.clip((sat - 0.2) / 0.15, 0, 1) * np.clip((mx - 0.35) / 0.15, 0, 1)
-            * np.clip(warm * 1.5 - 0.2, 0, 1) * (g >= b - 0.02))
+def kmeans_rgb(px, k, iters=30, seed=3):
+    rng = np.random.default_rng(seed)
+    c = px[rng.choice(len(px), k, replace=False)].astype(float)
+    for _ in range(iters):
+        lab = ((px[:, None] - c[None]) ** 2).sum(2).argmin(1)
+        for j in range(k):
+            if (lab == j).any():
+                c[j] = px[lab == j].mean(0)
+    return c
 
 
-def match_skin(frames, solid, ref_px):
-    """Skin and its shading: per channel, map the frames' spread of skin tones (light to
-    shadow) onto the reference's with a smooth curve (matched percentiles), blended in by
-    how skin-like each pixel is, so nothing changes abruptly at the edge of the skin."""
+def match_materials(frames, solid, ref_px, k=10, sigma=28.0):
+    """Light-to-shadow range of every material, matched to the reference sprite.
+
+    The reference's colours are split into k groups (skin light/shadow, hair, shirt,
+    shirt shading, bag, shorts...). Each group gets a ramp: its colour as a function of
+    how bright a pixel is within the group (dark end -> light end). A frame pixel belongs
+    softly to the groups near its colour; within each it takes the ramp colour at the
+    same brightness rank its frame group has. The result depends smoothly on the input
+    colour (similar colours stay similar), so the shading keeps its shape: no blotches."""
+    lum_w = np.array((0.299, 0.587, 0.114))
+    centres = kmeans_rgb(ref_px, k)
+    ref_lab = ((ref_px[:, None] - centres[None]) ** 2).sum(2).argmin(1)
+    q = np.linspace(0, 1, 33)
+    ramps = []
+    for j in range(k):
+        v = ref_px[ref_lab == j]
+        order = np.argsort(v @ lum_w)
+        idx = np.clip((q * (len(v) - 1)).round().astype(int), 0, len(v) - 1)
+        ramp = v[order][idx].astype(float)
+        ramp = np.array([ramp[max(0, i - 2):i + 3].mean(0) for i in range(len(q))])   # smooth
+        ramps.append(ramp)
     src = np.concatenate([f[..., :3][m] for f, m in zip(frames, solid)]).astype(float)
-    ws, wr = skin_weight(src) > 0.6, skin_weight(ref_px) > 0.6
-    q = np.linspace(2, 98, 25)
-    curves = [(np.percentile(src[ws, c], q), np.percentile(ref_px[wr, c], q)) for c in range(3)]
-    out = []
+    src_lab = ((src[:, None] - centres[None]) ** 2).sum(2).argmin(1)
+    cdfs = []
+    for j in range(k):
+        l = np.sort(src[src_lab == j] @ lum_w) if (src_lab == j).sum() >= 10 else None
+        cdfs.append(l)
+
+    def remap(px):
+        d2 = ((px[:, None] - centres[None]) ** 2).sum(2)
+        w = np.exp(-(d2 - d2.min(1, keepdims=True)) / (2 * sigma ** 2))
+        w /= w.sum(1, keepdims=True)
+        lum = px @ lum_w
+        out = np.zeros_like(px)
+        for j in range(k):
+            if cdfs[j] is None:
+                out += w[:, j:j + 1] * px
+                continue
+            rank = np.searchsorted(cdfs[j], lum) / len(cdfs[j])
+            col = np.stack([np.interp(rank, q, ramps[j][:, c]) for c in range(3)], 1)
+            out += w[:, j:j + 1] * col
+        return out
+
+    result = []
     for f, m in zip(frames, solid):
         g = f.copy()
-        px = g[..., :3][m].astype(float)
-        w = skin_weight(px)[:, None]
-        mapped = np.stack([np.interp(px[:, c], *curves[c]) for c in range(3)], 1)
-        g[..., :3][m] = np.clip(px * (1 - w) + mapped * w, 0, 255).round()
-        out.append(g)
-    return out
+        g[..., :3][m] = np.clip(remap(g[..., :3][m].astype(float)), 0, 255).round()
+        result.append(g)
+    return result
 
 
 def colour_transfer(frames, solid, ref_px):
@@ -209,12 +241,13 @@ def main():
             masks[k] = apply_map(masks[k], sy, sx, bad, False)
 
     green_screen = bg[1] > bg[0] + 60 and bg[1] > bg[2] + 60
-    alphas = []
+    alphas, props = [], []
     for k in range(len(frames)):
         if args.glass:
-            frames[k], al = unmix(frames[k], masks[k], bg, plastic, collars[k])
+            frames[k], al, pr = unmix(frames[k], masks[k], bg, plastic, collars[k])
         else:
-            al = masks[k] * 255.0
+            al, pr = masks[k] * 255.0, np.zeros(masks[k].shape, bool)
+        props.append(pr)
         if green_screen:
             # pull leftover green out of the solid edge pixels (after the unmix, which needs
             # it; the tone match would otherwise push greenish edges to pink)
@@ -230,9 +263,10 @@ def main():
     out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
     sy, sx = ch / out_h, cw / out_w
     q = max(1, int(min(sx, sy) * 0.25))
-    result, glassy = [], []
-    for rgb, mk, al in zip(frames, masks, alphas):
+    result, glassy, propy = [], [], []
+    for rgb, mk, al, pr in zip(frames, masks, alphas, props):
         out = np.zeros((out_h, out_w, 4))
+        prop_cell = np.zeros((out_h, out_w), bool)
         for j in range(out_h):
             cy = min(ch - 1, int((j + 0.5) * sy))
             if j == out_h - 1:
@@ -245,14 +279,31 @@ def main():
                 if m.mean() >= 0.5:
                     out[j, i, :3] = np.median(rgb[ys_, xs_][m], axis=0)
                     out[j, i, 3] = np.median(al[ys_, xs_][m])
+                    prop_cell[j, i] = pr[ys_, xs_][m].mean() >= 0.5
         result.append(out.round().astype(np.uint8))
         glassy.append((out[..., 3] > 0) & (out[..., 3] < 250))
+        propy.append(prop_cell | glassy[-1])
     if args.match:
         path, n = args.match[0], int(args.match[1])
         sheet_ref = np.asarray(Image.open(path).convert("RGBA"))
         ref_px = sheet_ref[..., :3][sheet_ref[..., 3] >= 250].astype(float)
-        solid = [(f[..., 3] >= 250) for f in result]      # not the clear prop: it keeps its colour
-        final = match_skin(colour_transfer(result, solid, ref_px), solid, ref_px)
+        # the umbrella keeps its own colour: the unmixed plastic, and above the collar
+        # everything that is neither hair nor skin (ribs, rim, shaft)
+        solid = []
+        for f, pr, c in zip(result, propy, collars):
+            r, g, b = (f[..., i].astype(int) for i in range(3))
+            hair = (np.maximum(np.maximum(r, g), b) < 160) & (r > b + 12) & (r >= g)
+            skin = (r > 150) & (r - b > 45) & (r > g + 15)
+            above = np.zeros(pr.shape, bool)
+            above[:int(round(c * scale)) - 4] = True      # (the shirt collar's points rise a few px)
+            ribs = (f[..., 3] >= 250) & ~pr & above & ~hair & ~skin
+            # solid umbrella parts (ribs, rim, shaft): their own brightness in the plastic's
+            # cool grey (on a green screen they pick up teal/lavender casts)
+            lum = f[..., :3].astype(float) @ np.array((0.299, 0.587, 0.114))
+            grey = np.clip(plastic[None, None] * (lum / (plastic @ np.array((0.299, 0.587, 0.114))))[..., None], 0, 255)
+            f[..., :3][ribs] = grey[ribs].round()
+            solid.append((f[..., 3] >= 250) & ~pr & ~ribs)
+        final = match_materials(colour_transfer(result, solid, ref_px), solid, ref_px)
     else:
         matched = colour_match([np.where(gl[..., None], 0, f) for f, gl in zip(result, glassy)], ref)
         final = []
