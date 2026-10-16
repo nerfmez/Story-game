@@ -17,6 +17,35 @@ import numpy as np
 from PIL import Image
 
 
+def head_map(h, w, collar, neck_x, k, ramp=120):
+    """Source (row, col) to read for every output pixel when everything above `collar`
+    is scaled by k around (neck_x, collar), ramping in over `ramp` rows. Rows that end up
+    above the shrunk drawing get -1 (background)."""
+    d_src = np.arange(0, collar + 1, 0.25)
+    g = 1 - (1 - k) * np.clip(d_src / ramp, 0, 1)
+    d_out = np.concatenate([[0], np.cumsum((g[1:] + g[:-1]) / 2 * 0.25)])
+    sy = np.tile(np.arange(h)[:, None], (1, w))
+    sx = np.tile(np.arange(w)[None, :], (h, 1))
+    xs = np.arange(w)
+    for y in range(collar):
+        do = collar - y
+        if do > d_out[-1]:
+            sy[y] = -1
+            continue
+        ds = np.interp(do, d_out, d_src)
+        hs = 1 - (1 - k) * min(ds / ramp, 1)
+        sy[y] = int(round(collar - ds))
+        sx[y] = np.round(neck_x + (xs - neck_x) / hs).astype(int)
+    bad = (sy < 0) | (sx < 0) | (sx >= w)
+    return sy, sx, bad
+
+
+def apply_map(img, sy, sx, bad, fill):
+    out = img[np.clip(sy, 0, img.shape[0] - 1), np.clip(sx, 0, img.shape[1] - 1)]
+    out[bad] = fill
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
@@ -30,31 +59,10 @@ def main():
     img = np.asarray(Image.open(args.src).convert("RGB"))
     h, w = img.shape[:2]
     green = np.median(img[:20, :20].reshape(-1, 3), axis=0)
-    k, c = args.scale, args.collar
-
-    # forward map for a source row at distance d above the collar: local scale
-    # g(d) = 1 -> k over the ramp; the output distance is its integral
-    d_src = np.arange(0, c + 1, 0.25)
-    g = 1 - (1 - k) * np.clip(d_src / args.ramp, 0, 1)
-    d_out = np.concatenate([[0], np.cumsum((g[1:] + g[:-1]) / 2 * 0.25)])
-
-    out = np.empty_like(img)
-    out[:] = green
-    out[c:] = img[c:]
-    xs = np.arange(w)
-    for y in range(c):
-        do = c - y
-        if do > d_out[-1]:
-            continue                                            # above the shrunk drawing: background
-        ds = np.interp(do, d_out, d_src)                        # source distance above the collar
-        hs = 1 - (1 - k) * min(ds / args.ramp, 1)               # horizontal scale on that row
-        sy = int(round(c - ds))
-        sx = np.round(args.neck_x + (xs - args.neck_x) / hs).astype(int)
-        ok = (sx >= 0) & (sx < w)
-        out[y, ok] = img[sy, sx[ok]]
+    sy, sx, bad = head_map(h, w, args.collar, args.neck_x, args.scale, args.ramp)
+    out = apply_map(img, sy, sx, bad, green)
     Image.fromarray(out).save(args.out)
-    print(f"head part scaled by {k} around ({args.neck_x}, {c}); drawing above the collar now "
-          f"{d_out[-1]:.0f} px tall (was {c})")
+    print(f"head part scaled by {args.scale} around ({args.neck_x}, {args.collar})")
 
 
 if __name__ == "__main__":

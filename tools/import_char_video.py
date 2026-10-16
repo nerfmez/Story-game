@@ -31,6 +31,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from import_idle_video import colour_match  # noqa: E402
 from import_walk_video import landmarks, shift_img  # noqa: E402
+from fix_head_size import apply_map, head_map  # noqa: E402
 
 
 def key(rgb, bg, threshold, border=4):
@@ -127,6 +128,8 @@ def main():
     ap.add_argument("--bg", default="auto", help="background colour R,G,B (auto: median of the frame border)")
     ap.add_argument("--threshold", type=float, default=30, help="colour distance from the background")
     ap.add_argument("--glass", action="store_true", help="unmix a see-through prop above the collar")
+    ap.add_argument("--head-scale", type=float, default=1.0,
+                    help="scale everything above the collar (head, umbrella) around the neck, e.g. 0.92")
     ap.add_argument("--match", nargs=2, metavar=("SHEET", "FRAMES"),
                     help="take the colours of this sprite sheet (materials matched, any pose); "
                          "default: lay the first frame over the --palette still")
@@ -155,6 +158,7 @@ def main():
     frames = [shift_img(f, dx, dy) for f, (dx, dy) in zip(frames, shifts)]
     masks = [shift_img(m, dx, dy) for m, (dx, dy) in zip(masks, shifts)]
     collars = [m[1] + dy for m, (_, dy) in zip(marks, shifts)]
+    necks = [m[2] + dx for m, (dx, _) in zip(marks, shifts)]
 
     union = np.any(masks, axis=0)
     ys, xs = np.nonzero(union)
@@ -163,6 +167,16 @@ def main():
     frames = [f[y0:y1, x0:x1] for f in frames]
     masks = [m[y0:y1, x0:x1] for m in masks]
     collars = [c - y0 for c in collars]
+    necks = [x - x0 for x in necks]
+
+    if args.head_scale != 1.0:
+        # AI clips often draw the head (and what is above the collar) too big for the body:
+        # scale it around the neck, ramping in above the collar (see fix_head_size.py)
+        ch, cw = masks[0].shape
+        for k in range(len(frames)):
+            sy, sx, bad = head_map(ch, cw, int(collars[k]), necks[k], args.head_scale)
+            frames[k] = apply_map(frames[k], sy, sx, bad, bg)
+            masks[k] = apply_map(masks[k], sy, sx, bad, False)
 
     green_screen = bg[1] > bg[0] + 60 and bg[1] > bg[2] + 60
     alphas = []

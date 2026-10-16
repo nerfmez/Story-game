@@ -256,10 +256,10 @@ python3 tools/import_sprite.py art_source/hero_umbrella_fixed_greenscreen.png as
 ```
 python3 tools/import_char_video.py art_source/hero_umbrella_idle_greenscreen.mp4 assets/characters/hero_umbrella_idle.png \
     --start 49 --end 95 --step 2 --palette assets/characters/hero_uniform.png --align feet --glass \
-    --match assets/characters/hero_idle_video.png 36
+    --match assets/characters/hero_idle_video.png 36 --head-scale 0.92
 python3 tools/import_char_video.py art_source/hero_umbrella_walk.mp4 assets/characters/hero_umbrella_walk.png \
     --start 20 --end 46 --step 2 --palette assets/characters/hero_uniform.png --align torso --glass \
-    --match assets/characters/hero_idle_video.png 36
+    --match assets/characters/hero_idle_video.png 36 --head-scale 0.92
 python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --frames 14 \
     --measure 30 85 --cut 96 112 --bob 1 1 0 -1 -1 0 0 1 1 0 0 -1 -1 0
 ```
@@ -271,7 +271,8 @@ python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --fra
 `--match`: สีเอามาจากภาพยืนในเกม (`hero_idle_video.png`) โดยจับคู่ตามวัสดุ (ผิว ผม เสื้อ กระเป๋า เงาเข้ม) แล้วหาฟังก์ชันสีเรียบตัวเดียว
 ใช้ได้ทุกท่า (วางทับภาพนิ่งแบบเดิมใช้ไม่ได้กับท่าเดิน: ได้สีผิวซีดกว่าท่ายืน) ท่ายืนกับท่าเดินถือร่มจึงสีเดียวกันและเท่าพระเอกปกติ
 ขอบล่างสุดของวิดีโอมีจุดรบกวนจากการบีบอัด: ไม่นับแถว/คอลัมน์ขอบภาพ และแถวพื้นต้องมีพิกเซลพอ (ไม่งั้นบางเฟรมเลื่อนตัวลอยขึ้นลง 4px)
-สัดส่วนหัว/ตัวในวิดีโอถือร่มเท่ากับวิดีโอยืน/เดินเดิมที่ใช้ในเกม (หัว:ตัว 0.565 vs 0.55) จึงไม่ต้องย่อหัว
+`--head-scale 0.92`: วัดในภาพเกมแล้วหัวในวิดีโอถือร่มสูงกว่าตัวปกติ 25 vs 23px (~9%) จึงย่อทุกอย่างเหนือปกเสื้อ (หัว + ร่ม)
+รอบคอทีละเฟรม แบบ `fix_head_size.py` (ค่อยๆ เริ่มย่อ ไม่มีรอยต่อ) หลังย่อ: หัวสูง 24 vs 23, ผมกว้าง 19 vs 21 (ทรงผมในวิดีโอฟูน้อยกว่า)
 ท่ายืน: เฟรม 49-95 (เฟรม 97 แทบเหมือน 49 วนได้เนียน) 24 เฟรม ท่าเดิน: รอบก้าว 28 เฟรมวิดีโอ = 14 เฟรม
 ช่วงบนนิ่ง + ยุบ/ยืด 1px ตามก้าวแบบท่าเดินปกติ (ขากางสุดเฟรม 0-1, 7-8 / ขาสวนเฟรม 3-4, 11-12)
 `hero_walker.gd` `set_umbrella()`: สลับเป็นชุดถือร่ม (เท้าเลื่อน ~6.2px/เฟรม = ความเร็ว 74, เสียงเท้าเฟรม 0 และ 7) ไม่หยิบโทรศัพท์ตอนถือร่ม
