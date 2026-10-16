@@ -9,6 +9,8 @@ extends Node2D
 ## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
 @export var idle_frames := 32
+## แผ่นภาพเรียงกี่แถว (มือถือโหลดภาพกว้างเกิน 4096px ไม่ได้ จอดำ: แผ่นยาวๆ จึงแบ่งเป็นหลายแถว)
+@export var idle_rows := 1
 @export var idle_fps := 12.0
 ## เลื่อนภาพยืนให้ลำตัวตรงกับท่าเดิน (หันซ้าย / พลิกหันขวา)
 @export var idle_offset := Vector2(0, 0)
@@ -60,6 +62,8 @@ extends Node2D
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
 @export var umbrella_idle_texture: Texture2D
 @export var umbrella_idle_frames := 58
+## 58 เฟรม x 84px = 4872px กว้างเกิน 4096 จึงเรียง 2 แถว แถวละ 29 เฟรม
+@export var umbrella_idle_rows := 2
 ## 116 เฟรมวิดีโอ (24fps) -> 58 เฟรม = 12 เฟรม/วินาที เท่าวิดีโอต้นฉบับ
 @export var umbrella_idle_fps := 12.0
 @export var umbrella_idle_offset := Vector2(-28, 0)
@@ -101,7 +105,7 @@ var _put_away_from := 0
 ## ถือร่ม/ไม่ถือร่ม: สลับชุดภาพยืนและเดิน (เก็บชุดปกติไว้คืนตอนเลิกถือ)
 func set_umbrella(on: bool) -> void:
 	if _plain.is_empty():
-		for key in ["idle_texture", "idle_frames", "idle_fps", "idle_offset", "idle_offset_flipped", "walk_texture",
+		for key in ["idle_texture", "idle_frames", "idle_rows", "idle_fps", "idle_offset", "idle_offset_flipped", "walk_texture",
 				"walk_frames", "walk_fps", "walk_offset", "walk_offset_flipped", "speed", "step_frames"]:
 			_plain[key] = get(key)
 	if on and not (umbrella_idle_texture and umbrella_walk_texture):
@@ -110,6 +114,7 @@ func set_umbrella(on: bool) -> void:
 	if on:
 		idle_texture = umbrella_idle_texture
 		idle_frames = umbrella_idle_frames
+		idle_rows = umbrella_idle_rows
 		idle_fps = umbrella_idle_fps
 		idle_offset = umbrella_idle_offset
 		idle_offset_flipped = umbrella_idle_offset_flipped
@@ -215,6 +220,7 @@ func _set_phone_pose(frame: int) -> void:
 	for sprite in [_body, _reflection]:
 		sprite.texture = phone_texture
 		sprite.hframes = phone_frames
+		sprite.vframes = 1
 		sprite.frame = clampi(frame, 0, phone_frames - 1)
 		sprite.offset = phone_offset_flipped if _facing_right else phone_offset
 		if sprite == _body:
@@ -227,6 +233,7 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 		if walking and walk_texture:
 			sprite.texture = walk_texture
 			sprite.hframes = walk_frames
+			sprite.vframes = 1
 			sprite.frame = int(_anim_time * walk_fps) % walk_frames
 			sprite.offset.x = walk_offset_flipped.x if facing_right else walk_offset.x
 			sprite.flip_h = facing_right
@@ -235,12 +242,13 @@ func _set_pose(walking: bool, facing_right: bool) -> void:
 				sprite.offset.y = ground_row - (walk_texture.get_height() - 1)
 		elif idle_texture:
 			sprite.texture = idle_texture
-			sprite.hframes = idle_frames
+			sprite.vframes = idle_rows
+			sprite.hframes = ceili(float(idle_frames) / idle_rows)
 			sprite.frame = _idle_frame()
 			# ภาพยืนต้นฉบับหันซ้ายเหมือนท่าเดิน
 			sprite.offset = idle_offset_flipped if facing_right else idle_offset
 			if sprite == _body:
-				sprite.offset.y += ground_row - (idle_texture.get_height() - 1)
+				sprite.offset.y += ground_row - (idle_texture.get_height() / idle_rows - 1)
 			sprite.flip_h = facing_right
 
 
