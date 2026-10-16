@@ -21,16 +21,35 @@ extends Node
 
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 
-## ช่วงเวลาของฉาก: ภาพเย็นอยู่ใน assets/bg/sunset/ ภาพเช้าชื่อเดียวกันอยู่ใน assets/bg/morning/
-## (tools/compose_morning_scene.py) ตอนเช้าเปลี่ยนภาพทุกชั้นที่มีเวอร์ชันเช้า ซ่อนแสงอาทิตย์ตก
-## เปลี่ยนโทนสีทั้งจอ ฝุ่นในแสง และเสียงบรรยากาศ บนเว็บเลือกที่หน้าเริ่ม, บนเครื่องกด T สลับ
-@export var morning := false
-## ชั้นที่มีเฉพาะตอนเย็น (แสงอาทิตย์ แสงเรืองหน้าต่างรถไฟ เมฆเส้นสีส้ม)
-@export var evening_only: Array[NodePath] = [^"SunLight", ^"Wisps", ^"TrainLayer/Train/Glow"]
-## ตอนเช้าถนนแห้ง (ไม่มีน้ำ): ซ่อนเงาสะท้อนที่วาดอยู่บนถนน (เงาสะท้อนชั้นอื่นอยู่ใต้ถนนทึบอยู่แล้ว)
-## (เงาสะท้อนตัวละครปิดไว้ทั้งเช้าและเย็น: Characters/Hero/Reflection visible = false ในฉาก)
-@export var wet_only: Array[NodePath] = []
-const MORNING_AMBIENCE := "res://assets/audio/ambience_morning.ogg"
+## ช่วงเวลาของฉาก: ภาพเย็นอยู่ใน assets/bg/sunset/ ช่วงเวลาอื่นมีภาพชื่อเดียวกันในโฟลเดอร์ของตัวเอง
+## (morning: tools/compose_morning_scene.py, rain: tools/compose_rain_scene.py) แต่ละช่วงเปลี่ยนภาพ
+## ทุกชั้นที่มีเวอร์ชันของมัน ซ่อน/แสดงบางชั้น เปลี่ยนโทนสีทั้งจอ ฝุ่นในแสง เสียงบรรยากาศ และความสว่างตัวละคร
+## บนเว็บเลือกที่หน้าเริ่ม, บนเครื่องกด T เปลี่ยนวนไป
+@export_enum("evening", "morning", "rain") var time_of_day := "evening"
+const TIMES := {
+	"evening": {"folder": "", "hide": [], "show": []},
+	"morning": {
+		"folder": "morning",
+		"hide": [^"SunLight", ^"Wisps", ^"TrainLayer/Train/Glow"],
+		"show": [],
+		# เงาฟ้าอ่อนๆ ไฮไลต์อุ่นนิดหน่อย ขอบจอมืดน้อยลง
+		"grade": [Vector3(0.0, 0.03, 0.07), Vector3(0.03, 0.02, 0.0), 0.3, 0.15],
+		"dust": Color(1.0, 1.25, 1.35, 0.7),          # ฝุ่นในแสงเช้า: ขาวอมฟ้า
+		"ambience": "res://assets/audio/ambience_morning.ogg",
+		"morning": true,
+	},
+	"rain": {
+		# เช้ามืด ครึ้ม ฝนตก: ไม่มีแดด ไม่มีฝุ่นในแสง ไฟในรถไฟยังเปิด มีฝนตกกับน้ำกระเซ็น
+		"folder": "rain",
+		"hide": [^"SunLight", ^"Wisps", ^"Dust"],
+		"show": [^"Grade/Rain", ^"RainSplash"],
+		"grade": [Vector3(0.0, 0.02, 0.07), Vector3(0.0, 0.01, 0.03), 0.35, 0.4],
+		"ambience": "res://assets/audio/ambience_rain.ogg",
+		"characters": Color(0.8, 0.84, 0.94),        # ตัวละครอยู่ในแสงครึ้มด้วย
+		"morning": true,
+	},
+}
+const TIME_ORDER := ["evening", "morning", "rain"]
 
 
 func _ready() -> void:
@@ -42,7 +61,7 @@ func _ready() -> void:
 	smooth.shader = SMOOTH_PIXEL
 	_use_smooth_pixels(self, smooth)
 	_evening_ambience = ($Ambience as AudioStreamPlayer).stream if has_node("Ambience") else null
-	set_morning(morning)
+	set_time(time_of_day)
 	dialogue_box.line_started.connect(_on_line_started)
 	dialogue_box.finished.connect(_on_finished)
 	if OS.has_feature("web"):
@@ -98,12 +117,13 @@ func _show_start_screen() -> void:
 	box.add_child(label)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 18)
+	row.add_theme_constant_override("separation", 14)
 	box.add_child(row)
-	for choice in [["เช้า", true, Color(0.36, 0.62, 0.9)], ["เย็น", false, Color(0.86, 0.46, 0.42)]]:
+	for choice in [["เช้า", "morning", Color(0.36, 0.62, 0.9)], ["เช้ามืด ฝนตก", "rain", Color(0.36, 0.42, 0.56)],
+			["เย็น", "evening", Color(0.86, 0.46, 0.42)]]:
 		var button := Button.new()
 		button.text = choice[0]
-		button.custom_minimum_size = Vector2(110, 44)
+		button.custom_minimum_size = Vector2(100, 44)
 		button.add_theme_font_size_override("font_size", 20)
 		var style := StyleBoxFlat.new()
 		style.bg_color = choice[2]
@@ -122,19 +142,19 @@ func _show_start_screen() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# หน้าเริ่ม: กดปุ่มบนจอเพื่อเลือก, คีย์บอร์ด: M = เช้า, ปุ่มอื่น = ช่วงเวลาที่ตั้งไว้
+	# หน้าเริ่ม: กดปุ่มบนจอเพื่อเลือก, คีย์บอร์ด: M = เช้า, R = ฝนตก, ปุ่มอื่น = ช่วงเวลาที่ตั้งไว้
 	if _start_layer == null or not (event is InputEventKey and event.pressed):
 		return
 	get_viewport().set_input_as_handled()
-	_start(true if event.keycode == KEY_M else morning)
+	_start({KEY_M: "morning", KEY_R: "rain"}.get(event.keycode, time_of_day))
 
 
-func _start(is_morning: bool) -> void:
+func _start(time: String) -> void:
 	if _start_layer == null:
 		return
 	_start_layer.queue_free()
 	_start_layer = null
-	set_morning(is_morning)
+	set_time(time)
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience:
 		ambience.play()
@@ -152,37 +172,44 @@ func _begin_dialogue() -> void:
 
 
 func _dialogue_path() -> String:
-	return dialogue_file_morning if morning and dialogue_file_morning != "" else dialogue_file
+	var is_morning: bool = TIMES[time_of_day].get("morning", false)
+	return dialogue_file_morning if is_morning and dialogue_file_morning != "" else dialogue_file
 
 
-## สลับฉากเช้า/เย็น
+## เดิม: สลับเช้า/เย็น (ยังใช้ได้)
 func set_morning(on: bool) -> void:
-	morning = on
+	set_time("morning" if on else "evening")
+
+
+## เปลี่ยนช่วงเวลาของฉาก (evening / morning / rain)
+func set_time(time: String) -> void:
+	time_of_day = time
+	var t: Dictionary = TIMES[time]
 	var mission := get_node_or_null("UI/Mission/Row/Label") as Label
 	if mission:
-		mission.text = mission_text_morning if on else mission_text
-	_swap_textures(self, on)
-	for path in evening_only + wet_only:
-		var node := get_node_or_null(path) as CanvasItem
-		if node:
-			node.visible = not on
+		mission.text = mission_text_morning if t.get("morning", false) else mission_text
+	_swap_textures(self, t["folder"])
+	# ชั้นที่ช่วงเวลาไหนซ่อน/แสดง: ทุกชั้นที่ถูกพูดถึงในตาราง กลับเป็นค่าปกติก่อน
+	for other in TIMES.values():
+		for path in other["hide"]:
+			_set_visible(path, not path in t["hide"])
+		for path in other["show"]:
+			_set_visible(path, path in t["show"])
 	var grade := get_node_or_null("Grade/Screen") as ColorRect
 	if grade and grade.material is ShaderMaterial:
 		var m := grade.material as ShaderMaterial
-		if on:   # เช้า: เงาฟ้าอ่อนๆ ไฮไลต์อุ่นนิดหน่อย ขอบจอมืดน้อยลง
-			m.set_shader_parameter("shadow_tint", Vector3(0.0, 0.03, 0.07))
-			m.set_shader_parameter("highlight_tint", Vector3(0.03, 0.02, 0.0))
-			m.set_shader_parameter("tint_amount", 0.3)
-			m.set_shader_parameter("vignette", 0.15)
-		else:    # ค่าเดิมของ shader (เย็น)
-			for param in ["shadow_tint", "highlight_tint", "tint_amount", "vignette"]:
-				m.set_shader_parameter(param, null)
+		var params := ["shadow_tint", "highlight_tint", "tint_amount", "vignette"]
+		for i in params.size():   # ไม่มีในตาราง = ค่าเดิมของ shader (เย็น)
+			m.set_shader_parameter(params[i], t["grade"][i] if t.has("grade") else null)
 	var dust := get_node_or_null("Dust") as CPUParticles2D
 	if dust:
-		dust.modulate = Color(1.0, 1.25, 1.35, 0.7) if on else Color.WHITE   # ฝุ่นในแสงเช้า: ขาวอมฟ้า
+		dust.modulate = t.get("dust", Color.WHITE)
+	var characters := get_node_or_null("Characters") as CanvasItem
+	if characters:
+		characters.modulate = t.get("characters", Color.WHITE)
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience and _evening_ambience:
-		var want: AudioStream = load(MORNING_AMBIENCE) if on else _evening_ambience
+		var want: AudioStream = load(t["ambience"]) if t.has("ambience") else _evening_ambience
 		if ambience.stream != want:
 			var was_playing := ambience.playing
 			ambience.stream = want
@@ -192,21 +219,27 @@ func set_morning(on: bool) -> void:
 				ambience.play()
 
 
-## เปลี่ยนภาพของทุก Sprite2D ที่มีเวอร์ชันเช้า (ชื่อไฟล์เดียวกันในโฟลเดอร์ morning)
-func _swap_textures(node: Node, on: bool) -> void:
+func _set_visible(path: NodePath, on: bool) -> void:
+	var node := get_node_or_null(path) as CanvasItem
+	if node:
+		node.visible = on
+
+
+## เปลี่ยนภาพของทุก Sprite2D ที่มีเวอร์ชันของช่วงเวลานี้ (ชื่อไฟล์เดียวกันในโฟลเดอร์ folder)
+func _swap_textures(node: Node, folder: String) -> void:
 	for child in node.get_children():
 		if child is Sprite2D and child.texture:
 			if not child.has_meta("evening_texture"):
 				child.set_meta("evening_texture", child.texture)
 			var evening: Texture2D = child.get_meta("evening_texture")
 			var path := evening.resource_path
-			var morning_path := path.replace("/bg/sunset/", "/bg/morning/")
-			if on and morning_path != path and ResourceLoader.exists(morning_path):
-				child.texture = load(morning_path)
+			var other := path.replace("/bg/sunset/", "/bg/%s/" % folder)
+			if folder != "" and other != path and ResourceLoader.exists(other):
+				child.texture = load(other)
 			else:
 				child.texture = evening
 		if not child is CanvasLayer:
-			_swap_textures(child, on)
+			_swap_textures(child, folder)
 
 
 func _use_smooth_pixels(node: Node, smooth: ShaderMaterial) -> void:
@@ -242,7 +275,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if other_scene != "" and event.is_pressed() and event is InputEventKey and event.keycode == KEY_TAB:
 		get_tree().change_scene_to_file(other_scene)
 	if event.is_pressed() and event is InputEventKey and event.keycode == KEY_T:
-		set_morning(not morning)
+		set_time(TIME_ORDER[(TIME_ORDER.find(time_of_day) + 1) % TIME_ORDER.size()])
 
 
 func _on_finished() -> void:

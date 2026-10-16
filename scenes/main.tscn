@@ -1,4 +1,4 @@
-[gd_scene load_steps=59 format=3]
+[gd_scene load_steps=62 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -46,6 +46,7 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hero_phone.png" id="45_phone"]
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/train_glow.png" id="51_train_glow"]
+[ext_resource type="Shader" path="res://shaders/rain.gdshader" id="52_rain"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -84,6 +85,13 @@ shader = ExtResource("40_grade")
 [sub_resource type="Gradient" id="Gradient_dust"]
 offsets = PackedFloat32Array(0, 0.2, 0.7, 1)
 colors = PackedColorArray(1, 0.72, 0.68, 0, 1, 0.72, 0.68, 0.85, 1, 0.66, 0.66, 0.55, 1, 0.62, 0.66, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rain"]
+shader = ExtResource("52_rain")
+
+[sub_resource type="Gradient" id="Gradient_splash"]
+offsets = PackedFloat32Array(0, 0.3, 1)
+colors = PackedColorArray(0.8, 0.86, 0.98, 0.9, 0.78, 0.84, 0.96, 0.6, 0.76, 0.82, 0.96, 0)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_reflection"]
 shader = ExtResource("15_water")
@@ -318,6 +326,25 @@ centered = false
 texture = ExtResource("11_hero")
 centered = false
 
+[node name="RainSplash" type="CPUParticles2D" parent="." node_paths=PackedStringArray("target")]
+visible = false
+position = Vector2(320, 312)
+amount = 70
+lifetime = 0.22
+preprocess = 1.0
+local_coords = false
+emission_shape = 3
+emission_rect_extents = Vector2(360, 48)
+direction = Vector2(0, -1)
+spread = 70.0
+gravity = Vector2(0, 260)
+initial_velocity_min = 14.0
+initial_velocity_max = 30.0
+color_ramp = SubResource("Gradient_splash")
+script = ExtResource("4_follow")
+target = NodePath("../Camera2D")
+copy_visible = false
+
 [node name="Foreground" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.25, 1.25)
 repeat_size = Vector2(960, 0)
@@ -346,8 +373,19 @@ scale_amount_max = 2.0
 color_ramp = SubResource("Gradient_dust")
 script = ExtResource("4_follow")
 target = NodePath("../Camera2D")
+copy_visible = false
 
 [node name="Grade" type="CanvasLayer" parent="."]
+
+[node name="Rain" type="ColorRect" parent="Grade"]
+visible = false
+material = SubResource("ShaderMaterial_rain")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="Screen" type="ColorRect" parent="Grade"]
 material = SubResource("ShaderMaterial_grade")

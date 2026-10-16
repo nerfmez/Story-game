@@ -6,6 +6,8 @@ Outputs (assets/audio/, Ogg Vorbis):
                         their sounds when they are on screen)
   ambience_morning.ogg  24 s seamless loop for the morning scene: city hum, breeze and
                         small birds chirping now and then (no crickets or cicada)
+  ambience_rain.ogg     24 s seamless loop for the rainy dawn: steady rain hiss with slow
+                        gusts, a low rumble, and drops hitting things nearby
   train_pass.ogg        3.2 s seamless loop of a train on a viaduct: rumble, motor
                         whine and the clack-clack of the wheels over rail joints
   step_1..3.ogg         footsteps on wet asphalt (soft scuff + tiny splash)
@@ -101,6 +103,21 @@ def ambience_morning(seconds=24):
     return out * 0.9
 
 
+def ambience_rain(seconds=24):
+    n = SR * seconds
+    out = 0.32 * shaped_noise(n, 500, 9000, -0.25) * slow_lfo(n, 3, 0.35, 0.7)    # rain hiss, gusts
+    out += 0.12 * shaped_noise(n, 2500, 10000) * slow_lfo(n, 5, 0.5, 2.1)         # fine spray
+    out += 0.14 * shaped_noise(n, 30, 220, -0.5) * slow_lfo(n, 2, 0.3)            # rumble, city under rain
+    ln = int(0.03 * SR)
+    tt = np.arange(ln) / SR
+    k = 0.0
+    while k < seconds:                                                            # drops on things nearby
+        drip = shaped_noise(ln, 1200, 6000) * np.exp(-tt * 160)
+        place(out, drip * rng.uniform(0.05, 0.22), int(k * SR))
+        k += rng.uniform(0.04, 0.35)
+    return out * 0.9
+
+
 def train_loop(seconds=3.2):
     n = int(SR * seconds)
     out = 0.32 * shaped_noise(n, 30, 420, -0.4)                                  # rumble
@@ -166,6 +183,7 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     files = {"ambience_evening.ogg": lambda: save_ogg("ambience_evening.ogg", ambience(), 0.7),
              "ambience_morning.ogg": lambda: save_ogg("ambience_morning.ogg", ambience_morning(), 0.7),
+             "ambience_rain.ogg": lambda: save_ogg("ambience_rain.ogg", ambience_rain(), 0.7),
              "train_pass.ogg": lambda: save_ogg("train_pass.ogg", train_loop(), 0.8)}
     for i in range(3):
         files[f"step_{i + 1}.ogg"] = lambda i=i: save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
