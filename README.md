@@ -152,6 +152,8 @@ python3 tools/import_char_video.py art_source/hero2_umbrella_walk.mp4 uwalk_raw.
 python3 tools/apply_colour_fit.py idle_raw.png assets/characters/hero_idle_video.png \
     walk_raw.png assets/characters/hero_walk.png phone_raw.png assets/characters/hero_phone.png \
     uidle_raw.png assets/characters/hero_umbrella_idle.png uwalk_raw.png assets/characters/hero_umbrella_walk.png
+python3 tools/match_sheet_colours.py phone_raw.png 62 0 assets/characters/hero_idle_video.png 32 5 assets/characters/hero_phone.png --dx 9
+python3 tools/match_sheet_colours.py uidle_raw.png 23 0 assets/characters/hero_idle_video.png 32 5 assets/characters/hero_umbrella_idle.png --dx 28
 python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 18 --measure 6 60 --cut 82 96 \
     --bob 1 1 1 0 0 0 -1 -1 -1 0 1 1 0 -1 -1 -1 0 0
 python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --frames 15 --measure 28 80 --cut 94 108 \
@@ -163,6 +165,8 @@ python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --fra
 - `--head-scale`: ในคลิปเดิน/ถือร่ม AI วาดหัวใหญ่กว่าคลิปยืน (หัว:ตัว 0.29 / 0.28 vs 0.25) จึงย่อหัวเข้าหาคอ
 - สี: ท่ายืนเทียบกับภาพนิ่งแบบวางทับ (ฟังก์ชันสีเดียว) แล้ว `apply_colour_fit.py` หาฟังก์ชันที่เปลี่ยนท่ายืนดิบเป็นท่ายืนที่ปรับแล้ว (พิกเซลต่อพิกเซล)
   ใช้ฟังก์ชันเดียวกันกับทุกคลิป (สีดิบของ 5 คลิปตรงกันอยู่แล้ว: เสื้อ ผิว ผม ต่างกันไม่กี่ระดับ) ทุกท่าจึงสีเดียวกัน
+- คลิปโทรศัพท์และยืนถือร่ม ตัวละครเล็กในเฟรมวิดีโอ ผม/กางเกงผสมกับพื้นหลังมากกว่า จึงสีอ่อนกว่า: `match_sheet_colours.py` วางเฟรมแรกทับท่ายืน
+  (ท่าเดียวกัน วัดเงาซ้อนแล้วขนาดต่างไม่เกิน 1px) แล้วหาฟังก์ชันสีให้ตรงกับท่ายืนอีกชั้น (ตัด 30% ที่ต่างกันที่สุด เช่น มือถือโทรศัพท์)
 - ผมดำ: ตัวหาผมใน `import_char_video.py` รับผมดำได้แล้ว (เดิมหาเฉพาะผมน้ำตาล)
 - `hero_walker.gd`: ความเร็ว 54 (เท้าเลื่อน ~4.5px/เฟรม), ถือร่ม 60 (~5px/เฟรม), หยิบโทรศัพท์ 22 เฟรม เริ่มจากท่ายืนเฟรม 5
 
