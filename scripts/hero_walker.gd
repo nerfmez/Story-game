@@ -50,8 +50,9 @@ extends Node2D
 @export var phone_after := Vector2(5.0, 8.0)
 ## เฟรมของท่ายืนที่ตรงกับเฟรมแรกของท่าโทรศัพท์ (สลับตรงนี้ภาพจึงไม่กระโดด)
 @export var phone_from_idle_frame := 4
-## เก็บโทรศัพท์เร็วกว่าตอนหยิบกี่เท่า
-@export var phone_put_away_speed := 2.0
+## เก็บโทรศัพท์: เล่นท่าหยิบย้อนกลับที่ phone_fps แต่ข้ามทีละกี่เฟรม (2 = เร็วกว่าตอนหยิบ 2 เท่า
+## โดยยังเปลี่ยนภาพ 12 ครั้ง/วินาทีเท่าตอนหยิบ ไม่ลื่นเกินไปแบบเล่นทุกเฟรม 24 ครั้ง/วินาที)
+@export var phone_put_away_step := 2
 @export var phone_offset := Vector2(-5, 0)
 @export var phone_offset_flipped := Vector2(0, 0)
 
@@ -130,7 +131,7 @@ func _update_phone(delta: float, dir: float) -> bool:
 		_phone = Phone.PUTTING_AWAY
 		_phone_time = 0.0
 	if _phone == Phone.PUTTING_AWAY:
-		frame = _put_away_from - int(_phone_time * phone_fps * phone_put_away_speed)
+		frame = _put_away_from - int(_phone_time * phone_fps) * phone_put_away_step
 		if frame < 0:
 			# เก็บเสร็จ: กลับเป็นท่ายืนที่เฟรมเดียวกับที่สลับเข้ามา แล้วเริ่มนับใหม่
 			_phone = Phone.NONE
