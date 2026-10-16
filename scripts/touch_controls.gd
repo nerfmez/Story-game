@@ -10,9 +10,13 @@ extends Control
 @onready var _right: BaseButton = $Right
 
 
+var _touch := false
+
+
 func _ready() -> void:
-	visible = always_visible or DisplayServer.is_touchscreen_available() \
+	_touch = always_visible or DisplayServer.is_touchscreen_available() \
 		or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	visible = _touch
 	_left.button_down.connect(_set_dir.bind(-1.0))
 	_right.button_down.connect(_set_dir.bind(1.0))
 	_left.button_up.connect(_release.bind(-1.0))
@@ -26,4 +30,11 @@ func _set_dir(dir: float) -> void:
 
 func _release(dir: float) -> void:
 	if walker and walker.touch_dir == dir:
+		walker.touch_dir = 0.0
+
+
+## ฉากเนื้อเรื่องซ่อนปุ่ม (ผู้เล่นเดินเองไม่ได้) แล้วแสดงคืนเมื่อเดินได้ (เฉพาะเครื่องจอสัมผัส)
+func set_active(on: bool) -> void:
+	visible = on and _touch
+	if not on and walker:
 		walker.touch_dir = 0.0

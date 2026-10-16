@@ -80,6 +80,15 @@ extends Node2D
 var umbrella := false
 var _plain := {}
 
+## ผู้เล่นบังคับได้หรือไม่ (ฉากเนื้อเรื่องปิดไว้ แล้วสั่งเดินเองด้วย walk_to)
+var controllable := true
+## ขอบเขตที่ผู้เล่นเดินได้ (พิกัดโลก)
+@export var min_x := -INF
+@export var max_x := INF
+## เดินเองไปถึงจุดที่สั่ง (walk_to) แล้ว
+signal arrived
+var _auto_x := NAN
+
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
 
@@ -140,15 +149,35 @@ func _ready() -> void:
 	_set_pose(false, false)
 
 
+## เดินเองไปที่ x (ท่าเดินปกติ) แล้วส่ง arrived
+func walk_to(x: float) -> void:
+	_auto_x = x
+
+
 func _process(delta: float) -> void:
-	var dir := Input.get_axis("ui_left", "ui_right")
-	if dir == 0.0:
-		dir = float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
-	if dir == 0.0:
-		dir = touch_dir
+	var dir := 0.0
+	if not is_nan(_auto_x):
+		var gap := _auto_x - position.x
+		if absf(gap) <= speed * delta:
+			position.x = _auto_x
+			_auto_x = NAN
+			arrived.emit()
+		else:
+			dir = signf(gap)
+	elif controllable:
+		dir = Input.get_axis("ui_left", "ui_right")
+		if dir == 0.0:
+			dir = float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
+		if dir == 0.0:
+			dir = touch_dir
+		# ไม่เดินเลยขอบเขต (ยืนนิ่งแทนการเดินชนกำแพง)
+		if (dir < 0.0 and position.x <= min_x) or (dir > 0.0 and position.x >= max_x):
+			dir = 0.0
 	if _phone != Phone.NONE and _update_phone(delta, dir):
 		return
 	position.x += dir * speed * delta
+	if is_nan(_auto_x) and controllable:
+		position.x = clampf(position.x, min_x, max_x)
 	if dir != 0.0:
 		_facing_right = dir > 0.0
 		_still_time = 0.0

@@ -1,8 +1,9 @@
 extends Node2D
-## ตัวละครที่เดินเอง (นางเอก): ยืนรอจนเริ่มเกม (begin) แล้วเดินเข้ามาจากนอกจอทางขวา
-## ไปทางซ้ายจนถึงข้างพระเอก แล้วยืนรอ
-## ภาพท่าเดินหันไปทางซ้าย ภาพยืนหันหน้าเข้าหาผู้เล่น
+## ตัวละครที่เดินตามบท (นางเอก): ซ่อนอยู่จนบทสั่ง enter() แล้วเดินจากจุดหนึ่งไปอีกจุด ถึงแล้วยืนรอ
+## ภาพท่าเดินหันไปทางซ้าย (เดินไปทางขวาจะพลิกภาพ) ภาพยืนหันหน้าเข้าหาผู้เล่น
 ## ฉากฝน (set_wet) ใช้ภาพตัวเปียก + แว่นขึ้นฝ้า
+
+signal arrived
 
 @export var idle_texture: Texture2D
 @export var idle_wet_texture: Texture2D
@@ -16,15 +17,14 @@ extends Node2D
 @export var walk_fps := 12.34
 ## เท้าที่วางบนพื้นในภาพเดินเลื่อน ~3.6 พิกเซล/เฟรม x 12.34 เฟรม/วินาที
 @export var speed := 44.0
-## ภาพเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกัน (ลำตัวภาพยืนอยู่ x~17, ภาพเดิน x~26)
+## ภาพเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกัน (ลำตัวภาพยืนอยู่ x~17, ภาพเดิน x~26 / พลิกแล้ว x~23)
 @export var walk_offset := Vector2(-9, 0)
-## begin(x): เริ่มเดินที่ x + start_offset (นอกจอทางขวา) หยุดที่ x + stop_offset
-@export var start_offset := 430.0
-@export var stop_offset := 90.0
-var stop_x := 0.0
+@export var walk_offset_flipped := Vector2(-6, 0)
 
 var _wet := false
 var _walking := false
+var _right := false
+var _target := 0.0
 var _time := 0.0
 
 @onready var _body: Sprite2D = $Body
@@ -32,14 +32,20 @@ var _time := 0.0
 
 func _ready() -> void:
 	_body.centered = false
-	stop_x = position.x
+	visible = false
 	_apply()
 
 
-## เริ่มเดินเข้าฉาก (x = ตำแหน่งพระเอก)
-func begin(x: float) -> void:
-	position.x = x + start_offset
-	stop_x = x + stop_offset
+## ปรากฏที่ from_x แล้วเดินไป to_x (ถึงแล้วส่ง arrived)
+func enter(from_x: float, to_x: float) -> void:
+	position.x = from_x
+	visible = true
+	walk_to(to_x)
+
+
+func walk_to(x: float) -> void:
+	_target = x
+	_right = x > position.x
 	_walking = true
 	_time = 0.0
 	_apply()
@@ -54,10 +60,12 @@ func _apply() -> void:
 	if _walking:
 		_body.texture = walk_wet_texture if _wet and walk_wet_texture else walk_texture
 		_body.hframes = walk_frames
-		_body.offset = walk_offset
+		_body.flip_h = _right
+		_body.offset = walk_offset_flipped if _right else walk_offset
 	else:
 		_body.texture = idle_wet_texture if _wet and idle_wet_texture else idle_texture
 		_body.hframes = idle_frames
+		_body.flip_h = false
 		_body.offset = Vector2.ZERO
 	_body.frame = 0
 
@@ -65,13 +73,15 @@ func _apply() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	if _walking:
-		position.x -= speed * delta
-		if position.x <= stop_x:
-			position.x = stop_x
+		var step := speed * delta
+		if absf(_target - position.x) <= step:
+			position.x = _target
 			_walking = false
 			_time = 0.0
 			_apply()
+			arrived.emit()
 			return
+		position.x += step if _right else -step
 		_body.frame = int(_time * walk_fps) % walk_frames
 	else:
 		_body.frame = int(_time * idle_fps) % idle_frames
