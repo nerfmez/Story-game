@@ -60,8 +60,8 @@ extends Node2D
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
 @export var umbrella_idle_texture: Texture2D
 @export var umbrella_idle_frames := 24
-@export var umbrella_idle_offset := Vector2(-31, 0)
-@export var umbrella_idle_offset_flipped := Vector2(-10, 0)
+@export var umbrella_idle_offset := Vector2(-30, 0)
+@export var umbrella_idle_offset_flipped := Vector2(-9, 0)
 @export var umbrella_walk_texture: Texture2D
 @export var umbrella_walk_frames := 14
 @export var umbrella_walk_offset := Vector2(-31, 0)

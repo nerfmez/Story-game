@@ -255,9 +255,11 @@ python3 tools/import_sprite.py art_source/hero_umbrella_fixed_greenscreen.png as
 
 ```
 python3 tools/import_char_video.py art_source/hero_umbrella_idle_greenscreen.mp4 assets/characters/hero_umbrella_idle.png \
-    --start 49 --end 95 --step 2 --palette assets/characters/hero_uniform.png --align feet --glass
+    --start 49 --end 95 --step 2 --palette assets/characters/hero_uniform.png --align feet --glass \
+    --match assets/characters/hero_idle_video.png 36
 python3 tools/import_char_video.py art_source/hero_umbrella_walk.mp4 assets/characters/hero_umbrella_walk.png \
-    --start 20 --end 46 --step 2 --palette assets/characters/hero_uniform.png --align torso --glass
+    --start 20 --end 46 --step 2 --palette assets/characters/hero_uniform.png --align torso --glass \
+    --match assets/characters/hero_idle_video.png 36
 python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --frames 14 \
     --measure 30 85 --cut 96 112 --bob 1 1 0 -1 -1 0 0 1 1 0 0 -1 -1 0
 ```
@@ -266,6 +268,9 @@ python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --fra
 เก็บแสงเงาของวิดีโอ ปรับโทนรวมให้ตรงกับภาพยืน วางเท้าแถวเดียวกัน จัดแนวด้วยเท้า (ยืน) หรือเสื้อ (เดิน) ขนาดให้ปกเสื้อสูง 95px เท่าภาพอื่น
 `--glass`: ร่มใสเห็นพื้นหลังทะลุ: เหนือปกเสื้อ พิกเซลที่อยู่ระหว่างสีพื้นหลังกับสีพลาสติกกลายเป็นพลาสติกโปร่งแสง (สีเดียว รูปร่างอยู่ที่ความโปร่ง)
 (ผมสีเข้มกว่าพื้นหลัง ไม่นับเป็นร่ม)
+`--match`: สีเอามาจากภาพยืนในเกม (`hero_idle_video.png`) โดยจับคู่ตามวัสดุ (ผิว ผม เสื้อ กระเป๋า เงาเข้ม) แล้วหาฟังก์ชันสีเรียบตัวเดียว
+ใช้ได้ทุกท่า (วางทับภาพนิ่งแบบเดิมใช้ไม่ได้กับท่าเดิน: ได้สีผิวซีดกว่าท่ายืน) ท่ายืนกับท่าเดินถือร่มจึงสีเดียวกันและเท่าพระเอกปกติ
+ขอบล่างสุดของวิดีโอมีจุดรบกวนจากการบีบอัด: ไม่นับแถว/คอลัมน์ขอบภาพ และแถวพื้นต้องมีพิกเซลพอ (ไม่งั้นบางเฟรมเลื่อนตัวลอยขึ้นลง 4px)
 สัดส่วนหัว/ตัวในวิดีโอถือร่มเท่ากับวิดีโอยืน/เดินเดิมที่ใช้ในเกม (หัว:ตัว 0.565 vs 0.55) จึงไม่ต้องย่อหัว
 ท่ายืน: เฟรม 49-95 (เฟรม 97 แทบเหมือน 49 วนได้เนียน) 24 เฟรม ท่าเดิน: รอบก้าว 28 เฟรมวิดีโอ = 14 เฟรม
 ช่วงบนนิ่ง + ยุบ/ยืด 1px ตามก้าวแบบท่าเดินปกติ (ขากางสุดเฟรม 0-1, 7-8 / ขาสวนเฟรม 3-4, 11-12)
