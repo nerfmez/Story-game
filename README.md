@@ -235,6 +235,22 @@ python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15 \
 python3 tools/import_sprite.py art_source/hero_uniform2_greenscreen.png assets/characters/hero_uniform.png
 ```
 
+### พระเอกถือร่ม (ร่มใส)
+
+```
+python3 tools/fix_head_size.py art_source/hero_umbrella_greenscreen.png art_source/hero_umbrella_fixed_greenscreen.png \
+    --collar 387 --neck-x 615 --scale 0.91
+python3 tools/import_sprite.py art_source/hero_umbrella_fixed_greenscreen.png assets/characters/hero_umbrella.png \
+    --block 8.35 --glass-rows 45 --warm-fringe
+```
+
+ภาพที่ AI วาดท่าถือร่มหัวเท่าเดิมแต่ตัวเล็กลง ~9% (วัดจากภาพยืน: หัว ผม→ปกเสื้อ 214 vs 212px แต่ปกเสื้อ→เท้า 872 vs 793px
+และตัวแคบลง 6-8%) หัวจึงดูใหญ่ `fix_head_size.py` ย่อทุกอย่างเหนือปกเสื้อ (หัว + ร่ม) 0.91 เข้าหาคอ
+โดยค่อยๆ เริ่มย่อในช่วง 120px เหนือปก (ไม่มีรอยต่อ ด้ามร่มที่พาดผ่านปกไม่หัก) ตัวด้านล่างไม่แตะ
+นำเข้าที่ช่อง 8.35px = ปกเสื้อสูงจากเท้า 95px เท่าภาพยืน (`hero_uniform.png`)
+`--glass-rows 45`: ร่มใสเห็นฉากเขียวทะลุ จึงแยกสีเขียวออกเป็นความโปร่งใส (ยิ่งเขียวยิ่งใส) ในแถวบน (ร่ม) เท่านั้น
+`--warm-fringe`: ขอบที่ติดเขียวเข้มเป็นสีเส้นขอบน้ำตาลแดงเข้มเหมือนภาพยืน (ใช้กับตัวละครที่ไม่มีสีเขียว/เขียวอมฟ้า)
+
 ### นางเอก
 
 ```

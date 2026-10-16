@@ -8,7 +8,7 @@ edges. This script:
   4. trims empty space and saves a PNG with transparency.
 
 Usage:
-  python3 tools/import_sprite.py SRC.png assets/characters/NAME.png [--block 8.5 | --height 112]
+  python3 tools/import_sprite.py SRC.png assets/characters/NAME.png [--block 8.5 | --height 112] [--glass-rows 60]
 """
 import argparse
 
@@ -73,13 +73,37 @@ def downsample(rgb, block, phase):
     return out
 
 
-def key_out(small):
+def unmix_glass(rgb, alpha, rows):
+    """See-through parts (a clear umbrella) show the green screen through them: the
+    greener a pixel, the more transparent. Take the green back out: alpha from how far
+    the pixel's green excess is from the screen's, colour = (pixel - (1-a)*screen) / a."""
+    screen = np.median(rgb[alpha == 0], axis=0)
+    excess = rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2])
+    full = screen[1] - max(screen[0], screen[2])
+    glass = (alpha > 0) & (excess > 12)
+    glass[rows:] = False                  # only where the see-through part is (not edge fringe lower down)
+    a = np.clip(1 - excess / full, 0.18, 1.0)
+    col = (rgb - (1 - a[..., None]) * screen) / a[..., None]
+    rgb = np.where(glass[..., None], np.clip(col, 0, 255), rgb)
+    alpha = np.where(glass, np.round(a * 255), alpha)
+    return rgb.astype(int), alpha.astype(int), glass
+
+
+def key_out(small, glass_rows=0, warm_fringe=False):
     rgb = small.astype(int)
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     alpha = np.where(is_green(rgb), 0, 255)
+    see_through = np.zeros(alpha.shape, bool)
+    if glass_rows:
+        rgb, alpha, see_through = unmix_glass(rgb, alpha, glass_rows)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     # Fringe pixels: still greenish after keying -> pull green down to the other channels
-    spill = (g > r) & (g > b) & (alpha > 0)
+    spill = (g > r) & (g > b) & (alpha > 0) & ~see_through
     rgb[..., 1] = np.where(spill, np.maximum(r, b), g)
+    if warm_fringe:
+        # Dark fringe left teal by the despill -> the drawing's dark warm outline colour
+        # (only for characters with no green/teal in them: it would recolour a teal jacket)
+        dark = spill & (r + g + b < 260)
+        rgb[dark] = (46, 26, 32)
     # Fringe that is mostly green -> drop it
     weak = spill & (g > 120) & (g - np.maximum(r, b) > 60)
     alpha = np.where(weak, 0, alpha)
@@ -91,6 +115,11 @@ def main():
     ap.add_argument("src")
     ap.add_argument("dst")
     ap.add_argument("--block", type=float, default=0.0, help="size of one art pixel in the source (auto if 0)")
+    ap.add_argument("--glass-rows", type=int, default=0,
+                    help="see-through parts (clear umbrella) in the top N rows of the sprite (before trimming): "
+                         "unmix the green screen into partial transparency")
+    ap.add_argument("--warm-fringe", action="store_true",
+                    help="dark green-screen fringe -> dark warm outline (characters without green/teal)")
     ap.add_argument("--height", type=int, default=0,
                     help="character height in game pixels: sample with the block that gives this height "
                          "(to match another character's size, e.g. a shorter heroine next to the hero)")
@@ -104,7 +133,7 @@ def main():
         block = args.block or estimate_block(rgb)
     phase = find_phase(rgb, block)
     small = downsample(rgb, block, phase)
-    rgba = key_out(small)
+    rgba = key_out(small, args.glass_rows, args.warm_fringe)
     img = Image.fromarray(rgba, "RGBA")
     img = img.crop(img.getbbox())
     img.save(args.dst)
