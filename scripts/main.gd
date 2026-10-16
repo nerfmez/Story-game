@@ -156,6 +156,10 @@ func _start(time: String) -> void:
 	_start_layer.queue_free()
 	_start_layer = null
 	set_time(time)
+	var heroine := get_node_or_null("Characters/Heroine")
+	var hero := get_node_or_null("Characters/Hero") as Node2D
+	if heroine and hero and heroine.has_method("begin"):
+		heroine.begin(hero.position.x)
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience:
 		ambience.play()
@@ -211,6 +215,9 @@ func set_time(time: String) -> void:
 	var hero := get_node_or_null("Characters/Hero")
 	if hero and hero.has_method("set_umbrella"):
 		hero.set_umbrella(t.get("umbrella", false))
+	var heroine := get_node_or_null("Characters/Heroine")
+	if heroine and heroine.has_method("set_wet"):   # ฝนตก: นางเอกตัวเปียก แว่นขึ้นฝ้า
+		heroine.set_wet(t.get("umbrella", false))
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience and _evening_ambience:
 		var want: AudioStream = load(t["ambience"]) if t.has("ambience") else _evening_ambience

@@ -1,4 +1,4 @@
-[gd_scene load_steps=64 format=3]
+[gd_scene load_steps=69 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -50,6 +50,11 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_idle.png" id="53_umb_idle"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_walk.png" id="54_umb_walk"]
 
+[ext_resource type="Script" path="res://scripts/npc_walker.gd" id="60_npc"]
+[ext_resource type="Texture2D" path="res://assets/characters/heroine_idle.png" id="61_hn_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/heroine_idle_wet.png" id="62_hn_idle_wet"]
+[ext_resource type="Texture2D" path="res://assets/characters/heroine_walk.png" id="63_hn_walk"]
+[ext_resource type="Texture2D" path="res://assets/characters/heroine_walk_wet.png" id="64_hn_walk_wet"]
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
 random_volume_offset_db = 2.0
@@ -329,6 +334,25 @@ centered = false
 [node name="Body" type="Sprite2D" parent="Characters/Hero"]
 texture = ExtResource("11_hero")
 centered = false
+
+[node name="Heroine" type="Node2D" parent="Characters"]
+position = Vector2(-200, 161)
+script = ExtResource("60_npc")
+idle_texture = ExtResource("61_hn_idle")
+idle_wet_texture = ExtResource("62_hn_idle_wet")
+walk_texture = ExtResource("63_hn_walk")
+walk_wet_texture = ExtResource("64_hn_walk_wet")
+
+[node name="Shadow" type="Sprite2D" parent="Characters/Heroine"]
+position = Vector2(-1, 108)
+scale = Vector2(0.75, 1)
+texture = ExtResource("12_shadow")
+centered = false
+
+[node name="Body" type="Sprite2D" parent="Characters/Heroine"]
+texture = ExtResource("61_hn_idle")
+centered = false
+hframes = 50
 
 [node name="RainSplash" type="CPUParticles2D" parent="." node_paths=PackedStringArray("target")]
 visible = false
