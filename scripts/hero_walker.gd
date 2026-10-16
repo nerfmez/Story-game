@@ -59,11 +59,11 @@ extends Node2D
 ## ถือร่ม (ตอนฝนตก main.gd เปิดให้): ใช้ภาพยืน/เดินถือร่มแทน (tools/import_char_video.py)
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
 @export var umbrella_idle_texture: Texture2D
-@export var umbrella_idle_frames := 23
-## ท่ายืนถือร่มขยับเร็วในวิดีโอ จึงเล่นช้ากว่าวิดีโอ (12)
-@export var umbrella_idle_fps := 8.0
+@export var umbrella_idle_frames := 58
+## 116 เฟรมวิดีโอ (24fps) -> 58 เฟรม = 12 เฟรม/วินาที เท่าวิดีโอต้นฉบับ
+@export var umbrella_idle_fps := 12.0
 @export var umbrella_idle_offset := Vector2(-28, 0)
-@export var umbrella_idle_offset_flipped := Vector2(-15, 0)
+@export var umbrella_idle_offset_flipped := Vector2(-17, 0)
 @export var umbrella_walk_texture: Texture2D
 @export var umbrella_walk_frames := 15
 @export var umbrella_walk_fps := 10.8

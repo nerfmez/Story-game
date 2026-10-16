@@ -147,13 +147,13 @@ python3 tools/import_char_video.py art_source/hero2_idle.mp4 assets/characters/h
 python3 tools/import_char_video.py art_source/hero2_idle.mp4 idle_raw.png --start 54 --end 118 --count 32 $P --align feet --keep-colours
 python3 tools/import_char_video.py art_source/hero2_walk.mp4 walk_raw.png --start 36 --end 72 --count 18 $P --align torso --head-scale 0.87 --keep-colours
 python3 tools/import_char_video.py art_source/hero2_phone.mp4 phone_raw.png --start 0 --end 123 --step 2 $P --align feet --keep-colours
-python3 tools/import_char_video.py art_source/hero2_umbrella_idle.mp4 uidle_raw.png --start 62 --end 108 --count 23 $P --align feet --glass --head-scale 0.9 --keep-colours
+python3 tools/import_char_video.py art_source/hero2_umbrella_idle.mp4 uidle_raw.png --start 6 --end 122 --count 58 $P --align feet --glass --head-scale 0.9 --keep-colours
 python3 tools/import_char_video.py art_source/hero2_umbrella_walk.mp4 uwalk_raw.png --start 43 --end 73 --count 15 $P --align torso --glass --head-scale 0.88 --keep-colours
 python3 tools/apply_colour_fit.py idle_raw.png assets/characters/hero_idle_video.png \
     walk_raw.png assets/characters/hero_walk.png phone_raw.png assets/characters/hero_phone.png \
     uidle_raw.png assets/characters/hero_umbrella_idle.png uwalk_raw.png assets/characters/hero_umbrella_walk.png
 python3 tools/match_sheet_colours.py phone_raw.png 62 0 assets/characters/hero_idle_video.png 32 5 assets/characters/hero_phone.png --dx 9
-python3 tools/match_sheet_colours.py uidle_raw.png 23 0 assets/characters/hero_idle_video.png 32 5 assets/characters/hero_umbrella_idle.png --dx 28
+python3 tools/match_sheet_colours.py uidle_raw.png 58 0 assets/characters/hero_idle_video.png 32 5 assets/characters/hero_umbrella_idle.png --dx 28
 python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 18 --measure 6 60 --cut 82 96 \
     --bob 1 1 1 0 0 0 -1 -1 -1 0 1 1 0 -1 -1 -1 0 0
 python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --frames 15 --measure 28 80 --cut 94 108 \
@@ -161,7 +161,7 @@ python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --fra
 ```
 
 - ภาพนิ่งสูง 120px: ปกเสื้อ→เท้า 94px ทุกแผ่น (ช่วงตัวเท่าชุดเดิม) วัดความสูงผม→เท้าแต่ละแผ่นได้ 116-119px
-- วงลูป: ยืน 54→118, เดิน 1 รอบ (2 ก้าว) 36 เฟรมวิดีโอ, ยืนถือร่ม 62→108, เดินถือร่ม 30 เฟรม ทุกแผ่น 12 เฟรม/วินาที
+- วงลูป: ยืน 54→118, เดิน 1 รอบ (2 ก้าว) 36 เฟรมวิดีโอ, ยืนถือร่ม 6→122 (หน้าและตัวตรงกันที่รอยต่อ: ช่วง 62→108 เดิมทั้งตัวคล้ายกันแต่หน้าต่างกัน หัวเลยดีดกลับตอนวน ดูเหมือนสัปหงก), เดินถือร่ม 30 เฟรม ทุกแผ่น 12 เฟรม/วินาที
 - `--head-scale`: ในคลิปเดิน/ถือร่ม AI วาดหัวใหญ่กว่าคลิปยืน (หัว:ตัว 0.29 / 0.28 vs 0.25) จึงย่อหัวเข้าหาคอ
 - สี: ท่ายืนเทียบกับภาพนิ่งแบบวางทับ (ฟังก์ชันสีเดียว) แล้ว `apply_colour_fit.py` หาฟังก์ชันที่เปลี่ยนท่ายืนดิบเป็นท่ายืนที่ปรับแล้ว (พิกเซลต่อพิกเซล)
   ใช้ฟังก์ชันเดียวกันกับทุกคลิป (สีดิบของ 5 คลิปตรงกันอยู่แล้ว: เสื้อ ผิว ผม ต่างกันไม่กี่ระดับ) ทุกท่าจึงสีเดียวกัน
@@ -172,7 +172,7 @@ python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --fra
   ช่วงมืดและกลางเข้มขึ้น สีอิ่มขึ้นนิด ขาวยังขาว (ฟังก์ชันเดียวกันทุกพิกเซล เงาไม่ด่าง ร่มใสไม่โดน)
 - `hero_walker.gd`: เดินปกติ 12 เฟรม/วินาที เท่าวิดีโอ ความเร็ว 4.5px/เฟรม x 12 = 54
   ท่าถือร่ม (ฉากฝน) ในวิดีโอขยับเร็ว จึงเล่นช้ากว่าวิดีโอ: เดินถือร่มเร็วเท่าเดินปกติ (54): ก้าวในวิดีโอยาวกว่า (5px/เฟรม) จึงเล่น 54 / 5 = 10.8 เฟรม/วินาที (`umbrella_walk_fps`) เท้าไม่ไถล,
-  ยืนถือร่ม 8 (`umbrella_idle_fps`)
+  ยืนถือร่ม 12 เท่าวิดีโอ (`umbrella_idle_fps`)
   หยิบโทรศัพท์ 22 เฟรม เริ่มจากท่ายืนเฟรม 5
 
 ### ท่ายืนจากวิดีโอฉากเขียว (ชุดเดิม ผมน้ำตาล)
