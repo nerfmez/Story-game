@@ -235,6 +235,16 @@ python3 tools/steady_walk_head.py assets/characters/hero_walk.png --frames 15 \
 python3 tools/import_sprite.py art_source/hero_uniform2_greenscreen.png assets/characters/hero_uniform.png
 ```
 
+### นางเอก
+
+```
+python3 tools/import_sprite.py art_source/heroine_greenscreen.png assets/characters/heroine.png --height 112
+python3 tools/clean_heroine.py art_source/heroine_greenscreen.png assets/characters/heroine.png
+```
+
+สูง 112px (พระเอก 122px รวมผม): เตี้ยกว่านิดหน่อย สเกลพิกเซลเดียวกัน (`--height` = เลือกขนาดช่องให้ได้ความสูงนี้ ซึ่งตรงกับพิกเซลของภาพต้นฉบับพอดี)
+`clean_heroine.py` วาดผมชี้ (ahoge) กลับ (ช่องที่เส้นผมเส้นบางพาดผ่านในภาพต้นฉบับเป็นผม ไม่เป็นจุดลอยๆ) แก้ขอบผมที่ติดสีเขียวจากฉากเขียว และลบพิกเซลโดดๆ
+
 สคริปต์หาขนาด "พิกเซลจริง" ของภาพที่ถูกขยายมา (เช่นภาพจาก AI ขนาด 1254px) ย่อกลับเป็นพิกเซลอาร์ตจริง
 ลบพื้นเขียวและขอบเขียว แล้วตัดขอบว่าง ภาพต้นฉบับเก็บไว้ใน `art_source/`
 

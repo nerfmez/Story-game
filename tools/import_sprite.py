@@ -8,7 +8,7 @@ edges. This script:
   4. trims empty space and saves a PNG with transparency.
 
 Usage:
-  python3 tools/import_sprite.py SRC.png assets/characters/NAME.png [--block 8.5]
+  python3 tools/import_sprite.py SRC.png assets/characters/NAME.png [--block 8.5 | --height 112]
 """
 import argparse
 
@@ -91,10 +91,17 @@ def main():
     ap.add_argument("src")
     ap.add_argument("dst")
     ap.add_argument("--block", type=float, default=0.0, help="size of one art pixel in the source (auto if 0)")
+    ap.add_argument("--height", type=int, default=0,
+                    help="character height in game pixels: sample with the block that gives this height "
+                         "(to match another character's size, e.g. a shorter heroine next to the hero)")
     args = ap.parse_args()
 
     rgb = np.asarray(Image.open(args.src).convert("RGB"))
-    block = args.block or estimate_block(rgb)
+    if args.height:
+        ys = np.nonzero((~is_green(rgb)).any(1))[0]
+        block = (ys.max() - ys.min() + 1) / args.height
+    else:
+        block = args.block or estimate_block(rgb)
     phase = find_phase(rgb, block)
     small = downsample(rgb, block, phase)
     rgba = key_out(small)
