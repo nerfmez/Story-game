@@ -1,6 +1,6 @@
 extends Node2D
 ## ตัวละครที่เดินตามบท (นางเอก): ซ่อนอยู่จนบทสั่ง enter() แล้วเดินจากจุดหนึ่งไปอีกจุด ถึงแล้วยืนรอ
-## ภาพท่าเดินหันไปทางซ้าย (เดินไปทางขวาจะพลิกภาพ) ภาพยืนหันหน้าเข้าหาผู้เล่น
+## ภาพท่าเดินหันไปทางซ้าย (เดินไปทางขวาจะพลิกภาพ) ภาพยืนพลิกให้หันซ้ายทางเดียวกับพระเอก
 ## ฉากฝน (set_wet) ใช้ภาพตัวเปียก + แว่นขึ้นฝ้า
 
 signal arrived
@@ -20,6 +20,10 @@ signal arrived
 ## ภาพเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกัน (ลำตัวภาพยืนอยู่ x~17, ภาพเดิน x~26 / พลิกแล้ว x~23)
 @export var walk_offset := Vector2(-9, 0)
 @export var walk_offset_flipped := Vector2(-6, 0)
+## ภาพยืนต้นฉบับหันไปทางขวา: พลิกให้หันซ้ายทางเดียวกับพระเอก (ท่ายืนถือร่มของเขาหันซ้าย)
+## ลำตัวพลิกแล้วอยู่ x~18 (เดิม 17) จึงเลื่อน -1
+@export var idle_flip := true
+@export var idle_offset_flipped := Vector2(-1, 0)
 
 var _wet := false
 var _walking := false
@@ -65,8 +69,8 @@ func _apply() -> void:
 	else:
 		_body.texture = idle_wet_texture if _wet and idle_wet_texture else idle_texture
 		_body.hframes = idle_frames
-		_body.flip_h = false
-		_body.offset = Vector2.ZERO
+		_body.flip_h = idle_flip
+		_body.offset = idle_offset_flipped if idle_flip else Vector2.ZERO
 	_body.frame = 0
 
 
