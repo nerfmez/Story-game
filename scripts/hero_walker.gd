@@ -66,11 +66,12 @@ extends Node2D
 @export var umbrella_idle_offset_flipped := Vector2(-15, 0)
 @export var umbrella_walk_texture: Texture2D
 @export var umbrella_walk_frames := 15
-@export var umbrella_walk_fps := 9.0
+@export var umbrella_walk_fps := 10.8
 @export var umbrella_walk_offset := Vector2(-25, 0)
 @export var umbrella_walk_offset_flipped := Vector2(-10, 0)
-## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~5 พิกเซล/เฟรม x umbrella_walk_fps (9)
-@export var umbrella_speed := 45.0
+## เดินเร็วเท่าตอนไม่ถือร่ม (54): เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~5 พิกเซล/เฟรม
+## จึงต้องเล่น 54 / 5 = 10.8 เฟรม/วินาที (umbrella_walk_fps) เท้าถึงไม่ไถล
+@export var umbrella_speed := 54.0
 @export var umbrella_step_frames: Array[int] = [2, 9]
 var umbrella := false
 var _plain := {}
