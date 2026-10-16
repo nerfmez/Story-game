@@ -23,12 +23,12 @@ extends Node2D
 @export var blink_time := 0.13
 @export var walk_texture: Texture2D
 @export var walk_frames := 18
-## เฟรมต่อวินาทีของท่าเดิน (18 เฟรมต่อรอบ = 1.5 วินาที เท่าวิดีโอต้นฉบับ 36 เฟรมที่ 24fps)
+## เฟรมต่อวินาทีของท่าเดิน (18 เฟรมต่อรอบ: 10 = 1.8 วินาที ช้ากว่าวิดีโอต้นฉบับ (12) เพราะที่ความเร็วจริงดูรีบไป)
 ## 24 เฟรม/วินาทีลื่นเกินไปสำหรับภาพพิกเซล 12 ดูเป็นแอนิเมชันมากกว่า
-@export var walk_fps := 12.0
-## ความเร็วเดิน (พิกเซล/วินาที) = เท้าที่วางบนพื้นในภาพเลื่อน ~4.5 พิกเซล/เฟรม x 12 เฟรม/วินาที
+@export var walk_fps := 10.0
+## ความเร็วเดิน (พิกเซล/วินาที) = เท้าที่วางบนพื้นในภาพเลื่อน ~4.5 พิกเซล/เฟรม x walk_fps (10)
 ## ต้องเท่ากันพอดี ไม่งั้นเท้าไถลบนถนนและดูกระตุกทุกก้าว
-@export var speed := 54.0
+@export var speed := 45.0
 ## เฟรมที่เท้าแตะพื้น (เล่นเสียงเท้า)
 @export var step_frames: Array[int] = [0, 9]
 ## เสียงเท้า (AudioStreamRandomizer ที่สุ่มเสียง/ระดับเสียงให้ไม่ซ้ำ)
@@ -60,14 +60,17 @@ extends Node2D
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
 @export var umbrella_idle_texture: Texture2D
 @export var umbrella_idle_frames := 23
+## ท่ายืนถือร่มขยับเร็วในวิดีโอ จึงเล่นช้ากว่าวิดีโอ (12)
+@export var umbrella_idle_fps := 8.0
 @export var umbrella_idle_offset := Vector2(-28, 0)
 @export var umbrella_idle_offset_flipped := Vector2(-15, 0)
 @export var umbrella_walk_texture: Texture2D
 @export var umbrella_walk_frames := 15
+@export var umbrella_walk_fps := 9.0
 @export var umbrella_walk_offset := Vector2(-25, 0)
 @export var umbrella_walk_offset_flipped := Vector2(-10, 0)
-## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~5 พิกเซล/เฟรม x 12 เฟรม/วินาที
-@export var umbrella_speed := 60.0
+## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~5 พิกเซล/เฟรม x umbrella_walk_fps (9)
+@export var umbrella_speed := 45.0
 @export var umbrella_step_frames: Array[int] = [2, 9]
 var umbrella := false
 var _plain := {}
@@ -97,8 +100,8 @@ var _put_away_from := 0
 ## ถือร่ม/ไม่ถือร่ม: สลับชุดภาพยืนและเดิน (เก็บชุดปกติไว้คืนตอนเลิกถือ)
 func set_umbrella(on: bool) -> void:
 	if _plain.is_empty():
-		for key in ["idle_texture", "idle_frames", "idle_offset", "idle_offset_flipped", "walk_texture",
-				"walk_frames", "walk_offset", "walk_offset_flipped", "speed", "step_frames"]:
+		for key in ["idle_texture", "idle_frames", "idle_fps", "idle_offset", "idle_offset_flipped", "walk_texture",
+				"walk_frames", "walk_fps", "walk_offset", "walk_offset_flipped", "speed", "step_frames"]:
 			_plain[key] = get(key)
 	if on and not (umbrella_idle_texture and umbrella_walk_texture):
 		on = false
@@ -106,10 +109,12 @@ func set_umbrella(on: bool) -> void:
 	if on:
 		idle_texture = umbrella_idle_texture
 		idle_frames = umbrella_idle_frames
+		idle_fps = umbrella_idle_fps
 		idle_offset = umbrella_idle_offset
 		idle_offset_flipped = umbrella_idle_offset_flipped
 		walk_texture = umbrella_walk_texture
 		walk_frames = umbrella_walk_frames
+		walk_fps = umbrella_walk_fps
 		walk_offset = umbrella_walk_offset
 		walk_offset_flipped = umbrella_walk_offset_flipped
 		speed = umbrella_speed
