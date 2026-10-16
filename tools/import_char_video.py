@@ -47,7 +47,8 @@ def body_marks(rgb, mask):
     """(ground row, collar row, shirt centre x, feet centre x) at video resolution."""
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     mx = rgb.max(2)
-    hair = mask & (mx < 150) & (r > b + 20) & (r > g) & (mx > 30)
+    # hair: dark and not green (brown hair is warm, black hair has no clear hue)
+    hair = mask & (mx < 150) & (mx > 15) & (g < r + 20) & ((r > b + 20) | (mx < 110))
     white = mask & (rgb.min(2) > 195)
     ys = np.nonzero(mask.sum(1) >= 6)[0]            # a few stray pixels don't make a ground row
     ground = ys.max()
@@ -95,7 +96,7 @@ def materials(px):
     return {
         "skin": (r > 180) & (r - b > 50) & (g > 110) & (g < 205),
         "skin shade": (r > 120) & (r <= 180) & (r - b > 40) & (g > 60),
-        "hair, shoes": (mx < 150) & (mx > 25) & (r > b + 15) & (r >= g),
+        "hair, shoes": (mx < 150) & (mx > 25) & (((r > b + 15) & (r >= g)) | (mx < 110)),
         "shirt, socks": mn > 185,
         "shirt shade": (mn > 140) & (mn <= 185) & (b >= r - 10),
         "bag": (b > r + 25) & (mx < 150),
@@ -320,7 +321,8 @@ def main():
         solid = []
         for f, pr, c in zip(result, propy, collars):
             r, g, b = (f[..., i].astype(int) for i in range(3))
-            hair = (np.maximum(np.maximum(r, g), b) < 160) & (r > b + 12) & (r >= g)
+            mx = np.maximum(np.maximum(r, g), b)
+            hair = (mx < 160) & (((r > b + 12) & (r >= g)) | (mx < 110))   # brown or black
             skin = (r > 150) & (r - b > 45) & (r > g + 15)
             above = np.zeros(pr.shape, bool)
             above[:int(round(c * scale)) - 4] = True      # (the shirt collar's points rise a few px)

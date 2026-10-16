@@ -8,10 +8,10 @@ extends Node2D
 ## - สร้างจากภาพนิ่ง (idle_fps = 0): 6 เฟรมจาก tools/make_idle_anim.py (หายใจ 3 ท่า + หลับตา)
 ## หรือภาพเดียวก็ได้ (idle_frames = 1)
 @export var idle_texture: Texture2D
-@export var idle_frames := 36
+@export var idle_frames := 32
 @export var idle_fps := 12.0
 ## เลื่อนภาพยืนให้ลำตัวตรงกับท่าเดิน (หันซ้าย / พลิกหันขวา)
-@export var idle_offset := Vector2(-1, 0)
+@export var idle_offset := Vector2(0, 0)
 ## แถวของพื้นที่เท้าแตะ นับจากตำแหน่งตัวละคร (ภาพยืนและท่าเดินวางเท้าแถวนี้)
 @export var ground_row := 121
 ## จังหวะหายใจ: (ท่า, วินาที) 0 ปกติ, 1 ไหล่และแขนลง 1px, 2 หัวตามลง
@@ -22,53 +22,53 @@ extends Node2D
 @export var blink_every := Vector2(2.2, 5.0)
 @export var blink_time := 0.13
 @export var walk_texture: Texture2D
-@export var walk_frames := 15
-## เฟรมต่อวินาทีของท่าเดิน (15 เฟรมต่อรอบ = 1.25 วินาที เท่าวิดีโอต้นฉบับ)
+@export var walk_frames := 18
+## เฟรมต่อวินาทีของท่าเดิน (18 เฟรมต่อรอบ = 1.5 วินาที เท่าวิดีโอต้นฉบับ 36 เฟรมที่ 24fps)
 ## 24 เฟรม/วินาทีลื่นเกินไปสำหรับภาพพิกเซล 12 ดูเป็นแอนิเมชันมากกว่า
 @export var walk_fps := 12.0
-## ความเร็วเดิน (พิกเซล/วินาที) = เท้าที่วางบนพื้นในภาพเลื่อน ~5.9 พิกเซล/เฟรม x 12 เฟรม/วินาที
+## ความเร็วเดิน (พิกเซล/วินาที) = เท้าที่วางบนพื้นในภาพเลื่อน ~4.5 พิกเซล/เฟรม x 12 เฟรม/วินาที
 ## ต้องเท่ากันพอดี ไม่งั้นเท้าไถลบนถนนและดูกระตุกทุกก้าว
-@export var speed := 71.0
+@export var speed := 54.0
 ## เฟรมที่เท้าแตะพื้น (เล่นเสียงเท้า)
-@export var step_frames: Array[int] = [4, 11]
+@export var step_frames: Array[int] = [0, 9]
 ## เสียงเท้า (AudioStreamRandomizer ที่สุ่มเสียง/ระดับเสียงให้ไม่ซ้ำ)
 @export var step_sound: AudioStreamPlayer
 ## ภาพท่าเดินกว้างกว่าภาพยืน เลื่อนให้ลำตัวตรงกับภาพยืน (ตอนหันซ้าย / ตอนพลิกหันขวา)
-@export var walk_offset := Vector2(-20, 0)
-@export var walk_offset_flipped := Vector2(-5, 0)
+@export var walk_offset := Vector2(-18, 0)
+@export var walk_offset_flipped := Vector2(-11, 0)
 ## ภาพยืนตอนพลิกหันขวา เลื่อนให้ลำตัวอยู่ที่เดิม
-@export var idle_offset_flipped := Vector2(0, 0)
+@export var idle_offset_flipped := Vector2(-1, 0)
 
 ## ยืนนานๆ แล้วหยิบโทรศัพท์ขึ้นมาดู (แผ่นภาพจาก tools/import_idle_video.py --match)
 ## เฟรม 0..phone_take_out-1 = หยิบออกมา, ที่เหลือ = ถือดู (เล่นไป-กลับวน ไม่มีรอยต่อ)
 ## พอกดเดิน เล่นท่าหยิบย้อนกลับเร็วๆ (เก็บโทรศัพท์) แล้วค่อยเดิน
 @export var phone_texture: Texture2D
-@export var phone_frames := 60
-@export var phone_take_out := 18
+@export var phone_frames := 62
+@export var phone_take_out := 22
 @export var phone_fps := 12.0
 ## ยืนกี่วินาทีถึงหยิบโทรศัพท์ (สุ่มในช่วงนี้)
 @export var phone_after := Vector2(5.0, 8.0)
 ## เฟรมของท่ายืนที่ตรงกับเฟรมแรกของท่าโทรศัพท์ (สลับตรงนี้ภาพจึงไม่กระโดด)
-@export var phone_from_idle_frame := 4
+@export var phone_from_idle_frame := 5
 ## เก็บโทรศัพท์: เล่นท่าหยิบย้อนกลับที่ phone_fps แต่ข้ามทีละกี่เฟรม (2 = เร็วกว่าตอนหยิบ 2 เท่า
 ## โดยยังเปลี่ยนภาพ 12 ครั้ง/วินาทีเท่าตอนหยิบ ไม่ลื่นเกินไปแบบเล่นทุกเฟรม 24 ครั้ง/วินาที)
 @export var phone_put_away_step := 2
-@export var phone_offset := Vector2(-5, 0)
-@export var phone_offset_flipped := Vector2(0, 0)
+@export var phone_offset := Vector2(-9, 0)
+@export var phone_offset_flipped := Vector2(-2, 0)
 
 ## ถือร่ม (ตอนฝนตก main.gd เปิดให้): ใช้ภาพยืน/เดินถือร่มแทน (tools/import_char_video.py)
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
 @export var umbrella_idle_texture: Texture2D
-@export var umbrella_idle_frames := 24
-@export var umbrella_idle_offset := Vector2(-30, 0)
-@export var umbrella_idle_offset_flipped := Vector2(-9, 0)
+@export var umbrella_idle_frames := 23
+@export var umbrella_idle_offset := Vector2(-28, 0)
+@export var umbrella_idle_offset_flipped := Vector2(-15, 0)
 @export var umbrella_walk_texture: Texture2D
-@export var umbrella_walk_frames := 14
-@export var umbrella_walk_offset := Vector2(-31, 0)
-@export var umbrella_walk_offset_flipped := Vector2(-8, 0)
-## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~6.2 พิกเซล/เฟรม x 12 เฟรม/วินาที
-@export var umbrella_speed := 74.0
-@export var umbrella_step_frames: Array[int] = [0, 7]
+@export var umbrella_walk_frames := 15
+@export var umbrella_walk_offset := Vector2(-25, 0)
+@export var umbrella_walk_offset_flipped := Vector2(-10, 0)
+## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~5 พิกเซล/เฟรม x 12 เฟรม/วินาที
+@export var umbrella_speed := 60.0
+@export var umbrella_step_frames: Array[int] = [2, 9]
 var umbrella := false
 var _plain := {}
 
