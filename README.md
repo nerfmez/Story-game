@@ -298,6 +298,31 @@ python3 tools/clean_heroine.py art_source/heroine_greenscreen.png assets/charact
 สูง 112px (พระเอก 122px รวมผม): เตี้ยกว่านิดหน่อย สเกลพิกเซลเดียวกัน (`--height` = เลือกขนาดช่องให้ได้ความสูงนี้ ซึ่งตรงกับพิกเซลของภาพต้นฉบับพอดี)
 `clean_heroine.py` วาดผมชี้ (ahoge) กลับ (ช่องที่เส้นผมเส้นบางพาดผ่านในภาพต้นฉบับเป็นผม ไม่เป็นจุดลอยๆ) แก้ขอบผมที่ติดสีเขียวจากฉากเขียว และลบพิกเซลโดดๆ
 
+ท่ายืนและท่าเดิน (จากวิดีโอที่ทำจาก `art_source/heroine_magenta.png` พื้นชมพูม่วง):
+
+```
+python3 tools/import_char_video.py art_source/heroine_idle.mp4 idle_raw.png --start 19 --end 119 --count 50 \
+    --palette assets/characters/heroine.png --height 112 --align feet --keep-colours --threshold 70
+python3 tools/import_char_video.py art_source/heroine_walk.mp4 walk_raw.png --start 15 --end 50 --count 18 \
+    --palette assets/characters/heroine.png --height 112 --align torso --keep-colours --threshold 70
+python3 tools/finish_heroine.py idle_raw.png 50 walk_raw.png 18 \
+    --out-idle assets/characters/heroine_idle.png --out-walk assets/characters/heroine_walk.png
+python3 tools/steady_walk_head.py assets/characters/heroine_walk.png --frames 18 --measure 8 50 --cut 62 80 \
+    --bob 1 1 0 0 -1 -1 -1 0 0 1 1 1 0 0 -1 -1 -1 0
+python3 tools/wet_heroine.py assets/characters/heroine_idle.png 50 assets/characters/heroine_idle_wet.png \
+    --lens 16 18 17 18 --lens 21 24 17 18
+python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/characters/heroine_walk_wet.png \
+    --lens 19 21 19 20 --lens 25 27 19 20
+```
+
+- ท่ายืน: เฟรมวิดีโอ 19 กับ 119 แทบเหมือนกัน วนได้เนียน (100 เฟรม → 50 เฟรม 12fps)
+- ท่าเดิน: รอบก้าว (2 ก้าว) 35 เฟรมวิดีโอ (15 → 50) → 18 เฟรมระยะเท่ากัน (`--count`) ขากางสุดเฟรม 1, 10 / ขาสวนเฟรม 5-6, 16
+- `--height 112`: นางเอกไม่มีปกเสื้อขาวแบบพระเอก จึงย่อตามความสูงทั้งตัว (หัวถึงเท้า) ให้เท่ารูปนิ่ง
+- `--threshold 70`: ตัดพิกเซลขอบที่ผสมกับพื้นชมพู; `finish_heroine.py` ลบขอบชมพูที่เหลือ ลบจุดลอย (ผมชี้เส้นบางย่อแล้วเหลือจุดโดดๆ)
+  และปรับสีทีละวัสดุ (ขาว ผิว ชุดเขียว ผม/เส้นขอบ แดง) ให้ค่าเฉลี่ยตรงรูปนิ่ง (วิดีโอสีใกล้อยู่แล้ว ชุดเขียวอมฟ้าน้อยกว่านิดหน่อย)
+- `heroine_*_wet.png` ฉากฝน: ตัวเปียก (ผ้าและผมเข้มขึ้น สีอิ่มขึ้นนิด ผิว/รองเท้าคงเดิม) และแว่นขึ้นฝ้า (เลนส์ขาวขุ่น บังตา)
+  ตำแหน่งเลนส์วัดจากเฟรมแรก แล้วเลื่อนตามหัวแต่ละเฟรม (กรอบแว่นที่ 112px ขาดเป็นช่วง หาเลนส์จากกรอบตรงๆ ไม่ได้ทุกเฟรม)
+
 สคริปต์หาขนาด "พิกเซลจริง" ของภาพที่ถูกขยายมา (เช่นภาพจาก AI ขนาด 1254px) ย่อกลับเป็นพิกเซลอาร์ตจริง
 ลบพื้นเขียวและขอบเขียว แล้วตัดขอบว่าง ภาพต้นฉบับเก็บไว้ใน `art_source/`
 

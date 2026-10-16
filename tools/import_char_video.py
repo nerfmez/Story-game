@@ -58,6 +58,18 @@ def body_marks(rgb, mask):
     return ground, collar, shirt, fx.mean()
 
 
+def outline_marks(mask):
+    """Like body_marks, for a character without the hero's white shirt (--height): the
+    "collar" is the top of the head, the torso is the middle of the rows 25-45% down."""
+    ys = np.nonzero(mask.sum(1) >= 6)[0]
+    ground = ys.max()
+    top = np.nonzero(mask.sum(1) >= 2)[0].min()
+    h = ground - top
+    torso = np.nonzero(mask[top + int(0.25 * h):top + int(0.45 * h)])[1].mean()
+    fy, fx = np.nonzero(mask[ground - int(0.06 * h):ground + 1])
+    return ground, top, torso, fx.mean()
+
+
 def unmix(rgb, mask, bg, plastic, rows):
     """Clear plastic over the background: c = a * plastic + (1 - a) * bg."""
     u = plastic - bg
@@ -186,6 +198,12 @@ def main():
     ap.add_argument("--step", type=int, default=2, help="keep every n-th frame (24 fps / 2 = 12 fps)")
     ap.add_argument("--palette", required=True, help="still sprite: tone and collar height to match")
     ap.add_argument("--collar", type=float, default=0, help="collar height above the feet (default: the still's)")
+    ap.add_argument("--height", type=int, default=0,
+                    help="scale by the whole figure (top of the head to the feet) to this many game "
+                         "pixels instead of by the collar (for characters without the hero's shirt)")
+    ap.add_argument("--count", type=int, default=0,
+                    help="take this many evenly spaced frames from --start up to (not including) "
+                         "--end, the frame that matches --start again (instead of --step)")
     ap.add_argument("--align", choices=("feet", "torso"), default="feet")
     ap.add_argument("--bg", default="auto", help="background colour R,G,B (auto: median of the frame border)")
     ap.add_argument("--threshold", type=float, default=30, help="colour distance from the background")
@@ -195,6 +213,8 @@ def main():
     ap.add_argument("--match", nargs=2, metavar=("SHEET", "FRAMES"),
                     help="take the colours of this sprite sheet (materials matched, any pose); "
                          "default: lay the first frame over the --palette still")
+    ap.add_argument("--keep-colours", action="store_true",
+                    help="keep the video's own colours (when the clip was made from the still's own art)")
     ap.add_argument("--plastic", default="226,232,242", help="colour of the see-through prop itself")
     args = ap.parse_args()
 
@@ -202,15 +222,18 @@ def main():
         subprocess.run(["ffmpeg", "-v", "error", "-i", args.video, f"{tmp}/f%04d.png"], check=True)
         files = sorted(Path(tmp).glob("f*.png"))
         end = len(files) - 1 if args.end < 0 else args.end
-        frames = [np.asarray(Image.open(files[i]).convert("RGB")).astype(float)
-                  for i in range(args.start, end + 1, args.step)]
+        if args.count:
+            picks = [round(args.start + k * (end - args.start) / args.count) for k in range(args.count)]
+        else:
+            picks = range(args.start, end + 1, args.step)
+        frames = [np.asarray(Image.open(files[i]).convert("RGB")).astype(float) for i in picks]
 
     f0 = frames[0]
     border = np.concatenate([f0[:8].reshape(-1, 3), f0[-8:].reshape(-1, 3), f0[:, :8].reshape(-1, 3), f0[:, -8:].reshape(-1, 3)])
     bg = np.median(border, 0) if args.bg == "auto" else np.array([float(v) for v in args.bg.split(",")])
     plastic = np.array([float(v) for v in args.plastic.split(",")])
     masks = [key(f, bg, args.threshold) for f in frames]
-    marks = [body_marks(f, m) for f, m in zip(frames, masks)]
+    marks = [outline_marks(m) if args.height else body_marks(f, m) for f, m in zip(frames, masks)]
 
     # line the frames up: one ground row, and the feet or the shirt at one x
     g_ref = int(np.median([m[0] for m in marks]))
@@ -257,7 +280,10 @@ def main():
         alphas.append(al)
 
     ref = np.asarray(Image.open(args.palette).convert("RGBA"))
-    target = args.collar or landmarks(ref)[0]
+    if args.height:
+        target = args.height - 1                  # top row to ground row
+    else:
+        target = args.collar or landmarks(ref)[0]
     ch, cw = masks[0].shape
     scale = target / np.median([ch - 1 - c for c in collars])
     out_w, out_h = round(cw * scale / 2) * 2, round(ch * scale)
@@ -283,7 +309,9 @@ def main():
         result.append(out.round().astype(np.uint8))
         glassy.append((out[..., 3] > 0) & (out[..., 3] < 250))
         propy.append(prop_cell | glassy[-1])
-    if args.match:
+    if args.keep_colours:
+        final = result
+    elif args.match:
         path, n = args.match[0], int(args.match[1])
         sheet_ref = np.asarray(Image.open(path).convert("RGBA"))
         ref_px = sheet_ref[..., :3][sheet_ref[..., 3] >= 250].astype(float)
