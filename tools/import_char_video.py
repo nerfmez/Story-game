@@ -91,6 +91,36 @@ def materials(px):
     }
 
 
+def skin_weight(px):
+    """0..1: how much a colour is skin or skin in shadow (warm orange, fairly saturated)."""
+    rgb = px / 255.0
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    warm = np.clip((r - g) / np.maximum(mx - mn, 1e-6), 0, 1) * (r >= b)    # hue near orange
+    return (np.clip((sat - 0.2) / 0.15, 0, 1) * np.clip((mx - 0.35) / 0.15, 0, 1)
+            * np.clip(warm * 1.5 - 0.2, 0, 1) * (g >= b - 0.02))
+
+
+def match_skin(frames, solid, ref_px):
+    """Skin and its shading: per channel, map the frames' spread of skin tones (light to
+    shadow) onto the reference's with a smooth curve (matched percentiles), blended in by
+    how skin-like each pixel is, so nothing changes abruptly at the edge of the skin."""
+    src = np.concatenate([f[..., :3][m] for f, m in zip(frames, solid)]).astype(float)
+    ws, wr = skin_weight(src) > 0.6, skin_weight(ref_px) > 0.6
+    q = np.linspace(2, 98, 25)
+    curves = [(np.percentile(src[ws, c], q), np.percentile(ref_px[wr, c], q)) for c in range(3)]
+    out = []
+    for f, m in zip(frames, solid):
+        g = f.copy()
+        px = g[..., :3][m].astype(float)
+        w = skin_weight(px)[:, None]
+        mapped = np.stack([np.interp(px[:, c], *curves[c]) for c in range(3)], 1)
+        g[..., :3][m] = np.clip(px * (1 - w) + mapped * w, 0, 255).round()
+        out.append(g)
+    return out
+
+
 def colour_transfer(frames, solid, ref_px):
     """Give the frames the colours of a reference sprite with one smooth (affine) colour
     function, fitted so the average colour of each material (skin, hair, shirt, bag...)
@@ -222,7 +252,7 @@ def main():
         sheet_ref = np.asarray(Image.open(path).convert("RGBA"))
         ref_px = sheet_ref[..., :3][sheet_ref[..., 3] >= 250].astype(float)
         solid = [(f[..., 3] >= 250) for f in result]      # not the clear prop: it keeps its colour
-        final = colour_transfer(result, solid, ref_px)
+        final = match_skin(colour_transfer(result, solid, ref_px), solid, ref_px)
     else:
         matched = colour_match([np.where(gl[..., None], 0, f) for f, gl in zip(result, glassy)], ref)
         final = []
