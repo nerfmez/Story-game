@@ -11,8 +11,9 @@ assets/bg/sunset/ (the game swaps each sunset texture for the one with the same 
   road.png          the wet road (puddles kept: it is raining), recoloured the same way;
                     the hedge's sunset rims become dull wet green
   city.png          the distant city nearly lost in the rain haze
-  train.png         the skytrain in the gloom with its cabin lights on (the warm window
-                    band stays warm; train_glow.png is the same as at sunset)
+  train.png         the skytrain in its real paint (white / royal blue / red line), dimmed
+                    by the overcast, with its cabin lights on (the warm window band stays
+                    warm; train_glow.png is the same as at sunset)
   sky/city/rail_reflect.png  the puddles mirror the rainy layers
   haze_far.png, haze_near.png  thick grey-blue rain haze
 The rain itself (falling streaks, splashes) is drawn in the game (shaders/rain.gdshader).
@@ -81,10 +82,12 @@ def main():
     gloom(road, 0.74, 0.55).save(OUT / "road.png")
     gloom(morning.to_morning(Image.open(SUNSET / "foreground.png"), 1.2), 0.8, 0.4).save(OUT / "foreground.png")
     # train in the gloom, cabin lights on: everything but the lit windows goes grey-blue
-    train, lit = sunset.make_train()
+    # train: its real paint (white / royal blue / red line) dimmed by the overcast, cabin
+    # lights on; the lit windows stay as they are
+    train, lit = sunset.make_train(daylight=True, lights=True)
     big = np.asarray(Image.fromarray((lit * 255).astype(np.uint8)).resize(train.size, Image.NEAREST)) > 0
-    grey = np.asarray(gloom(morning.to_morning(train, 1.3), 0.66, 0.45)).copy()
-    grey[big] = np.asarray(train)[big]                     # lit windows stay warm
+    grey = np.asarray(gloom(train, 0.66, 0.3, tint_amount=0.12)).copy()
+    grey[big] = np.asarray(train)[big]
     Image.fromarray(grey, "RGBA").save(OUT / "train.png")
     tint = (40, 50, 72)
     sunset.mirror(sky, 0, sunset.SKY_TILE, tint=tint).save(OUT / "sky_reflect.png")

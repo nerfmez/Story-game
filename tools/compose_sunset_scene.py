@@ -246,7 +246,7 @@ def build_railway():
     return back, fill, city, train, deck_top
 
 
-def make_train(cars=4, car_w=56, gap=2, daylight=False):
+def make_train(cars=4, car_w=56, gap=2, daylight=False, lights=None):
     """Side view of a Bangkok-skytrain-style train at dusk (no logos), drawn at
     1/TRAIN_BLOCK resolution and scaled up so its pixels are chunky. Grey roof, red
     line, white upper body, royal-blue lower body, black cab faces outlined in red.
@@ -267,13 +267,16 @@ def make_train(cars=4, car_w=56, gap=2, daylight=False):
     light, light_lo = (255, 214, 150, 255), (236, 170, 104, 255)    # cabin light through glass
     pillar, rider = (44, 36, 58, 255), (92, 58, 62, 255)
     blue, blue_lo = (24, 34, 84, 255), (18, 24, 62, 255)
-    if daylight:                     # morning: sunlit paint, dark glass with the sky in it, lights off
+    if lights is None:
+        lights = not daylight
+    if daylight:                     # true paint colours (morning sun; or overcast, dimmed later)
         rim, roof = (236, 240, 248, 255), (176, 180, 196, 255)
         red = (206, 46, 58, 255)
         white, white_lo = (214, 218, 232, 255), (172, 178, 202, 255)
-        light, light_lo = (70, 92, 124, 255), (44, 56, 82, 255)     # glass: sky above, dark below
-        pillar, rider = (36, 40, 58, 255), (30, 32, 48, 255)
         blue, blue_lo = (40, 70, 168, 255), (28, 48, 128, 255)
+        if not lights:               # lights off: dark glass with the sky in it
+            light, light_lo = (70, 92, 124, 255), (44, 56, 82, 255)
+            pillar, rider = (36, 40, 58, 255), (30, 32, 48, 255)
     bogie, wheel = (30, 28, 46, 255), (14, 12, 26, 255)
     trng = random.Random(3)
     for c in range(cars):
