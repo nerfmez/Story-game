@@ -46,6 +46,7 @@ const TIMES := {
 		"grade": [Vector3(0.0, 0.02, 0.07), Vector3(0.0, 0.01, 0.03), 0.35, 0.4],
 		"ambience": "res://assets/audio/ambience_rain.ogg",
 		"characters": Color(0.8, 0.84, 0.94),        # ตัวละครอยู่ในแสงครึ้มด้วย
+		"umbrella": true,                             # พระเอกกางร่ม (ยืน/เดินถือร่ม)
 		"morning": true,
 	},
 }
@@ -207,6 +208,9 @@ func set_time(time: String) -> void:
 	var characters := get_node_or_null("Characters") as CanvasItem
 	if characters:
 		characters.modulate = t.get("characters", Color.WHITE)
+	var hero := get_node_or_null("Characters/Hero")
+	if hero and hero.has_method("set_umbrella"):
+		hero.set_umbrella(t.get("umbrella", false))
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience and _evening_ambience:
 		var want: AudioStream = load(t["ambience"]) if t.has("ambience") else _evening_ambience

@@ -1,4 +1,4 @@
-[gd_scene load_steps=62 format=3]
+[gd_scene load_steps=64 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -47,6 +47,8 @@
 [ext_resource type="Shader" path="res://shaders/foliage_sway.gdshader" id="46_sway"]
 [ext_resource type="Texture2D" path="res://assets/bg/sunset/train_glow.png" id="51_train_glow"]
 [ext_resource type="Shader" path="res://shaders/rain.gdshader" id="52_rain"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_idle.png" id="53_umb_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_walk.png" id="54_umb_walk"]
 
 [sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_steps"]
 random_pitch = 1.12
@@ -304,6 +306,8 @@ script = ExtResource("18_walker")
 idle_texture = ExtResource("44_idle")
 walk_texture = ExtResource("21_walk")
 phone_texture = ExtResource("45_phone")
+umbrella_idle_texture = ExtResource("53_umb_idle")
+umbrella_walk_texture = ExtResource("54_umb_walk")
 step_sound = NodePath("Steps")
 
 [node name="Steps" type="AudioStreamPlayer" parent="Characters/Hero"]

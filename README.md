@@ -251,6 +251,27 @@ python3 tools/import_sprite.py art_source/hero_umbrella_fixed_greenscreen.png as
 `--glass-rows 45`: ร่มใสเห็นฉากเขียวทะลุ จึงแยกสีเขียวออกเป็นความโปร่งใส (ยิ่งเขียวยิ่งใส) ในแถวบน (ร่ม) เท่านั้น
 `--warm-fringe`: ขอบที่ติดเขียวเข้มเป็นสีเส้นขอบน้ำตาลแดงเข้มเหมือนภาพยืน (ใช้กับตัวละครที่ไม่มีสีเขียว/เขียวอมฟ้า)
 
+### ยืน/เดินถือร่ม (ตอนฝนตก)
+
+```
+python3 tools/import_char_video.py art_source/hero_umbrella_idle_greenscreen.mp4 assets/characters/hero_umbrella_idle.png \
+    --start 49 --end 95 --step 2 --palette assets/characters/hero_uniform.png --align feet --glass
+python3 tools/import_char_video.py art_source/hero_umbrella_walk.mp4 assets/characters/hero_umbrella_walk.png \
+    --start 20 --end 46 --step 2 --palette assets/characters/hero_uniform.png --align torso --glass
+python3 tools/steady_walk_head.py assets/characters/hero_umbrella_walk.png --frames 14 \
+    --measure 30 85 --cut 96 112 --bob 1 1 0 -1 -1 0 0 1 1 0 0 -1 -1 0
+```
+
+`import_char_video.py` แปลงวิดีโอบนพื้นหลังสีเรียบสีไหนก็ได้ (วิดีโอเดินจาก AI มาเป็นพื้นเทาน้ำเงิน ไม่ใช่ฉากเขียว)
+เก็บแสงเงาของวิดีโอ ปรับโทนรวมให้ตรงกับภาพยืน วางเท้าแถวเดียวกัน จัดแนวด้วยเท้า (ยืน) หรือเสื้อ (เดิน) ขนาดให้ปกเสื้อสูง 95px เท่าภาพอื่น
+`--glass`: ร่มใสเห็นพื้นหลังทะลุ: เหนือปกเสื้อ พิกเซลที่อยู่ระหว่างสีพื้นหลังกับสีพลาสติกกลายเป็นพลาสติกโปร่งแสง (สีเดียว รูปร่างอยู่ที่ความโปร่ง)
+(ผมสีเข้มกว่าพื้นหลัง ไม่นับเป็นร่ม)
+สัดส่วนหัว/ตัวในวิดีโอถือร่มเท่ากับวิดีโอยืน/เดินเดิมที่ใช้ในเกม (หัว:ตัว 0.565 vs 0.55) จึงไม่ต้องย่อหัว
+ท่ายืน: เฟรม 49-95 (เฟรม 97 แทบเหมือน 49 วนได้เนียน) 24 เฟรม ท่าเดิน: รอบก้าว 28 เฟรมวิดีโอ = 14 เฟรม
+ช่วงบนนิ่ง + ยุบ/ยืด 1px ตามก้าวแบบท่าเดินปกติ (ขากางสุดเฟรม 0-1, 7-8 / ขาสวนเฟรม 3-4, 11-12)
+`hero_walker.gd` `set_umbrella()`: สลับเป็นชุดถือร่ม (เท้าเลื่อน ~6.2px/เฟรม = ความเร็ว 74, เสียงเท้าเฟรม 0 และ 7) ไม่หยิบโทรศัพท์ตอนถือร่ม
+`main.gd`: ช่วงเวลา `rain` มี `"umbrella": true`
+
 ### นางเอก
 
 ```

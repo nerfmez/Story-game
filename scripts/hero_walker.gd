@@ -56,6 +56,22 @@ extends Node2D
 @export var phone_offset := Vector2(-5, 0)
 @export var phone_offset_flipped := Vector2(0, 0)
 
+## ถือร่ม (ตอนฝนตก main.gd เปิดให้): ใช้ภาพยืน/เดินถือร่มแทน (tools/import_char_video.py)
+## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
+@export var umbrella_idle_texture: Texture2D
+@export var umbrella_idle_frames := 24
+@export var umbrella_idle_offset := Vector2(-31, 0)
+@export var umbrella_idle_offset_flipped := Vector2(-10, 0)
+@export var umbrella_walk_texture: Texture2D
+@export var umbrella_walk_frames := 14
+@export var umbrella_walk_offset := Vector2(-31, 0)
+@export var umbrella_walk_offset_flipped := Vector2(-8, 0)
+## เท้าที่วางบนพื้นในภาพเดินถือร่มเลื่อน ~6.2 พิกเซล/เฟรม x 12 เฟรม/วินาที
+@export var umbrella_speed := 74.0
+@export var umbrella_step_frames: Array[int] = [0, 7]
+var umbrella := false
+var _plain := {}
+
 @onready var _body: Sprite2D = $Body
 @onready var _reflection: Sprite2D = $Reflection
 
@@ -76,6 +92,36 @@ var _phone_wait := 6.0
 var _still_time := 0.0
 ## เฟรมที่เริ่มเก็บโทรศัพท์ (ย้อนจากเฟรมนี้ลงไปถึง 0)
 var _put_away_from := 0
+
+
+## ถือร่ม/ไม่ถือร่ม: สลับชุดภาพยืนและเดิน (เก็บชุดปกติไว้คืนตอนเลิกถือ)
+func set_umbrella(on: bool) -> void:
+	if _plain.is_empty():
+		for key in ["idle_texture", "idle_frames", "idle_offset", "idle_offset_flipped", "walk_texture",
+				"walk_frames", "walk_offset", "walk_offset_flipped", "speed", "step_frames"]:
+			_plain[key] = get(key)
+	if on and not (umbrella_idle_texture and umbrella_walk_texture):
+		on = false
+	umbrella = on
+	if on:
+		idle_texture = umbrella_idle_texture
+		idle_frames = umbrella_idle_frames
+		idle_offset = umbrella_idle_offset
+		idle_offset_flipped = umbrella_idle_offset_flipped
+		walk_texture = umbrella_walk_texture
+		walk_frames = umbrella_walk_frames
+		walk_offset = umbrella_walk_offset
+		walk_offset_flipped = umbrella_walk_offset_flipped
+		speed = umbrella_speed
+		step_frames = umbrella_step_frames
+		_phone = Phone.NONE                    # มือถือร่มอยู่: เก็บโทรศัพท์ทันที
+	else:
+		for key in _plain:
+			set(key, _plain[key])
+	_still_time = 0.0
+	_last_frame = -1
+	if is_inside_tree():
+		_set_pose(false, _facing_right)
 
 
 func _ready() -> void:
@@ -112,7 +158,7 @@ func _process(delta: float) -> void:
 			_blink_wait = randf_range(blink_every.x, blink_every.y)
 		_blink_left -= delta
 		# ยืนนานพอแล้ว: รอให้ท่ายืนวนมาถึงเฟรมที่ตรงกับท่าโทรศัพท์ แล้วเริ่มหยิบ
-		if phone_texture and _still_time >= _phone_wait and _idle_frame() == phone_from_idle_frame:
+		if phone_texture and not umbrella and _still_time >= _phone_wait and _idle_frame() == phone_from_idle_frame:
 			_phone = Phone.TAKING_OUT
 			_phone_time = 0.0
 			_set_phone_pose(0)

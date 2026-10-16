@@ -65,6 +65,9 @@ def main():
     ap.add_argument("--frames", type=int, required=True)
     ap.add_argument("--cut", type=int, nargs=2, default=(80, 96), metavar=("FROM", "TO"),
                     help="rows to cut in: the thighs, below the shorts and above the knees")
+    ap.add_argument("--measure", type=int, nargs=2, default=(4, 60), metavar=("FROM", "TO"),
+                    help="rows compared to find each frame's upper-body height (head and chest; "
+                         "leave out things that move on their own, like an umbrella canopy)")
     ap.add_argument("--bob", type=int, nargs="+", help="pixels down per frame after levelling")
     ap.add_argument("--out", help="default: overwrite the sheet")
     args = ap.parse_args()
@@ -73,7 +76,7 @@ def main():
     w = a.shape[1] // args.frames
     frames = [a[:, i * w:(i + 1) * w] for i in range(args.frames)]
     ref = np.median(np.stack(frames), 0)
-    shifts = [offset(ref, f) for f in frames]
+    shifts = [offset(ref, f, *args.measure) for f in frames]
     if args.bob:
         assert len(args.bob) == args.frames, "one --bob value per frame"
         shifts = [d + b for d, b in zip(shifts, args.bob)]
