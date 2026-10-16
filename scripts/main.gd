@@ -39,9 +39,9 @@ const TIMES := {
 		"morning": true,
 	},
 	"rain": {
-		# เช้ามืด ครึ้ม ฝนตก: ไม่มีแดด ไม่มีฝุ่นในแสง ไฟในรถไฟยังเปิด มีฝนตกกับน้ำกระเซ็น
+		# เช้ามืด ครึ้ม ฝนตก: ไม่มีแดด ไม่มีฝุ่นในแสง ไม่มีนก ไฟในรถไฟยังเปิด มีฝนตกกับน้ำกระเซ็น
 		"folder": "rain",
-		"hide": [^"SunLight", ^"Wisps", ^"Dust"],
+		"hide": [^"SunLight", ^"Wisps", ^"Dust", ^"Birds"],
 		"show": [^"Grade/Rain", ^"RainSplash"],
 		"grade": [Vector3(0.0, 0.02, 0.07), Vector3(0.0, 0.01, 0.03), 0.35, 0.4],
 		"ambience": "res://assets/audio/ambience_rain.ogg",

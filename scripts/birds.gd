@@ -46,7 +46,7 @@ func _process(delta: float) -> void:
 			alive = true
 		if sx > 0.0 and sx < view_w:
 			on_screen = true
-	if on_screen and call_sound:
+	if on_screen and call_sound and is_visible_in_tree():   # ซ่อนฝูงนก (เช่นตอนฝนตก) = ไม่มีเสียงร้อง
 		_call_wait -= delta
 		if _call_wait <= 0.0:
 			call_sound.play()
