@@ -8,6 +8,8 @@ extends CanvasLayer
 ## wait_restart(): แตะเพื่อเล่นอีกครั้ง (ส่ง restart_pressed)
 
 signal start_pressed
+## ขึ้น "แตะเพื่อเริ่ม" แล้ว (การแตะครั้งถัดไปคือการเริ่ม: main.gd ใช้เปิดวิดีโอเปิดเรื่องในจังหวะแตะนั้น)
+signal start_ready
 signal restart_pressed
 
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
@@ -181,6 +183,7 @@ func play_opening() -> void:
 	await get_tree().create_timer(2.0).timeout
 	_prompt("แตะเพื่อเริ่ม")
 	_waiting = "start"
+	start_ready.emit()
 	await start_pressed
 
 

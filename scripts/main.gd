@@ -64,7 +64,12 @@ func _ready() -> void:
 	if ambience:
 		ambience.stop()
 	cards.restart_pressed.connect(func(): get_tree().reload_current_scene())
+	# วิดีโอเปิดเรื่องเล่นทันทีที่แตะเพื่อเริ่ม (scripts/intro_video.gd) จบแล้วค่อยเปิดเสียงฝนของเกม
+	var intro := IntroVideo.new()
+	add_child(intro)
+	cards.start_ready.connect(intro.arm)
 	await cards.play_opening()
+	await intro.play()
 	if ambience:
 		ambience.play()
 	prologue.begin()                           # การ์ดชื่อตอน บทบนจอดำ แล้วค่อยเผยฉาก (prologue.gd)
