@@ -2,6 +2,7 @@ class_name DialogueBox
 extends Control
 ## กล่องข้อความแบบ visual novel: ป้ายชื่อ + ข้อความพิมพ์ทีละตัว
 ## คลิกซ้าย / Space / Enter: ถ้ายังพิมพ์อยู่จะแสดงทั้งบรรทัด ถ้าพิมพ์จบแล้วจะไปบรรทัดถัดไป
+## ข้อความไม่ตัดขอบ (clip_contents = false ใน dialogue_box.tscn): วรรณยุกต์ที่ซ้อนบนสระบน (นี้ ที่) สูงเกินบรรทัดแรก เดิมโดนตัดหาย
 
 signal line_started(line: Dictionary)
 signal finished

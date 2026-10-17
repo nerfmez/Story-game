@@ -85,6 +85,7 @@ func _text(bbcode: String, size: int, y: float, colour: Color) -> RichTextLabel:
 	label.install_effect(RevealFx.new())
 	label.bbcode_enabled = true
 	label.fit_content = true
+	label.clip_contents = false              # วรรณยุกต์บนสระบน (นี้ ที่) สูงเกินบรรทัด: ไม่ตัดทิ้ง
 	label.scroll_active = false
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
