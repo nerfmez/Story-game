@@ -1,4 +1,4 @@
-[gd_scene load_steps=69 format=3]
+[gd_scene load_steps=70 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/scene_camera.gd" id="2_camera"]
@@ -49,6 +49,7 @@
 [ext_resource type="Shader" path="res://shaders/rain.gdshader" id="52_rain"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_idle.png" id="53_umb_idle"]
 [ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_walk.png" id="54_umb_walk"]
+[ext_resource type="Texture2D" path="res://assets/characters/hero_umbrella_phone.png" id="55_umb_phone"]
 
 [ext_resource type="Script" path="res://scripts/npc_walker.gd" id="60_npc"]
 [ext_resource type="Texture2D" path="res://assets/characters/heroine_idle.png" id="61_hn_idle"]
@@ -326,6 +327,7 @@ walk_texture = ExtResource("21_walk")
 phone_texture = ExtResource("45_phone")
 umbrella_idle_texture = ExtResource("53_umb_idle")
 umbrella_walk_texture = ExtResource("54_umb_walk")
+umbrella_phone_texture = ExtResource("55_umb_phone")
 step_sound = NodePath("Steps")
 
 [node name="Steps" type="AudioStreamPlayer" parent="Characters/Hero"]

@@ -1,7 +1,8 @@
 extends Node
 ## ตอนที่1 [15 เซนติเมตร] (บทจากต้นฉบับ: data/prologue.json) ลำดับตามต้นฉบับ:
 ## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
-## (ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ) -> "ฉันเกลียดฤดูฝน" ซันสะดุ้ง -> เธอเบียดเข้าใต้ร่ม
+## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ
+## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์ -> เธอเบียดเข้าใต้ร่ม
 ## -> ไฟเขียว -> ตัดสินใจเดินต่อ (จอดำ) -> บรรทัดสุดท้ายบนจอดำ -> แตะเพื่อเล่นอีกครั้ง
 ## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
@@ -23,6 +24,7 @@ extends Node
 @export var heroine_under := -18.0
 
 var _lines := {}
+var _closeup: PhoneCloseup
 var _hint: Label
 var _hint_pulse: Tween
 
@@ -36,6 +38,8 @@ func _ready() -> void:
 		push_error("อ่านบทไม่ได้: %s" % script_file)
 	hero.controllable = false
 	_set_touch(false)
+	_closeup = PhoneCloseup.new()
+	add_child(_closeup)
 
 
 func _set_touch(on: bool) -> void:
@@ -78,7 +82,8 @@ func begin() -> void:
 ## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา
 func _on_line(line: Dictionary) -> void:
 	match str(line.get("event", "")):
-		"jolt":                                 # ซันสะดุ้งเล็กน้อย
+		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
+			hero.put_away_phone()
 			var t := create_tween().set_trans(Tween.TRANS_SINE)
 			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
@@ -107,16 +112,17 @@ func _walk_to_crossing() -> void:
 	await get_tree().create_timer(0.6).timeout
 
 
-## รอไฟ ดูเวลา (บท "arrive") ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนยืนข้างซัน
-## รอทั้งคู่: เธอเดินถึง และผู้เล่นอ่านจบ
+## รอไฟ: ควักโทรศัพท์ขึ้นมาดูเวลา ภาพตัดใกล้จอ (7:35) พร้อมบท "arrive" แล้วถือโทรศัพท์ยืนรอ
+## ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนยืนข้างซัน
 func _heroine_arrives() -> void:
-	var state := {"walked": false, "read": false}
+	hero.take_out_phone()
+	await hero.phone_out
+	await get_tree().create_timer(0.3).timeout
+	await _closeup.show_phone()
+	await _say("arrive")
+	await _closeup.hide_phone()
 	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_stop)
-	heroine.arrived.connect(func(): state.walked = true, CONNECT_ONE_SHOT)
-	dialogue_box.start(_lines.get("arrive", []))
-	dialogue_box.finished.connect(func(): state.read = true, CONNECT_ONE_SHOT)
-	while not (state.walked and state.read):
-		await get_tree().process_frame
+	await heroine.arrived
 	await get_tree().create_timer(0.8).timeout
 
 

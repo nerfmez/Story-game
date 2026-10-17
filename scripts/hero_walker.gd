@@ -57,6 +57,8 @@ extends Node2D
 @export var phone_put_away_step := 2
 @export var phone_offset := Vector2(-9, 0)
 @export var phone_offset_flipped := Vector2(-2, 0)
+## แผ่นภาพโทรศัพท์เรียงกี่แถว (แผ่นยาวเกิน 4096px แบ่งแถวเหมือนภาพยืน)
+@export var phone_rows := 1
 
 ## ถือร่ม (ตอนฝนตก main.gd เปิดให้): ใช้ภาพยืน/เดินถือร่มแทน (tools/import_char_video.py)
 ## มีจำนวนเฟรม ตำแหน่ง ความเร็วเดิน และจังหวะเสียงเท้าของตัวเอง ไม่หยิบโทรศัพท์ (มือถือร่มอยู่)
@@ -77,6 +79,16 @@ extends Node2D
 ## จึงต้องเล่น 54 / 5 = 10.8 เฟรม/วินาที (umbrella_walk_fps) เท้าถึงไม่ไถล
 @export var umbrella_speed := 54.0
 @export var umbrella_step_frames: Array[int] = [2, 9]
+## ถือร่มแล้วควักโทรศัพท์ (ฉากถึงทางม้าลาย: prologue.gd สั่ง take_out_phone เอง ไม่หยิบเองตอนยืนนาน)
+## 62 เฟรม (วิดีโอ 24fps เอาทุก 2 เฟรม = 12 เฟรม/วินาที) 2 แถว แถวละ 31: เฟรม 0-32 ล้วงกระเป๋าหยิบขึ้นมา ที่เหลือก้มดูจอ
+## เฟรมแรกตรงกับท่ายืนถือร่มเฟรม 0 มากที่สุด ลำตัวอยู่ขวาของท่ายืนถือร่ม 1px
+@export var umbrella_phone_texture: Texture2D
+@export var umbrella_phone_frames := 62
+@export var umbrella_phone_rows := 2
+@export var umbrella_phone_take_out := 33
+@export var umbrella_phone_from_idle_frame := 0
+@export var umbrella_phone_offset := Vector2(-29, 0)
+@export var umbrella_phone_offset_flipped := Vector2(-16, 0)
 var umbrella := false
 var _plain := {}
 
@@ -87,6 +99,9 @@ var controllable := true
 @export var max_x := INF
 ## เดินเองไปถึงจุดที่สั่ง (walk_to) แล้ว
 signal arrived
+## หยิบโทรศัพท์ขึ้นมาถือดูแล้ว (take_out_phone)
+signal phone_out
+var _put_away_request := false
 var _auto_x := NAN
 
 @onready var _body: Sprite2D = $Body
@@ -115,7 +130,9 @@ var _put_away_from := 0
 func set_umbrella(on: bool) -> void:
 	if _plain.is_empty():
 		for key in ["idle_texture", "idle_frames", "idle_rows", "idle_fps", "idle_offset", "idle_offset_flipped", "walk_texture",
-				"walk_frames", "walk_fps", "walk_offset", "walk_offset_flipped", "speed", "step_frames"]:
+				"walk_frames", "walk_fps", "walk_offset", "walk_offset_flipped", "speed", "step_frames",
+				"phone_texture", "phone_frames", "phone_rows", "phone_take_out", "phone_from_idle_frame",
+				"phone_offset", "phone_offset_flipped"]:
 			_plain[key] = get(key)
 	if on and not (umbrella_idle_texture and umbrella_walk_texture):
 		on = false
@@ -134,7 +151,14 @@ func set_umbrella(on: bool) -> void:
 		walk_offset_flipped = umbrella_walk_offset_flipped
 		speed = umbrella_speed
 		step_frames = umbrella_step_frames
-		_phone = Phone.NONE                    # มือถือร่มอยู่: เก็บโทรศัพท์ทันที
+		phone_texture = umbrella_phone_texture
+		phone_frames = umbrella_phone_frames
+		phone_rows = umbrella_phone_rows
+		phone_take_out = umbrella_phone_take_out
+		phone_from_idle_frame = umbrella_phone_from_idle_frame
+		phone_offset = umbrella_phone_offset
+		phone_offset_flipped = umbrella_phone_offset_flipped
+		_phone = Phone.NONE                    # เปลี่ยนชุดภาพ: เลิกท่าโทรศัพท์ที่ค้างอยู่
 	else:
 		for key in _plain:
 			set(key, _plain[key])
@@ -152,6 +176,21 @@ func _ready() -> void:
 ## เดินเองไปที่ x (ท่าเดินปกติ) แล้วส่ง arrived
 func walk_to(x: float) -> void:
 	_auto_x = x
+
+
+## ควักโทรศัพท์ขึ้นมาดู (ฉากเนื้อเรื่องสั่ง) หยิบเสร็จแล้วส่ง phone_out แล้วถือดูไปจนกว่าจะสั่ง put_away_phone
+func take_out_phone() -> void:
+	if not phone_texture or _phone != Phone.NONE:
+		return
+	_phone = Phone.TAKING_OUT
+	_phone_time = 0.0
+	_set_phone_pose(0)
+
+
+## เก็บโทรศัพท์ (เล่นท่าหยิบย้อนกลับ) แล้วกลับเป็นท่ายืน
+func put_away_phone() -> void:
+	if _phone == Phone.TAKING_OUT or _phone == Phone.HOLDING:
+		_put_away_request = true
 
 
 func _process(delta: float) -> void:
@@ -210,7 +249,8 @@ func _process(delta: float) -> void:
 func _update_phone(delta: float, dir: float) -> bool:
 	_phone_time += delta
 	var frame := 0
-	if _phone != Phone.PUTTING_AWAY and dir != 0.0:
+	if _phone != Phone.PUTTING_AWAY and (dir != 0.0 or _put_away_request):
+		_put_away_request = false
 		_put_away_from = _phone_frame()
 		if _put_away_from >= phone_take_out:
 			_put_away_from = phone_take_out - 1      # ท่าถือทุกเฟรมใกล้กับเฟรมสุดท้ายของท่าหยิบ
@@ -229,6 +269,7 @@ func _update_phone(delta: float, dir: float) -> bool:
 		frame = _phone_frame()
 		if _phone == Phone.TAKING_OUT and frame >= phone_take_out:
 			_phone = Phone.HOLDING
+			phone_out.emit()
 	_set_phone_pose(frame)
 	return true
 
@@ -248,12 +289,12 @@ func _phone_frame() -> int:
 func _set_phone_pose(frame: int) -> void:
 	for sprite in [_body, _reflection]:
 		sprite.texture = phone_texture
-		sprite.hframes = phone_frames
-		sprite.vframes = 1
+		sprite.vframes = phone_rows
+		sprite.hframes = ceili(float(phone_frames) / phone_rows)
 		sprite.frame = clampi(frame, 0, phone_frames - 1)
 		sprite.offset = phone_offset_flipped if _facing_right else phone_offset
 		if sprite == _body:
-			sprite.offset.y += ground_row - (phone_texture.get_height() - 1)
+			sprite.offset.y += ground_row - (phone_texture.get_height() / phone_rows - 1)
 		sprite.flip_h = _facing_right
 
 
