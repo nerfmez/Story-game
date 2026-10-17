@@ -25,6 +25,7 @@ extends Node
 
 var _lines := {}
 var _closeup: PhoneCloseup
+var _bubble: Node2D
 var _hint: Label
 var _hint_pulse: Tween
 
@@ -40,6 +41,8 @@ func _ready() -> void:
 	_set_touch(false)
 	_closeup = PhoneCloseup.new()
 	add_child(_closeup)
+	_bubble = _make_bubble()
+	heroine.add_child(_bubble)
 
 
 func _set_touch(on: bool) -> void:
@@ -81,15 +84,17 @@ func begin() -> void:
 
 ## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา
 func _on_line(line: Dictionary) -> void:
+	# บรรทัดที่มีชื่อผู้พูด (เธอ: "???") = ฟองคำพูดเด้งขึ้นเหนือหัวเธอ บรรทัดเสียงในใจซันไม่มี
+	_show_bubble(str(line.get("speaker", "")) != "")
 	match str(line.get("event", "")):
 		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
 			hero.put_away_phone()
 			var t := create_tween().set_trans(Tween.TRANS_SINE)
 			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
-		"squeeze":                              # เธอเบียดเข้ามาใต้ร่ม
-			var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(0.2)
+		"squeeze":                              # เธอก้าวเข้ามาชิดใต้ร่ม (เดินจริง เท้าไม่ไถล) แล้วหันหน้าทางเดียวกับซัน
+			await get_tree().create_timer(0.2).timeout
+			heroine.walk_to(hero.position.x + heroine_under)
 		"green":
 			crossing_signal.go_green()
 
@@ -124,6 +129,54 @@ func _heroine_arrives() -> void:
 	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_stop)
 	await heroine.arrived
 	await get_tree().create_timer(0.8).timeout
+
+
+## ฟองคำพูดพิกเซลเล็กๆ เหนือหัวเธอ (บอกว่าบรรทัดนี้เธอพูด)
+func _make_bubble() -> Node2D:
+	var root := Node2D.new()
+	root.position = Vector2(19, 3)              # เหนือหัวเธอ (ภาพเธอสูง 113 หัวเริ่มราวแถว 12)
+	root.z_index = 50
+	root.visible = false
+	var ink := Color(0.16, 0.18, 0.28)
+	var paper := Color(0.94, 0.95, 0.99)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = paper
+	style.border_color = ink
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = -3
+	style.content_margin_bottom = -2
+	panel.add_theme_stylebox_override("panel", style)
+	var dots := Label.new()
+	dots.text = "..."
+	dots.add_theme_font_size_override("font_size", 10)
+	dots.add_theme_color_override("font_color", ink)
+	panel.add_child(dots)
+	root.add_child(panel)
+	var tail := Polygon2D.new()                 # หางชี้ลงไปที่หัวเธอ
+	tail.polygon = PackedVector2Array([Vector2(-3, -1.5), Vector2(2, -1.5), Vector2(-2, 3)])
+	tail.color = paper
+	root.add_child(tail)
+	var edge := Line2D.new()
+	edge.points = PackedVector2Array([Vector2(-3, -0.5), Vector2(-2, 3), Vector2(2, -0.5)])
+	edge.width = 1.0
+	edge.default_color = ink
+	root.add_child(edge)
+	panel.resized.connect(func(): panel.position = Vector2(-panel.size.x / 2.0, -panel.size.y + 0.5))
+	return root
+
+
+func _show_bubble(on: bool) -> void:
+	if on == _bubble.visible:
+		return
+	_bubble.visible = on
+	if on:
+		_bubble.scale = Vector2(0.4, 0.4)
+		var t := _bubble.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(_bubble, "scale", Vector2.ONE, 0.25)
 
 
 func _show_hint() -> void:
