@@ -205,9 +205,19 @@ func clear_caption() -> void:
 	_fade_out_items(0.8)
 
 
+## ลบข้อความบนจอทันที (ตอนวิดีโอเปิดเรื่องขึ้นมาทับ: จบวิดีโอแล้วจะได้ไม่เห็นชื่อเรื่องค้าง)
+func clear_now() -> void:
+	for item in _items:
+		item.queue_free()
+	_items.clear()
+
+
 func show_chapter() -> void:
-	_fade_out_items(0.8)                     # ชื่อเรื่องกับ "แตะเพื่อเริ่ม" จางออกก่อน
-	await get_tree().create_timer(1.4).timeout
+	if _items.is_empty():                    # ชื่อเรื่องถูกลบไปแล้ว (มีวิดีโอเปิดเรื่อง): ขึ้นชื่อตอนเลย
+		await get_tree().create_timer(0.3).timeout
+	else:
+		_fade_out_items(0.8)                 # ชื่อเรื่องกับ "แตะเพื่อเริ่ม" จางออกก่อน
+		await get_tree().create_timer(1.4).timeout
 	_text("[reveal speed=10 span=6]%s[/reveal]" % chapter_label, 15, 118.0, Color(0.7, 0.76, 0.88))
 	await get_tree().create_timer(0.9).timeout
 	_title(chapter_title, 30, 140.0, 2.2)

@@ -69,7 +69,10 @@ func _ready() -> void:
 	add_child(intro)
 	cards.start_ready.connect(intro.arm)
 	await cards.play_opening()
+	cards.clear_now()
+	AudioServer.set_bus_mute(0, true)          # ระหว่างวิดีโอมีแต่เสียงของวิดีโอ
 	await intro.play()
+	AudioServer.set_bus_mute(0, false)
 	if ambience:
 		ambience.play()
 	prologue.begin()                           # การ์ดชื่อตอน บทบนจอดำ แล้วค่อยเผยฉาก (prologue.gd)

@@ -4,7 +4,7 @@ extends Node
 ## บนเว็บเล่นด้วยแท็ก <video> ของเบราว์เซอร์ทับบนเกม (ถอดรหัส H.264 ด้วยฮาร์ดแวร์ ภาพคมเต็มจอ)
 ## ไฟล์อยู่ข้าง index.html (ต้นฉบับ: web/intro.mp4) โหลดล่วงหน้าตั้งแต่ตอนคำโปรย
 ## เบราว์เซอร์มือถือ (โดยเฉพาะ iOS) ยอมเล่นวิดีโอมีเสียงเฉพาะในจังหวะที่ผู้เล่นแตะ: arm() ตอนขึ้น "แตะเพื่อเริ่ม"
-## แล้วการแตะครั้งนั้นสั่งเล่นวิดีโอทันทีจากฝั่ง JavaScript
+## แล้วการแตะครั้งนั้นสั่งเปิดเต็มจอและเล่นวิดีโอทันทีจากฝั่ง JavaScript
 ## นอกเว็บ (เปิดในเอดิเตอร์/เดสก์ท็อป) ข้ามวิดีโอไป
 
 signal finished
@@ -45,7 +45,19 @@ func _ready() -> void:
 	};
 	v.addEventListener('ended', iv.finish);
 	v.addEventListener('error', function () { if (iv.state === 'playing') iv.state = 'failed'; });
-	var tap = function () { if (iv.armed) { iv.armed = false; iv.start(); } };
+	// แตะเพื่อเริ่ม = เปิดเต็มจอ (ล็อกแนวนอนถ้าเครื่องยอม) แล้วเล่นวิดีโอ ต้องทำในจังหวะแตะเท่านั้นเบราว์เซอร์ถึงยอม
+	var fullscreen = function () {
+		var el = document.documentElement;
+		var req = el.requestFullscreen || el.webkitRequestFullscreen;
+		if (!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+		try {
+			var p = req.call(el, { navigationUI: 'hide' });
+			if (p && p.then) p.then(function () {
+				if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+			}).catch(function () {});
+		} catch (e) {}
+	};
+	var tap = function () { if (iv.armed) { iv.armed = false; fullscreen(); iv.start(); } };
 	['touchend', 'pointerup', 'mouseup', 'keydown'].forEach(function (e) { document.addEventListener(e, tap, true); });
 	window.introVideo = iv;
 })();
