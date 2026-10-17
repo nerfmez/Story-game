@@ -1,8 +1,8 @@
 extends Node
 ## ตอนที่1 [15 เซนติเมตร] (บทจากต้นฉบับ: data/prologue.json) ลำดับตามต้นฉบับ:
 ## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
-## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ
-## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์ -> เธอเบียดเข้าใต้ร่ม
+## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่ม
+## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์
 ## -> ไฟเขียว -> ตัดสินใจเดินต่อ (จอดำ) -> บรรทัดสุดท้ายบนจอดำ -> แตะเพื่อเล่นอีกครั้ง
 ## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
@@ -18,9 +18,8 @@ extends Node
 ## ซันเริ่มที่ x = 1020 (main.tscn): เดินไปทางม้าลาย 1190px ที่ 54px/วินาที ประมาณ 22 วินาที
 @export var wait_x := -170.0
 @export var start_limit := 1140.0
-## สายฝนเริ่มเดินจากซ้ายนอกจอ หยุดข้างซันที่ขอบร่ม แล้ว (ตามบท) เบียดเข้ามาใต้ร่มชิดตัว (เทียบตำแหน่งซัน)
+## สายฝนเริ่มเดินจากซ้ายนอกจอ เดินเข้ามาจนชิดใต้ร่มข้างซันเลย แล้วค่อยพูด (เทียบตำแหน่งซัน)
 @export var heroine_from := -330.0
-@export var heroine_stop := -40.0
 @export var heroine_under := -18.0
 
 var _lines := {}
@@ -92,9 +91,6 @@ func _on_line(line: Dictionary) -> void:
 			var t := create_tween().set_trans(Tween.TRANS_SINE)
 			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
-		"squeeze":                              # เธอก้าวเข้ามาชิดใต้ร่ม (เดินจริง เท้าไม่ไถล) แล้วหันหน้าทางเดียวกับซัน
-			await get_tree().create_timer(0.2).timeout
-			heroine.walk_to(hero.position.x + heroine_under)
 		"green":
 			crossing_signal.go_green()
 
@@ -118,7 +114,7 @@ func _walk_to_crossing() -> void:
 
 
 ## รอไฟ: ควักโทรศัพท์ขึ้นมาดูเวลา ภาพตัดใกล้จอ (7:35) พร้อมบท "arrive" แล้วถือโทรศัพท์ยืนรอ
-## ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนยืนข้างซัน
+## ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่มข้างซัน
 func _heroine_arrives() -> void:
 	hero.take_out_phone()
 	await hero.phone_out
@@ -126,7 +122,7 @@ func _heroine_arrives() -> void:
 	await _closeup.show_phone()
 	await _say("arrive")
 	await _closeup.hide_phone()
-	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_stop)
+	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_under)
 	await heroine.arrived
 	await get_tree().create_timer(0.8).timeout
 
