@@ -1,10 +1,11 @@
 extends CanvasLayer
-## ฉากเปิด (คำโปรย + ชื่อเรื่อง) และการ์ดจบตอน บนจอดำที่มีฝนตก
+## จอดำมีฝนตก: คำโปรย + ชื่อเรื่อง, การ์ดชื่อตอน, เปิด/ปิดฉาก (บทพูดบนจอดำใช้กล่องข้อความ ซึ่งอยู่ชั้นบนกว่านี้)
 ## play_opening(): คำโปรยทีละบรรทัด (ตัวอักษรค่อยๆ จางเข้าเป็นคลื่น + ลอยขึ้นช้าๆ) แล้วชื่อเรื่อง
 ##   (ตัวอักษรค่อยๆ ชิดกันเข้ามาพร้อมจางเข้า เส้นบางๆ ใต้ชื่อยืดออก) แตะเมื่อไรก็ได้: ข้ามไปชื่อเรื่อง /
 ##   แตะตอนชื่อเรื่องขึ้นแล้ว = เริ่ม (ส่ง start_pressed: เบราว์เซอร์เปิดเสียงได้หลังผู้เล่นแตะเท่านั้น)
-## reveal_scene(): จอดำค่อยๆ จางออกเผยฉาก
-## play_ending(): จอค่อยๆ ดำ การ์ดชื่อตอน แตะเพื่อเริ่มใหม่ (ส่ง restart_pressed)
+## show_chapter(): ชื่อตอนขึ้นแล้วจางออก จอยังดำ
+## reveal_scene(): จอดำค่อยๆ จางออกเผยฉาก  fade_to_black(): กลับเป็นจอดำ
+## wait_restart(): แตะเพื่อเล่นอีกครั้ง (ส่ง restart_pressed)
 
 signal start_pressed
 signal restart_pressed
@@ -12,12 +13,13 @@ signal restart_pressed
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const RAIN := preload("res://shaders/rain.gdshader")
 
+## คำโปรย: ประโยคจากบทนำของต้นฉบับ (ตรงตามต้นฉบับ แบ่งบรรทัดตรงจุดไข่ปลา)
 @export var tagline: Array[String] = [
-	"เช้าวันฝนตกวันนั้น เด็กสาวคนหนึ่งเดินเข้ามาใต้ร่มของผม",
-	"ราวกับรู้จักผมมานาน... ทั้งที่ผมไม่เคยเห็นหน้าเธอมาก่อนเลย",
+	"ก็นะ...ชีวิตวัยรุ่นของผมมันก็ควรจะเป็นอย่างที่ว่ามา.....",
+	"ถ้าในวันนั้นผมไม่ได้เจอกับ 'เธอคนนั้น' ในวันธรรมดาที่ฝนตก",
 ]
 @export var title := "ถ้าหากโลกนี้ไม่มีฤดูฝน"
-@export var chapter_label := "ตอนที่ 1"
+@export var chapter_label := "ตอนที่1"
 @export var chapter_title := "15 เซนติเมตร"
 
 var _black: ColorRect
@@ -183,16 +185,25 @@ func reveal_scene() -> void:
 	await tween.finished
 
 
-func play_ending() -> void:
+func show_chapter() -> void:
+	_fade_out_items(0.8)                     # ชื่อเรื่องกับ "แตะเพื่อเริ่ม" จางออกก่อน
+	await get_tree().create_timer(1.4).timeout
+	_text("[reveal speed=10 span=6]%s[/reveal]" % chapter_label, 15, 118.0, Color(0.7, 0.76, 0.88))
+	await get_tree().create_timer(0.9).timeout
+	_title(chapter_title, 30, 140.0, 2.2)
+	await get_tree().create_timer(3.4).timeout
+	_fade_out_items(1.0)
+	await get_tree().create_timer(1.2).timeout
+
+
+func fade_to_black() -> void:
 	var tween := create_tween().set_trans(Tween.TRANS_SINE)
 	tween.tween_property(_black, "modulate:a", 1.0, 2.0)
 	tween.parallel().tween_property(_rain, "modulate:a", 1.0, 2.5)
 	await tween.finished
-	await get_tree().create_timer(0.8).timeout
-	_text("[reveal speed=10 span=6]%s[/reveal]" % chapter_label, 15, 118.0, Color(0.7, 0.76, 0.88))
-	await get_tree().create_timer(1.0).timeout
-	_title(chapter_title, 30, 140.0, 2.2)
-	await get_tree().create_timer(3.0).timeout
+
+
+func wait_restart() -> void:
 	_prompt("แตะเพื่อเล่นอีกครั้ง")
 	_waiting = "restart"
 	await restart_pressed

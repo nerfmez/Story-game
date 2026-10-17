@@ -319,7 +319,7 @@ centered = false
 hframes = 50
 
 [node name="Hero" type="Node2D" parent="Characters" node_paths=PackedStringArray("step_sound")]
-position = Vector2(290, 152)
+position = Vector2(1020, 152)
 script = ExtResource("18_walker")
 idle_texture = ExtResource("44_idle")
 walk_texture = ExtResource("21_walk")
@@ -428,6 +428,7 @@ volume_db = -5.0
 autoplay = true
 
 [node name="UI" type="CanvasLayer" parent="."]
+layer = 30
 
 [node name="DialogueBox" parent="UI" instance=ExtResource("13_dialogue")]
 

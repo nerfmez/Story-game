@@ -67,8 +67,7 @@ func _ready() -> void:
 	await cards.play_opening()
 	if ambience:
 		ambience.play()
-	cards.reveal_scene()
-	prologue.begin()
+	prologue.begin()                           # การ์ดชื่อตอน บทบนจอดำ แล้วค่อยเผยฉาก (prologue.gd)
 
 
 ## เตรียมเสียงทุกไฟล์ไว้ล่วงหน้า (บนเว็บ Godot จะเตรียมตอนเล่นครั้งแรก ทำให้เสียงแรกช้า)

@@ -1,8 +1,9 @@
 extends Node
-## ฉากเปิดเรื่อง (data/prologue.json): เช้าวันฝนตก ซันเดินไปโรงเรียน (ขวาไปซ้าย) ถึงทางม้าลายแล้วรอไฟ
-## สายฝนเดินตากฝนมาจากทางซ้าย เข้ามายืนใต้ร่มชิดตัว คุยกัน ซันขยับหนีครึ่งก้าว เธอขยับตาม
-## ไฟคนข้ามเขียว จบด้วยการ์ดชื่อตอน
-## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเป็นฉากที่เล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
+## ตอนที่1 [15 เซนติเมตร] (บทจากต้นฉบับ: data/prologue.json) ลำดับตามต้นฉบับ:
+## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
+## (ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ) -> "ฉันเกลียดฤดูฝน" ซันสะดุ้ง -> เธอเบียดเข้าใต้ร่ม
+## -> ไฟเขียว -> ตัดสินใจเดินต่อ (จอดำ) -> บรรทัดสุดท้ายบนจอดำ -> แตะเพื่อเล่นอีกครั้ง
+## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
 @export_file("*.json") var script_file := "res://data/prologue.json"
 @export var hero: Node2D
@@ -13,14 +14,13 @@ extends Node
 @export var touch_controls: Control
 @export var cards: Node
 ## ตำแหน่งที่ซันยืนรอที่ขอบทางม้าลาย (พิกัดโลก) และขอบขวาที่เดินถอยไปได้
+## ซันเริ่มที่ x = 1020 (main.tscn): เดินไปทางม้าลาย 1190px ที่ 54px/วินาที ประมาณ 22 วินาที
 @export var wait_x := -170.0
-@export var start_limit := 410.0
-## สายฝนเริ่มเดินจากซ้ายนอกจอ แล้วหยุดชิดซ้ายของซัน (เทียบตำแหน่งซัน)
+@export var start_limit := 1140.0
+## สายฝนเริ่มเดินจากซ้ายนอกจอ หยุดข้างซันที่ขอบร่ม แล้ว (ตามบท) เบียดเข้ามาใต้ร่มชิดตัว (เทียบตำแหน่งซัน)
 @export var heroine_from := -330.0
-@export var heroine_stop := -18.0
-## ระยะที่ซันขยับหนี (และเธอขยับตาม) กับระยะที่เธอเบียดเข้ามาอีก
-@export var step_aside := 8.0
-@export var lean := 3.0
+@export var heroine_stop := -40.0
+@export var heroine_under := -18.0
 
 var _lines := {}
 var _hint: Label
@@ -50,22 +50,34 @@ func _say(part: String) -> void:
 
 
 func begin() -> void:
-	await get_tree().create_timer(1.6).timeout
-	await _say("intro")
+	dialogue_box.line_started.connect(_on_line)
+	await cards.show_chapter()
+	await _say("home")                         # ที่บ้าน: เล่าบนจอดำ
+	cards.reveal_scene()
+	await get_tree().create_timer(2.0).timeout
+	await _say("street")
 	await _walk_to_crossing()
-	camera.pan_to(220.0)                       # เลื่อนกล้องไปทางซ้าย: เห็นทางที่เธอจะเดินมา
-	await _say("red_light")
+	camera.pan_to(230.0)                       # เลื่อนกล้องไปทางซ้าย: เห็นทางที่เธอเดินมา
 	await _heroine_arrives()
 	camera.pan_to(296.0)                       # ทั้งคู่อยู่กลางจอ
-	await _say("under")
-	await _shuffle(step_aside)
-	await _say("step_aside")
-	await _lean_in()
-	crossing_signal.go_green()
-	await crossing_signal.walk_lit
-	await get_tree().create_timer(0.8).timeout
-	await _say("green")
-	await cards.play_ending()
+	await _say("meet")
+	await cards.fade_to_black()
+	await _say("end")
+	await cards.wait_restart()
+
+
+## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา
+func _on_line(line: Dictionary) -> void:
+	match str(line.get("event", "")):
+		"jolt":                                 # ซันสะดุ้งเล็กน้อย
+			var t := create_tween().set_trans(Tween.TRANS_SINE)
+			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
+			t.tween_property(hero, "position:y", hero.position.y, 0.12)
+		"squeeze":                              # เธอเบียดเข้ามาใต้ร่ม
+			var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(1.2)
+		"green":
+			crossing_signal.go_green()
 
 
 func _walk_to_crossing() -> void:
@@ -86,34 +98,17 @@ func _walk_to_crossing() -> void:
 	await get_tree().create_timer(0.6).timeout
 
 
-## สายฝนเดินเข้ามา (มีเสียงเล่าระหว่างทาง) รอทั้งคู่: เธอเดินถึง และผู้เล่นอ่านบรรทัดจบ
+## รอไฟ ดูเวลา (บท "arrive") ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนยืนข้างซัน
+## รอทั้งคู่: เธอเดินถึง และผู้เล่นอ่านจบ
 func _heroine_arrives() -> void:
 	var state := {"walked": false, "read": false}
 	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_stop)
 	heroine.arrived.connect(func(): state.walked = true, CONNECT_ONE_SHOT)
-	await get_tree().create_timer(2.5).timeout
-	dialogue_box.start(_lines.get("approach", []))
+	dialogue_box.start(_lines.get("arrive", []))
 	dialogue_box.finished.connect(func(): state.read = true, CONNECT_ONE_SHOT)
 	while not (state.walked and state.read):
 		await get_tree().process_frame
-	await get_tree().create_timer(0.5).timeout
-
-
-## ซันขยับหนีครึ่งก้าว แล้วเธอขยับตาม (ระยะเท่าเดิม)
-func _shuffle(dx: float) -> void:
-	var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	t.tween_property(hero, "position:x", hero.position.x + dx, 0.35)
-	t.tween_interval(0.35)
-	t.tween_property(heroine, "position:x", heroine.position.x + dx, 0.3)
-	await t.finished
-	await get_tree().create_timer(0.3).timeout
-
-
-## เธอเบียดเข้ามาชิดอีกนิด
-func _lean_in() -> void:
-	var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	t.tween_property(heroine, "position:x", heroine.position.x + lean, 0.5)
-	await t.finished
+	await get_tree().create_timer(0.8).timeout
 
 
 func _show_hint() -> void:
