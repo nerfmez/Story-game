@@ -37,7 +37,7 @@ func set_subtitles(on: bool, band_height := 44.0) -> void:
 		box.offset_bottom = 0.0
 		box.offset_left = 24.0
 		box.offset_right = -24.0
-		_text.add_theme_font_size_override("normal_font_size", 13)
+		_text.add_theme_font_size_override("normal_font_size", 12)
 	else:
 		box.add_theme_stylebox_override("panel", _box_style)
 		box.offset_top = -82.0
@@ -64,7 +64,10 @@ func _next() -> void:
 	var speaker := str(line.get("speaker", ""))
 	_name_tag.visible = speaker != "" and not _subtitles
 	_name_label.text = speaker
-	_text.text = ("[center]%s[/center]" if _subtitles else "%s") % str(line.get("text", ""))
+	var words := str(line.get("text", ""))
+	if _subtitles:                             # ซับไตเติล: ขึ้นบรรทัดใหม่ตรงช่องว่างคู่ในบท (ไม่ตัดคำกลางประโยค)
+		words = "[center]%s[/center]" % words.replace("  ", "\n")
+	_text.text = words
 	_text.visible_characters = 0
 	_shown = 0.0
 	_typing = true
