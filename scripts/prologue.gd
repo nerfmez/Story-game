@@ -3,7 +3,7 @@ extends Node
 ## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
 ## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่ม
 ## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์
-## -> ไฟเขียว -> ตัดสินใจเดินต่อ (จอดำ) -> บรรทัดสุดท้ายบนจอดำ -> แตะเพื่อเล่นอีกครั้ง
+## -> ไฟเขียว -> ปุ่ม "ข้ามทางม้าลาย" -> คัทซีนแบบหนัง: ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ -> จอดำ -> แตะเพื่อเล่นอีกครั้ง
 ## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
 @export_file("*.json") var script_file := "res://data/prologue.json"
@@ -76,8 +76,19 @@ func begin() -> void:
 	await _heroine_arrives()
 	camera.pan_to(296.0)                       # ทั้งคู่อยู่กลางจอ
 	await _say("meet")
-	await cards.fade_to_black()
+	# ไฟเขียว: ปุ่มข้ามทางม้าลาย แล้วตัดเป็นคัทซีนแบบหนัง ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ
+	var cross := CrossingCutscene.new()
+	cross.hero = hero
+	cross.heroine = heroine
+	cross.camera = camera
+	cross.ui = dialogue_box.get_parent()
+	add_child(cross)
+	await cross.ask()
+	cross.play(14.0)
+	await get_tree().create_timer(1.6).timeout
 	await _say("end")
+	await get_tree().create_timer(1.0).timeout
+	await cards.fade_to_black()
 	await cards.wait_restart()
 
 
