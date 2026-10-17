@@ -78,7 +78,7 @@ func _on_line(line: Dictionary) -> void:
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
 		"squeeze":                              # เธอเบียดเข้ามาใต้ร่ม
 			var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(0.4)
+			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(0.2)
 		"green":
 			crossing_signal.go_green()
 
