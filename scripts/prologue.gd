@@ -45,7 +45,10 @@ func _set_touch(on: bool) -> void:
 
 ## เล่นบทหนึ่งช่วงจนจบ (ผู้เล่นแตะทีละบรรทัด)
 func _say(part: String) -> void:
-	dialogue_box.start(_lines.get(part, []))
+	var lines: Array = _lines.get(part, [])
+	if lines.is_empty():                       # ช่วงนี้ไม่มีบท (เช่น "home": วิดีโอเปิดเรื่องเล่าไปแล้ว)
+		return
+	dialogue_box.start(lines)
 	await dialogue_box.finished
 
 
