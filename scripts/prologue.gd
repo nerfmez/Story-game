@@ -84,10 +84,11 @@ func begin() -> void:
 	cross.ui = dialogue_box.get_parent()
 	add_child(cross)
 	await cross.ask()
-	cross.play(14.0)
-	await get_tree().create_timer(1.6).timeout
+	await cross.play(16.0)
+	dialogue_box.set_subtitles(true, CrossingCutscene.BAR)
+	await get_tree().create_timer(1.8).timeout
 	await _say("end")
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(1.2).timeout
 	await cards.fade_to_black()
 	await cards.wait_restart()
 

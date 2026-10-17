@@ -20,6 +20,31 @@ var _index := -1
 var _typing := false
 var _shown := 0.0
 var _time := 0.0
+## ซับไตเติล (คัทซีน): ไม่มีกล่อง ตัวหนังสือกลางแถบดำล่าง ไม่มีป้ายชื่อ
+var _subtitles := false
+var _box_style: StyleBox
+
+
+## สลับเป็นซับไตเติลแบบหนัง (ข้อความกลางแถบดำล่าง สูง band_height) หรือกลับเป็นกล่องข้อความปกติ
+func set_subtitles(on: bool, band_height := 44.0) -> void:
+	_subtitles = on
+	var box := $Box as PanelContainer
+	if _box_style == null:
+		_box_style = box.get_theme_stylebox("panel")
+	if on:
+		box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		box.offset_top = -band_height
+		box.offset_bottom = 0.0
+		box.offset_left = 24.0
+		box.offset_right = -24.0
+		_text.add_theme_font_size_override("normal_font_size", 13)
+	else:
+		box.add_theme_stylebox_override("panel", _box_style)
+		box.offset_top = -82.0
+		box.offset_bottom = -8.0
+		box.offset_left = 10.0
+		box.offset_right = -10.0
+		_text.add_theme_font_size_override("normal_font_size", 15)
 
 
 func start(lines: Array) -> void:
@@ -37,9 +62,9 @@ func _next() -> void:
 		return
 	var line: Dictionary = _lines[_index]
 	var speaker := str(line.get("speaker", ""))
-	_name_tag.visible = speaker != ""
+	_name_tag.visible = speaker != "" and not _subtitles
 	_name_label.text = speaker
-	_text.text = str(line.get("text", ""))
+	_text.text = ("[center]%s[/center]" if _subtitles else "%s") % str(line.get("text", ""))
 	_text.visible_characters = 0
 	_shown = 0.0
 	_typing = true
@@ -50,7 +75,7 @@ func _next() -> void:
 func _finish_typing() -> void:
 	_typing = false
 	_text.visible_characters = -1
-	_next_icon.show()
+	_next_icon.visible = not _subtitles
 
 
 func _process(delta: float) -> void:
