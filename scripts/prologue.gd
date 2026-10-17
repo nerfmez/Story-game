@@ -55,10 +55,13 @@ func _say(part: String) -> void:
 func begin() -> void:
 	dialogue_box.line_started.connect(_on_line)
 	await cards.show_chapter()
-	cards.caption(str(_lines.get("caption", "")))   # บอกเวลาบนจอดำ
-	await get_tree().create_timer(2.5).timeout
+	var caption := str(_lines.get("caption", ""))
+	if caption != "":                          # บอกเวลาบนจอดำ (ตอนนี้ว่าง: วิดีโอเปิดเรื่องเล่าไปแล้ว)
+		cards.caption(caption)
+		await get_tree().create_timer(2.5).timeout
 	await _say("home")                         # ที่บ้าน: เสียงในใจบนจอดำ (มีแต่เสียงฝน)
-	cards.clear_caption()
+	if caption != "":
+		cards.clear_caption()
 	cards.reveal_scene()
 	await get_tree().create_timer(2.0).timeout
 	await _say("street")
