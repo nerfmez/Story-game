@@ -13,10 +13,14 @@ signal restart_pressed
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const RAIN := preload("res://shaders/rain.gdshader")
 
-## คำโปรย: ประโยคจากบทนำของต้นฉบับ (ตรงตามต้นฉบับ แบ่งบรรทัดตรงจุดไข่ปลา)
-@export var tagline: Array[String] = [
-	"ก็นะ...ชีวิตวัยรุ่นของผมมันก็ควรจะเป็นอย่างที่ว่ามา.....",
-	"ถ้าในวันนั้นผมไม่ได้เจอกับ 'เธอคนนั้น' ในวันธรรมดาที่ฝนตก",
+## คำโปรย: ประโยคจากบทนำของต้นฉบับ (ตรงตามต้นฉบับ เลือกบางประโยค) ทีละหน้า หน้าละไม่เกิน 3 บรรทัด
+## แบ่งบรรทัดตรงช่องว่าง/จุดไข่ปลาเดิม
+@export var tagline: Array = [
+	["ชีวิตมีทางเลือกเสมอ ในทุกๆทางเลือกย่อมที่จะส่งผลแตกต่างกันไป", "แต่ไม่ว่าจะเลือกทางไหน ผลที่ได้มันจะดีหรือร้าย", "ก็ไม่สามารถย้อนกลับไปเลือกใหม่ได้"],
+	["ก็มีบ่อยใช่มั้ยล่ะ? รู้งี้ทำแบบนั้นดีกว่า เลือกแบบนั้นดีกว่าน่ะ?"],
+	["ถ้าจำไม่ผิด เรื่องราวมันเริ่มตอนเดือนสิงหาคมในปีนั้น", "ปีแห่งการเริ่มต้นของชีวิตวัยรุ่น"],
+	["ความจริงแล้วผมก็เหมือนๆ กับเด็กหนุ่มทั่วไป", "ที่อยากจะใช้ชีวิตเรื่อยเปื่อย แล้วปล่อยให้เวลาไหลผ่านไป"],
+	["ก็นะ...ชีวิตวัยรุ่นของผมมันก็ควรจะเป็นอย่างที่ว่ามา.....", "ถ้าในวันนั้นผมไม่ได้เจอกับ 'เธอคนนั้น' ในวันธรรมดาที่ฝนตก"],
 ]
 @export var title := "ถ้าหากโลกนี้ไม่มีฤดูฝน"
 @export var chapter_label := "ตอนที่1"
@@ -156,17 +160,20 @@ func play_opening() -> void:
 	_waiting = "skip"
 	_skip = false
 	await _wait(1.2)
-	var y := 140.0
-	for line in tagline:
+	for page in tagline:
 		if _skip:
 			break
-		var label := _text("[reveal speed=18 span=10]%s[/reveal]" % line, 17, y, Color(0.86, 0.89, 0.96))
-		create_tween().tween_property(label, "position:y", y - 4.0, 4.0).from(y + 6.0).set_trans(Tween.TRANS_SINE)
-		await _wait(line.length() / 18.0 + 1.6)
-		y += 34.0
-	await _wait(1.6)
-	_fade_out_items(0.4 if _skip else 1.0)
-	await get_tree().create_timer(0.4 if _skip else 1.1).timeout
+		var y: float = 180.0 - page.size() * 17.0
+		for line in page:
+			if _skip:
+				break
+			var label := _text("[reveal speed=18 span=10]%s[/reveal]" % line, 17, y, Color(0.86, 0.89, 0.96))
+			create_tween().tween_property(label, "position:y", y - 4.0, 4.0).from(y + 6.0).set_trans(Tween.TRANS_SINE)
+			await _wait(line.length() / 18.0 + 0.5)
+			y += 34.0
+		await _wait(2.0)
+		_fade_out_items(0.4 if _skip else 0.9)
+		await get_tree().create_timer(0.4 if _skip else 1.1).timeout
 	_skip = false
 	_waiting = ""
 	_title(title, 30, 130.0, 2.4)
@@ -183,6 +190,15 @@ func reveal_scene() -> void:
 	tween.tween_property(_black, "modulate:a", 0.0, 2.2)
 	tween.tween_property(_rain, "modulate:a", 0.0, 1.2)
 	await tween.finished
+
+
+## ข้อความบอกเวลา/สถานที่บนจอดำ (เหนือกล่องข้อความ) จางออกเองด้วย clear_caption()
+func caption(text: String) -> void:
+	_text("[reveal speed=16 span=8]%s[/reveal]" % text, 15, 150.0, Color(0.78, 0.83, 0.94))
+
+
+func clear_caption() -> void:
+	_fade_out_items(0.8)
 
 
 func show_chapter() -> void:

@@ -52,7 +52,10 @@ func _say(part: String) -> void:
 func begin() -> void:
 	dialogue_box.line_started.connect(_on_line)
 	await cards.show_chapter()
-	await _say("home")                         # ที่บ้าน: เล่าบนจอดำ
+	cards.caption(str(_lines.get("caption", "")))   # บอกเวลาบนจอดำ
+	await get_tree().create_timer(2.5).timeout
+	await _say("home")                         # ที่บ้าน: เสียงในใจบนจอดำ (มีแต่เสียงฝน)
+	cards.clear_caption()
 	cards.reveal_scene()
 	await get_tree().create_timer(2.0).timeout
 	await _say("street")
@@ -75,7 +78,7 @@ func _on_line(line: Dictionary) -> void:
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
 		"squeeze":                              # เธอเบียดเข้ามาใต้ร่ม
 			var t := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(1.2)
+			t.tween_property(heroine, "position:x", hero.position.x + heroine_under, 0.6).set_delay(0.4)
 		"green":
 			crossing_signal.go_green()
 
