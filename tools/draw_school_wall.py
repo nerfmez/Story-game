@@ -10,7 +10,7 @@ the same all along the walk:
     caps stand above the wall, over the painting's own)
   - gate: two tall pillars with caps, open iron gate leaves folded against them, the name plate
     "โรงเรียน" (Sarabun) on the left pillar; between them the painting's campus stays visible
-  - sidewalk: square paving with joints, soaked: it mirrors the wall, pillars and trees above it
+  - sidewalk (narrow: rows 255-292): rows of slabs deeper toward the viewer, upright staggered joints, soaked: it mirrors the wall, pillars and trees above it
     (rippled, darker), with a few puddles holding the sky's light
   - curb and road: a light curb edge, dark wet asphalt mirroring the scene more faintly, a lane line
 
@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 FONT = "assets/fonts/Sarabun-Regular.ttf"
 K = 2                                   # game pixels per drawn pixel
 WALL_TOP, WALL_BASE = 129, 255          # game rows (painting's wall line; feet stand at 273)
-CURB_TOP, ROAD_TOP = 318, 324
+CURB_TOP, ROAD_TOP = 292, 298         # narrow sidewalk (feet at 273 on it), wider road in front
 PILLARS = [21.5, 236, 511, 1047, 1261, 1536.6, 1750, 2026, 2240, 2515.5]   # game x (compose_school.py)
 GATE = (568.5, 798.0)                   # gate pillar centres; opening between them
 GATE_TOP = 104
@@ -179,7 +179,9 @@ def main():
                 if (x - x0) % 2 == 0 or y in (GATE_TOP // K + 10, GATE_TOP // K + 11, base - 3):
                     out[y, x] = IRON_LIT if x == x0 else IRON
 
-    # sidewalk: paving with joints, mirroring what stands above it (the wall's foot is the mirror line)
+    # sidewalk: paving seen from the side and a little above, so the rows of slabs get deeper toward the
+    # viewer (joints across closer together near the wall); joints along are upright, staggered row by row.
+    # Soaked: it mirrors what stands above it (the wall's foot is the mirror line), rippled.
     for y in range(base, curb):
         depth = (y - base) / max(curb - base, 1)
         for x in range(w):
@@ -188,15 +190,18 @@ def main():
             rx_ = x + int(round(np.sin(y * 1.7 + x * 0.05) * 1.2))   # ripples
             if 0 <= ry < h and 0 <= rx_ < w:
                 refl = out[ry, rx_]
-                c = c * 0.58 + refl * 0.42 * (0.95 - depth * 0.25)
+                c = c * 0.5 + refl * 0.5 * (0.95 - depth * 0.25)
             out[y, x] = c
-        if (y - base) % 7 == 6:                               # joints across
-            out[y, :] = out[y, :] * 0.6 + JOINT * 0.4
-    for x in range(0, w, 19):                                 # joints along, leaning out toward the curb
-        for y in range(base, curb):
-            xx = x + (y - base) // 4
-            if xx < w:
-                out[y, xx] = out[y, xx] * 0.55 + JOINT * 0.45
+    across = [base + d for d in (2, 5, 9, 14) if base + d < curb]
+    for y in across:
+        out[y, :] = out[y, :] * 0.6 + JOINT * 0.4
+    bands = [base] + across + [curb]
+    for k in range(len(bands) - 1):
+        y0, y1 = bands[k] + 1, bands[k + 1]
+        slab = 16 + 3 * k                                     # nearer rows: slabs look wider too
+        for x in range((k * 7) % slab, w, slab):
+            for y in range(y0, y1):
+                out[y, x] = out[y, x] * 0.62 + JOINT * 0.38
     for _ in range(40):                                       # puddles: thin bright bands of the sky's light
         cx, cy = rng.integers(0, w), rng.integers(base + 3, curb - 2)
         rw = rng.integers(8, 26)
@@ -213,9 +218,9 @@ def main():
     for y in range(road, h):
         for x in range(w):
             c = ROAD + rng.normal(0, 1.2, 3)
-            ry = curb - (y - road) * 3
+            ry = curb - (y - road) * 2
             if 0 <= ry < h:
-                c = c * 0.78 + out[ry, x] * 0.22
+                c = c * 0.68 + out[ry, x] * 0.32
             out[y, x] = c
     lane = h - 3
     for x in range(w):
