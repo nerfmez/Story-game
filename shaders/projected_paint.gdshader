@@ -19,9 +19,6 @@ uniform vec3 tint : source_color = vec3(1.0);
 uniform bool pinhole = false;
 uniform vec2 principal;
 uniform float focal = 1.0;
-// plain colour instead of the picture (a face the picture never shows)
-uniform bool solid = false;
-uniform vec3 solid_colour : source_color = vec3(0.3);
 // fade in/out with an ordered-dither cut (pixel art: no half-transparent pixels)
 uniform float fade = 1.0;
 
@@ -55,13 +52,9 @@ void fragment() {
 			discard;
 		}
 	}
-	if (solid) {
-		ALBEDO = solid_colour;
-	} else {
-		vec4 c = picture(world_pos);
-		if (c.a < 0.5) {
-			discard;
-		}
-		ALBEDO = c.rgb * tint;
+	vec4 c = picture(world_pos);
+	if (c.a < 0.5) {
+		discard;
 	}
+	ALBEDO = c.rgb * tint;
 }

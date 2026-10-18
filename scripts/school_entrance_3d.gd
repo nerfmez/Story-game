@@ -23,7 +23,6 @@ const PRINCIPAL := Vector2(897.0, 520.0)
 const SCALE := 640.0 / 1672.0                   # ภาพที่ใช้ระบายย่อเหลือ 640 กว้าง
 const SIZE := Vector2(1672.0, 941.0)
 const SIDE_SHADE := Color(0.78, 0.8, 0.86)
-const WALL_SHADE := Color8(62, 72, 92)          # ผนังในเงาข้างช่องบันได (สีจากภาพ)
 
 const HALL_FLOOR := 0.287
 const CEILING := 2.92
@@ -31,7 +30,6 @@ const STEP_RISE := 0.17
 const STEP_RUN := 0.21
 const STAIR_Z := -3.5
 const STAIR_X := [-2.27, -0.24]
-const BACK_Z := -5.3
 
 var _tools := {}
 var _materials: Array[ShaderMaterial] = []
@@ -59,17 +57,12 @@ func _build() -> void:
 	_front_to_ground("back", 1306, 196, 1672, -1.4)
 	# โถง: พื้น เพดาน ผนังซ้าย ผนังข้างช่องบันได คานเหนือบันได ผนังลึกหลังบันได ผนังบอร์ด
 	var left := -2.75
-	var board := at(930, 620, -1.2)
-	_flat_y("back", left, 2.76, HALL_FLOOR, 0.0, BACK_Z)
+	_flat_y("back", left, 2.76, HALL_FLOOR, 0.0, STAIR_Z)
 	_flat_y("back", left, 2.76, CEILING, 0.0, -3.6)
 	_side("back", left, HALL_FLOOR, CEILING, -0.6, -3.6)
 	_front("back", 567, 255, 610, 600, -3.6)
 	_front("back", 567, 322, 790, 400, -3.6)
-	_front("back", 560, 200, 940, 600, BACK_Z)
-	# ช่องบันได: ผนังซ้ายกับเพดานเหนือคาน (มองจากจุดของภาพไม่เห็น เดินเข้าไปแล้วไม่โหว่)
-	_side("back", -2.62, HALL_FLOOR, 4.2, -3.6, BACK_Z)
-	_flat_y("back", -2.62, board.x, 4.2, -3.6, BACK_Z)
-	_side("wall", board.x, HALL_FLOOR, 4.2, -1.2, BACK_Z)          # ข้างผนังบอร์ด ภาพไม่ได้วาด: สีเรียบ
+	# หลังบันไดขึ้นไป (ชานพัก ช่วงสองชิดผนังหลัง ชั้นบน) อยู่ใน SchoolInterior3D
 	_front("back", 930, 255, 1215, 620, -1.2)
 	_stairs()
 	# กันสาด เสากันสาด บันไดหน้าทางเข้า (ภาพเต็ม: ไม่มีอะไรบังหน้า)
@@ -178,11 +171,7 @@ func _commit() -> void:
 		var parts := key.split(":")
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADER
-		if parts[0] == "wall":
-			mat.set_shader_parameter("solid", true)
-			mat.set_shader_parameter("solid_colour", WALL_SHADE)
-		else:
-			mat.set_shader_parameter("paint", PAINT[parts[0]])
+		mat.set_shader_parameter("paint", PAINT[parts[0]])
 		mat.set_shader_parameter("pinhole", true)
 		mat.set_shader_parameter("design_camera", CAMERA)
 		mat.set_shader_parameter("principal", PRINCIPAL * SCALE)

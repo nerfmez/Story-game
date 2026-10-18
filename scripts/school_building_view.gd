@@ -25,6 +25,7 @@ var camera: Camera3D
 var building: SchoolBuilding3D
 var courtyard: SchoolCourtyard3D
 var entrance: SchoolEntrance3D
+var interior: SchoolInterior3D
 var _viewport: SubViewport
 var _yaw := 0.0
 var _inside := 0.0
@@ -46,6 +47,8 @@ func _ready() -> void:
 	_viewport.add_child(courtyard)
 	entrance = SchoolEntrance3D.new()
 	_viewport.add_child(entrance)
+	interior = SchoolInterior3D.new()
+	_viewport.add_child(interior)
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_FRUSTUM
 	camera.near = 0.05
@@ -92,3 +95,4 @@ func _place() -> void:
 	building.set_fade(1.0 - f)
 	courtyard.set_fade(1.0 - f)
 	entrance.set_fade(f)
+	interior.set_fade(f)
