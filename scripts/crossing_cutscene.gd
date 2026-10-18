@@ -49,12 +49,11 @@ const FADE_OUT := 1.2
 ## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
 const WALK_START := 0.6
 ## ฉากเริ่มหมุนที่ TURN_AT วินาที ทั้งคู่ยังยืนท่าเดิมในเกม (ตัวละครจริง ท่ายืนถือร่ม) แล้วเริ่มเดินหลังจากนั้น WALK_DELAY วินาที:
-## ค่อยๆ เปลี่ยน (BLEND วินาที) เป็นภาพเดินเฉียงคู่ ซึ่งเริ่มที่เฟรม STAND_FRAME (เท้าแตะพื้นทั้งสองข้าง ใกล้ท่ายืนที่สุด)
+## สลับทันทีเป็นภาพเดินเฉียงคู่ (สีเดียวกับท่ายืน: tools/match_material_colours.py) เริ่มที่เฟรม STAND_FRAME (เท้าแตะพื้นทั้งสองข้าง)
 const TURN_AT := 0.8
 const WALK_DELAY := 2.0
-const BLEND := 0.35
 const STAND_FRAME := 0
-## ท่ายืนเดิมเลื่อนเท่านี้ (พิกเซลโลก: + = ซ้าย/ขึ้น) ให้ตรงกับภาพเดินคู่ตอนเปลี่ยน (วัดจากภาพทั้งสองบนพื้นสีเรียบ: ตัวและเท้าเหลื่อมกัน ~3 px)
+## ท่ายืนเดิมเลื่อนเท่านี้ (พิกเซลโลก: + = ซ้าย/ขึ้น) ให้ตรงกับภาพเดินคู่ตอนสลับ (วัดจากภาพทั้งสองบนพื้นสีเรียบ: ตัวและเท้าเหลื่อมกัน ~3 px)
 const STAND_ALIGN := Vector2(3.1, 2.7)
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
 const ZOOM_TO := 1.25
@@ -323,11 +322,10 @@ func _process(delta: float) -> void:
 	if walking > 0.0:
 		_walked += WALK_DEPTH_PER_SECOND * minf(walking / WALK_START, 1.0) * delta
 		frame = (STAND_FRAME + int(walking * FPS)) % FRAMES
-		# ท่ายืนเดิม -> ภาพเดินเฉียงคู่ ค่อยๆ จางเข้าหากัน
-		var blend := clampf(walking / BLEND, 0.0, 1.0)
-		_pair.modulate.a = _pair_alpha * blend
-		_characters.modulate.a = 1.0 - blend
-		_characters.visible = blend < 1.0
+		# ท่ายืนเดิม -> ภาพเดินเฉียงคู่ สลับทันที
+		if _characters.visible:
+			_characters.visible = false
+			_pair.modulate.a = _pair_alpha
 	_pair.frame = frame
 	_pair.offset = Vector2(-46.0 + SWAY_FIX[frame], -140.0 + BOB_FIX[frame])
 	_place()
