@@ -2,7 +2,7 @@ extends CanvasLayer
 ## จอดำมีฝนตก: คำโปรย + ชื่อเรื่อง, การ์ดชื่อตอน, เปิด/ปิดฉาก (บทพูดบนจอดำใช้กล่องข้อความ ซึ่งอยู่ชั้นบนกว่านี้)
 ## play_opening(): "แตะเพื่อเริ่ม" ก่อน (เปิดเสียงได้) แล้วคำโปรยทีละบรรทัดพร้อมเสียงพากย์ (ตัวอักษรค่อยๆ
 ##   จางเข้าเป็นคลื่นทันเสียงพูด + ลอยขึ้นช้าๆ) แล้วชื่อเรื่อง (ตัวอักษรค่อยๆ ชิดกันเข้ามาพร้อมจางเข้า
-##   เส้นบางๆ ใต้ชื่อยืดออก) แตะระหว่างคำโปรย: ข้ามไปชื่อเรื่อง / แตะตอนชื่อเรื่องขึ้นแล้ว = ไปต่อ (ส่ง start_pressed)
+##   เส้นบางๆ ใต้ชื่อยืดออก) คำโปรยข้ามไม่ได้ / แตะตอนชื่อเรื่องขึ้นแล้ว = ไปต่อ (ส่ง start_pressed)
 ## show_chapter(): ชื่อตอนขึ้นแล้วจางออก จอยังดำ
 ## reveal_scene(): จอดำค่อยๆ จางออกเผยฉาก  fade_to_black(): กลับเป็นจอดำ
 ## wait_restart(): แตะเพื่อเล่นอีกครั้ง (ส่ง restart_pressed)
@@ -47,8 +47,7 @@ const RAIN := preload("res://shaders/rain.gdshader")
 var _black: ColorRect
 var _rain: ColorRect
 var _items: Array = []
-var _waiting := ""          # "", "begin" (แตะครั้งแรก), "skip" (แตะเพื่อข้าม), "start", "restart"
-var _skip := false
+var _waiting := ""          # "", "begin" (แตะครั้งแรก), "start", "restart"
 var _voice: AudioStreamPlayer
 
 
@@ -84,9 +83,6 @@ func _input(event: InputEvent) -> void:
 		"begin":
 			_waiting = ""
 			begin_pressed.emit()
-		"skip":
-			_skip = true
-			_voice.stop()
 		"start":
 			_waiting = ""
 			start_pressed.emit()
@@ -95,12 +91,9 @@ func _input(event: InputEvent) -> void:
 			restart_pressed.emit()
 
 
-## รอเป็นวินาที (ข้ามได้ถ้าผู้เล่นแตะข้ามคำโปรย)
 func _wait(seconds: float) -> void:
-	var t := 0.0
-	while t < seconds and not _skip:
-		await get_tree().process_frame
-		t += get_process_delta_time()
+	if seconds > 0.0:
+		await get_tree().create_timer(seconds).timeout
 
 
 func _text(bbcode: String, size: int, y: float, colour: Color) -> RichTextLabel:
@@ -216,19 +209,13 @@ func play_opening() -> void:
 	_waiting = "begin"
 	await begin_pressed
 	clear_now()
-	_waiting = "skip"
-	_skip = false
 	await _wait(1.0)
 	for page in tagline:
-		if _skip:
-			break
 		var count := 0
 		for clip in page:
 			count += clip.lines.size()
 		var y: float = 180.0 - count * 17.0
 		for clip in page:
-			if _skip:
-				break
 			var stream: AudioStream = streams[clip.voice]
 			_voice.stream = stream
 			_voice.play()
@@ -238,8 +225,6 @@ func play_opening() -> void:
 				var at: float = clip.lines[i][1]
 				await _wait(at - t)
 				t = at
-				if _skip:
-					break
 				# ตัวอักษรค่อยๆ ขึ้นทันเสียงพูดบรรทัดนั้น (ไม่ช้ากว่า 9 หรือเร็วกว่า 18 ตัว/วินาที)
 				var speaking: float = (clip.lines[i + 1][1] if i + 1 < clip.lines.size() else stream.get_length()) - at
 				var speed := clampf(line.length() / maxf(speaking - 0.4, 0.5), 9.0, 18.0)
@@ -248,10 +233,9 @@ func play_opening() -> void:
 				y += 34.0
 			await _wait(stream.get_length() - t + 0.2)
 		await _wait(0.6)
-		_fade_out_items(0.4 if _skip else 0.6)
-		await get_tree().create_timer(0.4 if _skip else 0.7).timeout
+		_fade_out_items(0.6)
+		await get_tree().create_timer(0.7).timeout
 	_voice.stop()
-	_skip = false
 	_waiting = ""
 	_title(title, 30, 130.0, 2.4)
 	await get_tree().create_timer(1.2).timeout

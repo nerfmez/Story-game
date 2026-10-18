@@ -108,7 +108,27 @@ func _crossing() -> void:
 	await _say("end")
 	await get_tree().create_timer(1.2).timeout
 	await cards.fade_to_black()
+	cross.queue_free()                         # จอดำของคัทซีน (ชั้น 22) บังจอดำมีฝนกับ "แตะเพื่อเล่นอีกครั้ง" (ชั้น 20)
+	await PromptButton.open(dialogue_box.get_parent(), "ออก").chosen
+	_leave_fullscreen()
 	await cards.wait_restart()
+
+
+## ปุ่ม "ออก" ตอนจบ: บนเว็บออกจากเต็มจอ (ที่เปิดไว้ตอนวิดีโอเปิดเรื่อง) ปลดล็อกแนวนอน, นอกเว็บกลับเป็นหน้าต่าง
+func _leave_fullscreen() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("""
+(function () {
+	if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch (e) {} }
+	var exit = document.exitFullscreen || document.webkitExitFullscreen;
+	if (exit && (document.fullscreenElement || document.webkitFullscreenElement)) {
+		var p = exit.call(document);
+		if (p && p.catch) p.catch(function () {});
+	}
+})();
+""")
+	elif DisplayServer.window_get_mode() >= DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 
 
 ## ทางลัดสำหรับทดสอบ (เปิดเกมด้วย #cross ท้ายลิงก์): ข้ามไปที่ทั้งคู่ยืนใต้ร่มตอนไฟเขียว แล้วเล่นช่วงข้ามทางม้าลาย
