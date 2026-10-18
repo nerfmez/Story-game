@@ -95,6 +95,8 @@ func _finish_typing() -> void:
 
 
 func _process(delta: float) -> void:
+	if not visible:                            # จบบทแล้ว (ซ่อน): ไม่นับเวลาบรรทัดขึ้นเองต่อ ไม่งั้น finished ซ้ำทุกเฟรม
+		return
 	if _pause > 0.0:
 		_pause -= delta
 		if _pause <= 0.0:

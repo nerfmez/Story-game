@@ -15,9 +15,9 @@ extends Node
 @export var touch_controls: Control
 @export var cards: Node
 ## ตำแหน่งที่ซันยืนรอที่ขอบทางม้าลาย (พิกัดโลก) และขอบขวาที่เดินถอยไปได้
-## ซันเริ่มที่ x = 1020 (main.tscn): เดินไปทางม้าลาย 1190px ที่ 54px/วินาที ประมาณ 22 วินาที
+## ซันเริ่มที่ x = 1730 (main.tscn): เดินไปทางม้าลาย 1900px ที่ 54px/วินาที ประมาณ 35 วินาที (เว้นช่วงเงียบระหว่างเหตุการณ์ระหว่างทาง)
 @export var wait_x := -170.0
-@export var start_limit := 1140.0
+@export var start_limit := 1850.0
 ## สายฝนเริ่มเดินจากซ้ายนอกจอ เดินเข้ามาจนชิดใต้ร่มข้างซันเลย แล้วค่อยพูด (เทียบตำแหน่งซัน)
 @export var heroine_from := -330.0
 @export var heroine_under := -18.0
@@ -27,7 +27,7 @@ const SIGNAL_ZOOM := 3.0
 const SIGNAL_LOOK := Vector2(16.0, 54.0)
 
 ## ลูกแมวนั่งอยู่บนทางเท้าตรงนี้ (เท้า) ก่อนถึงทางม้าลาย
-const KITTEN_AT := Vector2(-60.0, 273.0)
+const KITTEN_AT := Vector2(100.0, 273.0)
 
 var _lines := {}
 var _car: CrossingCar
