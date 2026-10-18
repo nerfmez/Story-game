@@ -22,7 +22,12 @@ extends Node
 @export var heroine_from := -330.0
 @export var heroine_under := -18.0
 
+## ช็อตแคบที่ไฟสัญญาณตอนไฟเขียว: ซูมเท่านี้ กลางจอ = จุดนี้เทียบเสา (ดวงไฟรถ + ไฟคนข้ามอยู่เหนือกล่องข้อความ)
+const SIGNAL_ZOOM := 3.0
+const SIGNAL_LOOK := Vector2(16.0, 54.0)
+
 var _lines := {}
+var _camera_before = null                     # ตำแหน่ง/ซูมกล้องก่อนตัดเข้าแคบที่ไฟสัญญาณ (null = ไม่ได้แคบอยู่)
 var _closeup: PhoneCloseup
 var _bubble: Node2D
 var _hint: Label
@@ -122,6 +127,27 @@ func _on_line(line: Dictionary) -> void:
 			t.tween_property(hero, "position:y", hero.position.y, 0.12)
 		"green":
 			crossing_signal.go_green()
+		"signal_closeup":                       # ตัดเข้าแคบที่ไฟสัญญาณ ไฟเปลี่ยนเป็นเขียว (บรรทัดนี้มี pause ให้เห็นไฟเปลี่ยนก่อนข้อความ)
+			_signal_closeup(true)
+			crossing_signal.go_green()
+		_:
+			_signal_closeup(false)              # บรรทัดถัดไป: ตัดกลับมุมเดิม
+
+
+## ตัดฉับเข้าแคบที่ดวงไฟสัญญาณ (ไฟรถบน ไฟคนข้ามล่าง) หรือกลับมุมเดิม
+func _signal_closeup(on: bool) -> void:
+	if on == (_camera_before != null):
+		return
+	if on:
+		_camera_before = {"position": camera.position, "zoom": camera.zoom}
+		camera.set_process(false)
+		camera.zoom = Vector2.ONE * SIGNAL_ZOOM
+		camera.position = crossing_signal.position + SIGNAL_LOOK
+	else:
+		camera.position = _camera_before["position"]
+		camera.zoom = _camera_before["zoom"]
+		camera.set_process(true)
+		_camera_before = null
 
 
 func _walk_to_crossing() -> void:
