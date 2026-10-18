@@ -34,8 +34,13 @@ from import_walk_video import landmarks, shift_img  # noqa: E402
 from fix_head_size import apply_map, head_map  # noqa: E402
 
 
-def key(rgb, bg, threshold, border=4):
+def key(rgb, bg, threshold, border=4, keep_warm=False):
     mask = np.sqrt(((rgb - bg) ** 2).sum(2)) > threshold
+    if keep_warm:
+        # on a magenta screen, skin in shadow (orange-pink) is within the threshold and was keyed
+        # out (the back leg's ankle vanished); magenta is far bluer than green, skin is not
+        bluish = rgb[..., 2] - rgb[..., 1]
+        mask |= (bluish < (bg[2] - bg[1]) - 50) & (np.sqrt(((rgb - bg) ** 2).sum(2)) > 30)
     n = sum(np.roll(np.roll(mask, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1))
     mask &= n >= 4                                   # drop compression specks
     mask[:border] = mask[-border:] = False           # the frame's edge rows/columns are noisy
@@ -208,6 +213,8 @@ def main():
     ap.add_argument("--align", choices=("feet", "torso"), default="feet")
     ap.add_argument("--bg", default="auto", help="background colour R,G,B (auto: median of the frame border)")
     ap.add_argument("--threshold", type=float, default=30, help="colour distance from the background")
+    ap.add_argument("--keep-warm", action="store_true",
+                    help="magenta screen: keep shaded skin that is close to the background colour")
     ap.add_argument("--glass", action="store_true", help="unmix a see-through prop above the collar")
     ap.add_argument("--head-scale", type=float, default=1.0,
                     help="scale everything above the collar (head, umbrella) around the neck, e.g. 0.92")
@@ -233,7 +240,7 @@ def main():
     border = np.concatenate([f0[:8].reshape(-1, 3), f0[-8:].reshape(-1, 3), f0[:, :8].reshape(-1, 3), f0[:, -8:].reshape(-1, 3)])
     bg = np.median(border, 0) if args.bg == "auto" else np.array([float(v) for v in args.bg.split(",")])
     plastic = np.array([float(v) for v in args.plastic.split(",")])
-    masks = [key(f, bg, args.threshold) for f in frames]
+    masks = [key(f, bg, args.threshold, keep_warm=args.keep_warm) for f in frames]
     marks = [outline_marks(m) if args.height else body_marks(f, m) for f, m in zip(frames, masks)]
 
     # line the frames up: one ground row, and the feet or the shirt at one x

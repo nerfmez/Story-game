@@ -468,18 +468,19 @@ python3 tools/clean_heroine.py art_source/heroine_greenscreen.png assets/charact
 python3 tools/import_char_video.py art_source/heroine_idle.mp4 idle_raw.png --start 19 --end 119 --count 50 \
     --palette assets/characters/heroine.png --height 112 --align feet --keep-colours --threshold 70
 python3 tools/import_char_video.py art_source/heroine_walk.mp4 walk_raw.png --start 15 --end 50 --count 18 \
-    --palette assets/characters/heroine.png --height 112 --align torso --keep-colours --threshold 70
+    --palette assets/characters/heroine.png --height 112 --align torso --keep-colours --threshold 70 --keep-warm
 python3 tools/finish_heroine.py idle_raw.png 50 walk_raw.png 18 \
     --out-idle assets/characters/heroine_idle.png --out-walk assets/characters/heroine_walk.png
 python3 tools/steady_walk_head.py assets/characters/heroine_walk.png --frames 18 --measure 8 50 --cut 62 80 \
     --bob 1 1 0 0 -1 -1 -1 0 0 1 1 1 0 0 -1 -1 -1 0
-python3 tools/fix_heroine_ankles.py assets/characters/heroine_walk.png    # ข้อเท้าขาหลังที่ขาด 6 เฟรม (+ลบจุดหลุดเฟรม 16)
 python3 tools/wet_heroine.py assets/characters/heroine_idle.png 50 assets/characters/heroine_idle_wet.png \
     --lens 16 18 17 18 --lens 21 24 17 18
 python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/characters/heroine_walk_wet.png \
     --lens 19 21 19 20 --lens 25 27 19 20
 ```
 
+- ท่าเดิน `--keep-warm`: ผิวในเงา (ข้อเท้าขาหลัง ใต้คาง มือ) เป็นสีส้มอมชมพูใกล้พื้นหลังม่วงชมพู ถูกตัดทิ้งไปกับพื้นหลัง
+  (ข้อเท้าขาหลังหายจนรองเท้าดูลอยแยกจากขา) ตัวเลือกนี้เก็บพิกเซลที่ฟ้าน้อยกว่าเขียวชัดเจนไว้ (พื้นหลังฟ้ามากกว่าเขียว ~70)
 - ท่ายืน: เฟรมวิดีโอ 19 กับ 119 แทบเหมือนกัน วนได้เนียน (100 เฟรม → 50 เฟรม 12fps)
 - ท่าเดิน: รอบก้าว (2 ก้าว) 35 เฟรมวิดีโอ (15 → 50) → 18 เฟรมระยะเท่ากัน (`--count`) ขากางสุดเฟรม 1, 10 / ขาสวนเฟรม 5-6, 16
 - `--height 112`: นางเอกไม่มีปกเสื้อขาวแบบพระเอก จึงย่อตามความสูงทั้งตัว (หัวถึงเท้า) ให้เท่ารูปนิ่ง
