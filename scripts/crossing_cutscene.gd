@@ -8,7 +8,6 @@ extends Node
 ## ระหว่างนั้นบทขึ้นตามปกติ (prologue.gd เรียก play() แล้วเล่นบทเอง)
 
 const PAIR := preload("res://assets/characters/pair_umbrella_walk.png")
-const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const TURN := preload("res://shaders/scene_turn.gdshader")
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 const FRAMES := 45
@@ -99,41 +98,12 @@ var _close_from := Vector2.ZERO
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
-var _button: Button
-var _pulse: Tween
 
 
 ## ปุ่ม "ข้ามทางม้าลาย" กลางล่างจอ กะพริบเบาๆ กดแล้วหายไป (คลิก แตะ หรือ Enter/Space)
 func ask() -> void:
-	_button = Button.new()
-	_button.text = "ข้ามทางม้าลาย  ▶"
-	_button.add_theme_font_override("font", FONT)
-	_button.add_theme_font_size_override("font_size", 15)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.06, 0.08, 0.16, 0.9) if state != "hover" else Color(0.12, 0.15, 0.28, 0.95)
-		style.border_color = Color(0.85, 0.9, 1.0, 0.85)
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(4)
-		style.content_margin_left = 14
-		style.content_margin_right = 14
-		style.content_margin_top = 4
-		style.content_margin_bottom = 6
-		_button.add_theme_stylebox_override(state, style)
-	_button.add_theme_color_override("font_color", Color(0.93, 0.95, 1.0))
-	_button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
-	ui.add_child(_button)
-	await get_tree().process_frame
-	_button.position = Vector2((640.0 - _button.size.x) / 2.0, 292.0)
-	_button.modulate.a = 0.0
-	var show := _button.create_tween()
-	show.tween_property(_button, "modulate:a", 1.0, 0.5)
-	_button.grab_focus()
-	_button.pressed.connect(func(): pressed.emit(), CONNECT_ONE_SHOT)
-	await pressed
-	var hide := _button.create_tween()
-	hide.tween_property(_button, "modulate:a", 0.0, 0.25)
-	hide.tween_callback(_button.queue_free)
+	await PromptButton.open(ui, "ข้ามทางม้าลาย  ▶").chosen
+	pressed.emit()
 
 
 ## เริ่มคัทซีน: ตัดผ่านจอดำสั้นๆ (ซ่อนการสลับตัวละคร) แล้วเปิดเป็นจอกว้างแบบหนัง

@@ -1,16 +1,21 @@
 class_name Kitten
 extends Node2D
 ## ลูกแมวตัวเปียกนั่งอยู่บนทางเท้าก่อนถึงทางม้าลาย หันมาทางซัน (ภาพจาก tools/make_kitten.py)
-## แตะที่ลูกแมว หรือซันเดินมาใกล้ = noticed (prologue.gd ขึ้นความคิด "มาทำอะไรตรงนี้นะ") แล้ว run_away(): ร้องแล้ววิ่งหนีไปทางซ้าย
+## ซันเดินมาใกล้ = noticed (prologue.gd หยุดเดิน ขึ้นปุ่ม "ทักลูกแมว") กดปุ่มหรือแตะที่ลูกแมว (tapped)
+## แล้ว prologue ขึ้นความคิด "มาทำอะไรตรงนี้นะ" และ run_away(): ร้องแล้ววิ่งหนีไปทางซ้าย
 
 signal noticed
+## แตะที่ลูกแมวหลังซันเห็นมันแล้ว (ใช้แทนการกดปุ่มได้)
+signal tapped
 
 const SHEET := preload("res://assets/characters/kitten.png")
 const MEOW := preload("res://assets/audio/meow.ogg")
 const FRAMES := 10
-## เฟรมนั่ง (ส่วนใหญ่นิ่ง หางกระดิก กะพริบตา) 2.5 เฟรม/วินาที, เฟรมวิ่ง 4-9 14 เฟรม/วินาที
+## เฟรมนั่ง (ส่วนใหญ่นิ่ง หางกระดิก กะพริบตา) 2.5 เฟรม/วินาที, เฟรมวิ่ง 4-9 (ควบหนึ่งก้าว) 12 เฟรม/วินาที
 const SIT := [0, 0, 1, 0, 3, 0, 0, 2]
-const RUN_SPEED := 170.0
+const RUN_FPS := 12.0
+## วิ่งเร็วเท่าก้าว: ควบหนึ่งรอบ (6 เฟรม = 0.5 วินาที) ไปได้ราว 1.8 เท่าความยาวตัว เท้าไม่ไถล
+const RUN_SPEED := 110.0
 
 var hero: Node2D
 ## ซันเข้ามาใกล้เท่านี้ (พิกเซล) แล้วสังเกตเห็นเอง ถ้ายังไม่ได้แตะ
@@ -43,7 +48,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _running:
 		position.x -= RUN_SPEED * delta
-		_sprite.frame = 4 + int(_time * 14.0) % 6
+		_sprite.frame = 4 + int(_time * RUN_FPS) % 6
 		if _from - position.x > 420.0:
 			queue_free()
 		return
@@ -52,16 +57,16 @@ func _process(delta: float) -> void:
 		_notice()
 
 
-## แตะที่ลูกแมว (เมาส์หรือนิ้ว)
+## แตะที่ลูกแมว (เมาส์หรือนิ้ว) หลังซันเห็นมันแล้ว
 func _unhandled_input(event: InputEvent) -> void:
-	if _noticed or not visible:
+	if not _noticed or _running or not visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var rect := Rect2(global_position + _sprite.offset, _frame).grow(10.0)
 		var at := get_canvas_transform().affine_inverse() * (event as InputEventMouseButton).position   # จอ -> โลก
 		if rect.has_point(at):
 			get_viewport().set_input_as_handled()
-			_notice()
+			tapped.emit()
 
 
 func _notice() -> void:
