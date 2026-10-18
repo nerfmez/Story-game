@@ -45,7 +45,7 @@
      ภาพ `tools/make_car.py` -> `assets/props/car_silhouette.png` เสียง `car_pass.ogg` (`tools/make_audio.py car_pass.ogg`)
    - ลูกแมวตัวเปียกนั่งบนทางเท้าก่อนทางม้าลาย (`scripts/kitten.gd`, `KITTEN_AT`): เดินเข้าไปใกล้แล้วซันหยุด ขึ้นปุ่ม
      "ทักลูกแมว ▶" (`scripts/prompt_button.gd` แบบเดียวกับปุ่มข้ามทางม้าลาย หรือแตะที่ลูกแมว) กดแล้ว (`"when": "kitten"`)
-     "มาทำอะไรตรงนี้นะ" แล้วมันร้อง (`meow.ogg`) วิ่งหนีไปทางซ้าย คิดจบแล้วเดินต่อ
+     "มาทำอะไรตรงนี้นะ" แล้วมันร้อง (`meow.ogg`) วิ่งหนีไปทางซ้าย (ผ่านหลังเสาไฟ: วาดก่อนโหนด `Signal`) คิดจบแล้วเดินต่อ
      ภาพ `tools/make_kitten.py` -> `assets/characters/kitten.png` (นั่ง 4 เฟรม, วิ่งควบหนึ่งก้าว 6 เฟรม: เหยียด ขาหน้าลง
      รวบขา หลังโก่ง ขาหลังถีบ พุ่ง วางขาทีละเฟรม; 12 เฟรม/วินาที 110 px/วินาที เท้าไม่ไถล)
 4. **ทางม้าลาย**: หยุดเอง ไฟคนข้ามแดง "....เหมือนจะยังทันนะ" ระหว่างนั้นสายฝน (ตัวเปียก แว่นฝ้า) เดินมาจากทางซ้ายเงียบๆ
@@ -473,6 +473,7 @@ python3 tools/finish_heroine.py idle_raw.png 50 walk_raw.png 18 \
     --out-idle assets/characters/heroine_idle.png --out-walk assets/characters/heroine_walk.png
 python3 tools/steady_walk_head.py assets/characters/heroine_walk.png --frames 18 --measure 8 50 --cut 62 80 \
     --bob 1 1 0 0 -1 -1 -1 0 0 1 1 1 0 0 -1 -1 -1 0
+python3 tools/fix_heroine_ankles.py assets/characters/heroine_walk.png    # ข้อเท้าขาหลังที่ขาด 6 เฟรม (+ลบจุดหลุดเฟรม 16)
 python3 tools/wet_heroine.py assets/characters/heroine_idle.png 50 assets/characters/heroine_idle_wet.png \
     --lens 16 18 17 18 --lens 21 24 17 18
 python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/characters/heroine_walk_wet.png \
