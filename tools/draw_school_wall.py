@@ -37,7 +37,10 @@ COPING_SHADE = np.array((58, 72, 92))
 STREAK = np.array((56, 72, 94))
 BASE = np.array((50, 64, 84))
 MOSS = np.array((62, 104, 74))
-MOSS_LIGHT = np.array((92, 136, 92))
+MOSS_LIGHT = np.array((96, 140, 92))
+MOSS_DARK = np.array((40, 70, 56))
+ALGAE = np.array((46, 70, 62))
+LICHEN = np.array((140, 160, 128))
 PILLAR = np.array((104, 122, 146))
 PILLAR_LIT = np.array((126, 144, 166))
 PILLAR_SHADE = np.array((72, 88, 112))
@@ -63,54 +66,98 @@ def main():
     g0, g1 = (int(round(c / K)) for c in GATE)
     open0, open1 = g0 + 13, g1 - 12                           # the opening between the gate pillars
 
-    # wall panels: concrete, lighter where the rain runs off the coping, darker toward the damp foot,
-    # blotchy (low-frequency noise), dark drip stains hanging from the coping, moss and weeds at the foot
+    # wall panels: concrete, lighter where the rain runs off the coping, darker toward the damp foot.
+    # Each bay between two pillars has its own tone (patched/repainted at different times); blotches at two
+    # sizes, dark drip stains and a few long streaks hanging from the coping, green-black algae under the
+    # coping and over the damp lower part, pale lime spots, moss creeping up from the foot.
     def smooth_noise(n, step):
         knots = rng.random(n // step + 3)
         return np.interp(np.arange(n) / step, np.arange(len(knots)), knots)
+
+    def noise2d(cell):
+        g = rng.random(((base - top) // cell + 2, w // cell + 2))
+        im = Image.fromarray((g * 255).astype(np.uint8)).resize((w + 2 * cell, base - top + 2 * cell), Image.BILINEAR)
+        return np.asarray(im)[cell:cell + base - top, cell:cell + w] / 255.0
+
     rows = np.arange(top, base)
-    blot = np.repeat(smooth_noise(w, 9)[None, :], len(rows), 0) * 0.5 + \
-        np.repeat(smooth_noise(len(rows), 7)[:, None], w, 1) * 0.5
+    n = base - top
+    blot = noise2d(10) * 0.6 + noise2d(3) * 0.4
+    algae = noise2d(7)
+    edges = sorted([c / K for c in PILLARS] + [c / K for c in GATE])
+    bay = np.searchsorted(edges, np.arange(w))
+    tone = 0.86 + rng.random(len(edges) + 1) * 0.24
+    tint = rng.normal(0, 3.5, (len(edges) + 1, 3))
     drip = smooth_noise(w, 4) * 0.6 + rng.random(w) * 0.4                    # stain length per column
+    streak = rng.random(w) < 0.05                                            # long thin streaks
     for x in range(w):
         if open0 <= x < open1:
             continue
-        length = int(drip[x] * (base - top) * 0.75)
+        length = int(drip[x] * n * 0.8)
         for i, y in enumerate(rows):
-            f = i / (base - top)
-            c = WALL * (1.04 - 0.12 * f) + rng.normal(0, 2.0, 3)
-            c = c * (0.86 + 0.18 * blot[i, x])
+            f = i / n
+            c = (WALL * (1.05 - 0.14 * f) + tint[bay[x]]) * tone[bay[x]] + rng.normal(0, 2.2, 3)
+            c = c * (0.8 + 0.32 * blot[i, x])
             if i < length:
-                k = 0.62 * (1 - i / max(length, 1)) ** 0.8 + 0.1
-                c = c * (1 - k) + STREAK * 0.82 * k                          # drip stain
+                k = 0.66 * (1 - i / max(length, 1)) ** 0.8 + 0.1
+                c = c * (1 - k) + STREAK * 0.8 * k                           # drip stain
+            if streak[x] and i < n - 6:
+                c = c * 0.62 + STREAK * 0.7 * 0.38
+            under = max(0.0, 1 - i / 7)                                      # wet band right under the coping
+            low = max(0.0, (f - 0.4) / 0.6)                                  # lower part stays damp
+            a = max(under * 0.8, low) * max(0.0, algae[i, x] - 0.35) * 1.6
+            if a > 0:
+                c = c * (1 - min(a, 0.7)) + ALGAE * min(a, 0.7)              # green-black algae
+            if blot[i, x] > 0.86 and rng.random() < 0.25:
+                c = c * 0.7 + LICHEN * 0.3                                   # pale lime specks
             if y >= base - 12:
-                c = c * 0.5 + WALL_DARK * 0.5 * (0.9 + 0.1 * blot[i, x])
+                c = c * 0.55 + WALL_DARK * 0.45 * (0.85 + 0.2 * blot[i, x])
             out[y, x] = c
-        out[top, x] = COPING + 6
-        out[top + 1, x] = COPING
+        out[top, x] = COPING + 6 + tint[bay[x]]
+        out[top + 1, x] = COPING + tint[bay[x]]
         out[top + 2, x] = COPING_SHADE                        # shadow under the coping
         out[base - 1, x] = BASE
-    for _ in range(int(w * 0.06)):                            # moss and weed clumps at the foot
-        cx = rng.integers(0, w)
-        if open0 - 2 <= cx < open1 + 2:
-            continue
-        tall = rng.integers(2, 9)
-        for x in range(cx - 2, cx + 3):
-            if 0 <= x < w:
-                for y in range(base - max(1, tall - abs(x - cx) * 2), base):
-                    out[y, x] = MOSS_LIGHT if rng.random() < 0.4 else MOSS
+        if algae[0, x] > 0.72:                                # moss on the coping
+            out[top - 1, x] = MOSS
+            out[top, x] = MOSS_LIGHT
+
+    def moss(cx, tall, wide):
+        """A cushion of moss at the foot: low and wide with a ragged top (each column its own height),
+        dark underneath, lighter where it catches the light, a few specks creeping up the damp wall."""
+        heights = smooth_noise(2 * wide + 1, 2) * tall * 0.8 + rng.random(2 * wide + 1) * tall * 0.4
+        for k, x in enumerate(range(cx - wide, cx + wide + 1)):
+            if not 0 <= x < w or open0 - 1 <= x < open1 + 1:
+                continue
+            edge = 1 - (abs(x - cx) / (wide + 1)) ** 2
+            hgt = max(2, int(heights[k] * edge + 1))
+            for j in range(hgt):
+                y = base - 1 - j
+                shade = MOSS_DARK if j < hgt * 0.5 else MOSS
+                if j == hgt - 1 and rng.random() < 0.7:
+                    shade = MOSS_LIGHT
+                out[y, x] = out[y, x] * 0.15 + (shade + rng.normal(0, 4, 3)) * 0.85
+            for j in range(hgt, hgt + int(tall * 1.5)):              # specks creeping up
+                if rng.random() < 0.18 * (1 - (j - hgt) / (tall * 1.5)):
+                    y = base - 1 - j
+                    out[y, x] = out[y, x] * 0.4 + MOSS * 0.6
+
+    for _ in range(int(w * 0.05)):
+        moss(rng.integers(0, w), rng.integers(4, 12), rng.integers(3, 10))
 
     def pillar(cx, half, y0, cap):
         x0, x1 = int(round(cx / K - half)), int(round(cx / K + half))
+        tone_p = 0.92 + rng.random() * 0.12
         for x in range(max(x0, 0), min(x1, w)):
+            stain = int(rng.random() * (base - y0) * 0.6)            # rain running down from the cap
             for y in range(y0, base):
-                c = PILLAR + rng.normal(0, 2.0, 3)
+                c = PILLAR * tone_p + rng.normal(0, 2.0, 3)
                 if x == x0:
-                    c = PILLAR_LIT
+                    c = PILLAR_LIT * tone_p
                 elif x >= x1 - 2:
                     c = PILLAR_SHADE
+                if y - y0 < stain:
+                    c = c * 0.75 + STREAK * 0.25
                 if y >= base - 9:
-                    c = c * 0.6 + WALL_DARK * 0.4
+                    c = c * 0.55 + ALGAE * 0.2 + WALL_DARK * 0.25
                 out[y, x] = c
         for x in range(max(x0 - cap, 0), min(x1 + cap, w)):  # cap
             out[y0 - 2, x] = PILLAR_LIT + 8
@@ -120,6 +167,8 @@ def main():
 
     for cx in PILLARS:
         pillar(cx, 6.5, top - 3, 1)
+        if rng.random() < 0.6:
+            moss(int(round(cx / K)) + rng.integers(-5, 6), rng.integers(5, 13), rng.integers(4, 9))
     lx = pillar(GATE[0], 13.5, GATE_TOP // K, 1)
     rx = pillar(GATE[1], 12.5, GATE_TOP // K, 1)
 
