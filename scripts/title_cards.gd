@@ -16,6 +16,8 @@ signal restart_pressed
 
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const RAIN := preload("res://shaders/rain.gdshader")
+## เพลงตอนชื่อเรื่อง (tools/prepare_music.py): เล่นจากต้นเพลงครั้งเดียว แล้ววนท่อนหลัก 75.3-127.8 วินาที
+const TITLE_MUSIC := preload("res://assets/audio/music/title_theme.ogg")
 
 ## คำโปรย: ประโยคจากบทนำของต้นฉบับ (ตรงตามต้นฉบับ ผู้เขียนเลือกช่วง) ทีละหน้า หน้าละไม่เกิน 3 บรรทัด
 ## แบ่งบรรทัดตรงช่องว่าง/จุดไข่ปลาเดิม แต่ละหน้าเป็นเสียงพากย์ของผู้เขียนทีละไฟล์ (assets/audio/voice/,
@@ -49,6 +51,7 @@ var _rain: ColorRect
 var _items: Array = []
 var _waiting := ""          # "", "begin" (แตะครั้งแรก), "start", "restart"
 var _voice: AudioStreamPlayer
+var _music: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -69,6 +72,9 @@ func _ready() -> void:
 	_voice = AudioStreamPlayer.new()
 	_voice.volume_db = -3.0                  # ไฟล์โมโน -19.5 LUFS ออกสองลำโพงดังขึ้น 3 dB: ลดให้เท่าเสียงฝน/วิดีโอ
 	add_child(_voice)
+	_music = AudioStreamPlayer.new()
+	_music.stream = TITLE_MUSIC
+	add_child(_music)
 
 
 func _input(event: InputEvent) -> void:
@@ -198,6 +204,8 @@ func play_opening() -> void:
 	_black.modulate.a = 1.0
 	_rain.modulate.a = 0.0
 	create_tween().tween_property(_rain, "modulate:a", 1.0, 2.0)
+	if OS.has_feature("web") and not AudioServer.is_stream_registered_as_sample(TITLE_MUSIC):
+		AudioServer.register_stream_as_sample(TITLE_MUSIC)
 	var streams := {}
 	for page in tagline:
 		for clip in page:
@@ -237,6 +245,7 @@ func play_opening() -> void:
 		await get_tree().create_timer(0.7).timeout
 	_voice.stop()
 	_waiting = ""
+	_music.play()                            # ต้นเพลงเปียโนเบาๆ อยู่แล้ว (ค่อยๆ ดังขึ้นเอง) ไม่ต้องเฟดเข้า
 	_title(title, 30, 130.0, 2.4)
 	await get_tree().create_timer(1.2).timeout
 	_subtitle(title_en, 186.0, 1.6)
@@ -245,6 +254,16 @@ func play_opening() -> void:
 	_waiting = "start"
 	start_ready.emit()
 	await start_pressed
+
+
+## เพลงชื่อเรื่องค่อยๆ เบาลงจนหยุด (ตอนแตะเพื่อไปต่อ: วิดีโอเปิดเรื่องเริ่มพร้อมกัน)
+func fade_music(seconds: float) -> void:
+	if not _music.playing:
+		return
+	var tween := create_tween()
+	tween.tween_property(_music, "volume_db", -40.0, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await tween.finished
+	_music.stop()
 
 
 func reveal_scene() -> void:
