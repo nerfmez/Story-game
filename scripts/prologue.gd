@@ -91,7 +91,7 @@ func _crossing() -> void:
 	await cross.ask()
 	await cross.play()
 	dialogue_box.set_subtitles(true, CrossingCutscene.BAR)
-	await get_tree().create_timer(1.8).timeout
+	await get_tree().create_timer(0.8).timeout  # ซับไตเติลทั้ง 2 บรรทัดจบก่อนคัทซีน 16 วินาทีมืดลง
 	await _say("end")
 	await get_tree().create_timer(1.2).timeout
 	await cards.fade_to_black()

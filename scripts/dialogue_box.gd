@@ -11,8 +11,8 @@ signal finished
 ## จำนวนตัวอักษรที่แสดงต่อวินาที
 @export var chars_per_second := 30.0
 ## ซับไตเติล: ค้างไว้หลังพิมพ์จบ subtitle_hold วินาที บวกเวลาอ่าน (ตัวอักษรต่อวินาที)
-@export var subtitle_hold := 1.5
-@export var subtitle_read_chars_per_second := 18.0
+@export var subtitle_hold := 1.0
+@export var subtitle_read_chars_per_second := 36.0
 
 @onready var _name_tag: PanelContainer = %NameTag
 @onready var _name_label: Label = %NameLabel

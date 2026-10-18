@@ -43,8 +43,9 @@ const WALK_DEPTH_PER_SECOND := 0.68
 const CAMERA_FOLLOW := 0.92
 ## กำแพงและฉากหลังถอยไปกับกล้องเท่านี้ (ฉากหลังอยู่ไกลกว่าที่วาด: ไกลออกช้า ซูมเข้าชดเชย ฉากหลังจึงไม่หดเหมือนซูมออก)
 const WALL_FOLLOW := 0.75
-## ช็อตเดินยาวเท่านี้ (วินาทีนับจากตัดเข้า: จนซับไตเติลบรรทัดสุดท้ายเกือบจบ) แล้วจางเป็นจอดำ
-const SHOT_TIME := 19.0
+## คัทซีนยาวเท่านี้ (วินาทีนับจากตัดเข้า) รวมช่วงจางเป็นจอดำ FADE_OUT วินาทีสุดท้าย
+const SHOT_TIME := 16.0
+const FADE_OUT := 1.2
 ## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
 const WALK_START := 0.6
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
@@ -55,9 +56,8 @@ const PUSH_TO := 1.15
 ## เสาไฟสัญญาณ: จุดโคนเสาในภาพเสา (signal_pole.png 30x200) วาดแยกเป็นวัตถุตั้งที่ความลึกจริงของมัน (ริมทางเท้า)
 ## ไม่ใช่ส่วนของกำแพง: หมุนแล้วจึงยังอยู่ข้างที่ทั้งคู่ยืนตอนแรก แล้วอยู่ข้างหลังเมื่อเดินผ่านไป
 const POLE_FOOT := Vector2(16.0, 200.0)
-## ระหว่างเดินตัดเข้าช็อตแคบหน้า (ตัดฉับแบบหนัง) ช่วงวินาทีนี้ กล้องตามหน้าทั้งคู่ไปขณะเดิน แล้วตัดกลับช็อตกว้าง
+## ระหว่างเดินตัดเข้าช็อตแคบหน้า (ตัดฉับแบบหนัง) ที่วินาทีนี้ กล้องตามหน้าทั้งคู่ไปขณะเดิน แช่ไว้จนจอดำ
 const CLOSE_FROM := 8.5
-const CLOSE_UNTIL := 13.0
 ## ขยายเพิ่มจากช็อตกว้างเท่านี้ หน้าทั้งคู่ (จุดกลางระหว่างสองหน้าในภาพเดินคู่ เทียบจุดเท้า) อยู่ที่จุดนี้บนจอ (นับจากกลางจอ)
 const CLOSE_K := 2.4
 const FACES := Vector2(-8.0, -100.0)
@@ -233,8 +233,8 @@ func play() -> void:
 	var open := black.create_tween()
 	open.tween_interval(0.25)
 	open.tween_property(black, "modulate:a", 0.0, 0.7)
-	open.tween_interval(SHOT_TIME - 0.95)
-	open.tween_property(black, "modulate:a", 1.0, 1.2)
+	open.tween_interval(SHOT_TIME - 0.95 - FADE_OUT)
+	open.tween_property(black, "modulate:a", 1.0, FADE_OUT)
 
 
 ## จุดบนพื้น (x ข้าง, z ความลึก แบบ shader) -> ตำแหน่งบนจอ (นับจากกลางจอ ก่อนซูม) และความลึกจากกล้อง
@@ -253,7 +253,7 @@ func _place() -> void:
 	var push := smoothstep(0.0, 1.0, (_time - 0.8 - TURN_TIME) / (SHOT_TIME - 0.8 - TURN_TIME))
 	var zoom := lerpf(1.0, ZOOM_TO, _turned) * lerpf(1.0, PUSH_TO, push)
 	var cam_walked := _walked * CAMERA_FOLLOW
-	var close := _time >= CLOSE_FROM and _time < CLOSE_UNTIL
+	var close := _time >= CLOSE_FROM
 	_turn_mat.set_shader_parameter("yaw", yaw)
 	_turn_mat.set_shader_parameter("advance", cam_walked)
 	_turn_mat.set_shader_parameter("zoom", zoom)
