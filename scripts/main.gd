@@ -59,7 +59,7 @@ func _ready() -> void:
 	dialogue_box.hide()
 	if OS.has_feature("web"):
 		_prepare_sounds(self)
-	# เบราว์เซอร์ไม่ให้เล่นเสียงจนกว่าผู้เล่นจะแตะ: คำโปรยกับชื่อเรื่องเล่นบนจอดำก่อน แตะแล้วค่อยเปิดเสียงฝนและเข้าฉาก
+	# เบราว์เซอร์ไม่ให้เล่นเสียงจนกว่าผู้เล่นจะแตะ: แตะครั้งแรกแล้วคำโปรยเล่นพร้อมเสียงพากย์ เสียงฝนเริ่มหลังวิดีโอ
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience:
 		ambience.stop()
