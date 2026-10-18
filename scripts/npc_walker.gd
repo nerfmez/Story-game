@@ -89,8 +89,10 @@ func _apply() -> void:
 	else:
 		_body.texture = idle_wet_texture if _wet and idle_wet_texture else idle_texture
 		_body.hframes = idle_frames
-		_body.flip_h = idle_flip
-		_body.offset = idle_offset_flipped if idle_flip else Vector2.ZERO
+		# เดินข้างซันแล้วหยุด: ยืนหันทางที่เดินมา (ไปทางขวาแล้วไม่หันกลับ) ไม่งั้นหันซ้ายทางเดียวกับพระเอก
+		var flip := idle_flip and not (_follow and _right)
+		_body.flip_h = flip
+		_body.offset = idle_offset_flipped if flip else Vector2.ZERO
 	_body.frame = 0
 
 
