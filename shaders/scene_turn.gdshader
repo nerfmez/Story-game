@@ -53,10 +53,14 @@ void fragment() {
 	}
 	vec2 src = vec2(focal * p.x / z, focal * p.y / z + horizon);
 	src.y = clamp(src.y, -180.0, bottom_row);
-	// พื้นด้านขวาเกินภาพต้นทาง: ถนนในภาพซ้ำทุก 720 พิกเซล ใช้ช่วงเดียวกันที่อยู่ทางซ้าย
+	// พื้นเกินภาพต้นทาง (ขวา หรือซ้ายไกลๆ ตอนหมุนแล้วเดินไปไกล): ถนนในภาพซ้ำทุก 720 พิกเซล ใช้ช่วงเดียวกันที่อยู่ในภาพ
 	float right_edge = src_shift + 320.0 / src_zoom - 2.0;
+	float left_edge = src_shift - 320.0 / src_zoom + 2.0;
 	if (floor_hit && src.x > right_edge) {
 		src.x -= ceil((src.x - right_edge) / 720.0) * 720.0;
+	}
+	if (floor_hit && src.x < left_edge) {
+		src.x += ceil((left_edge - src.x) / 720.0) * 720.0;
 	}
 	vec2 uv = 0.5 + (src - vec2(src_shift, 0.0)) * src_zoom / vec2(640.0, 360.0);
 	uv = clamp(uv, vec2(0.001), vec2(0.999));

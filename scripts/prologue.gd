@@ -88,7 +88,7 @@ func _crossing() -> void:
 	cross.ui = dialogue_box.get_parent()
 	add_child(cross)
 	await cross.ask()
-	await cross.play(16.0)
+	await cross.play()
 	dialogue_box.set_subtitles(true, CrossingCutscene.BAR)
 	await get_tree().create_timer(1.8).timeout
 	await _say("end")

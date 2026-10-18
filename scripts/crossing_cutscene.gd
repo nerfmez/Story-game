@@ -99,8 +99,8 @@ func ask() -> void:
 ## เริ่มคัทซีน: ตัดผ่านจอดำสั้นๆ (ซ่อนการสลับตัวละคร) แล้วเปิดเป็นจอกว้างแบบหนัง
 ## ฉากหมุนรอบแกนตั้งที่เท้าทั้งคู่ (พื้นและทางม้าลายเฉียงตามทิศเดิน เสายังตั้งตรง) แล้วทั้งคู่เดินไปตามทางม้าลาย
 ## กล้องตามหลัง ทั้งคู่จึงอยู่กลางจอที่เดิม (1 พิกเซลภาพ = 1 พิกเซลเกม ไม่ถูกบิด) พื้นไหลเข้าหากล้อง ฉากหลังไกลออก
-## seconds = ความยาวโดยประมาณของคัทซีน
-func play(seconds: float) -> void:
+## ทั้งคู่เดินไปเรื่อยๆ จนจบคัทซีน (ซับไตเติลขึ้นเองตามเวลา prologue.gd จางจอดำเอง) ไม่มีช่วงหยุดเดินอยู่กับที่
+func play() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 22                           # เหนือฉากและจอดำ (20) ใต้ภาพโทรศัพท์ (25) และกล่องข้อความ (30)
 	add_child(layer)
@@ -148,6 +148,13 @@ func play(seconds: float) -> void:
 	var pair_layer := CanvasLayer.new()
 	pair_layer.layer = 3
 	add_child(pair_layer)
+	# ฝน (ทั้งจอ) ย้ายขึ้นเหนือภาพที่หมุนแล้วและทั้งคู่: ไม่งั้นถูกถ่ายลงภาพต้นทางแล้วยืดไปบนพื้นเป็นรอยขีด
+	var rain := get_tree().current_scene.get_node_or_null("Grade/Rain") as CanvasItem
+	if rain and rain.visible:
+		var rain_layer := CanvasLayer.new()
+		rain_layer.layer = 4
+		add_child(rain_layer)
+		rain.reparent(rain_layer, false)
 
 	_feet = Vector2(hero.position.x + 10.0, hero.position.y + 121.0)
 	_pair = Sprite2D.new()
@@ -182,10 +189,6 @@ func play(seconds: float) -> void:
 	var turn_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	turn_tween.tween_interval(0.8)
 	turn_tween.tween_property(self, "_turned", 1.0, TURN_TIME)
-	var walk := create_tween()
-	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * WALK_START * 0.5, WALK_START) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * (seconds + 6.0), seconds + 6.0 - WALK_START * 0.5)
 	_place()
 
 	var open := black.create_tween()
@@ -221,8 +224,10 @@ func _place() -> void:
 func _process(delta: float) -> void:
 	if _pair == null:
 		return
-	_place()
 	_time += delta
+	# เร่งจากยืนเป็นเดินใน WALK_START วินาทีแรก แล้วเดินเท่าก้าวไปตลอด
+	_walked += WALK_DEPTH_PER_SECOND * minf(_time / WALK_START, 1.0) * delta
+	_place()
 	var frame := int(_time * FPS) % FRAMES
 	_pair.frame = frame
 	if frame != _last_frame and frame in STEPS and hero.step_sound:
