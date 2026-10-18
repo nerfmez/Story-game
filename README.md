@@ -555,6 +555,18 @@ python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/charac
 - ใช้ renderer **Compatibility** เล่นบนเว็บและเครื่องสเปกต่ำได้
   ถ้าเปลี่ยนเป็น Forward+ จะใช้ SSR (สะท้อนจริง), depth of field และ volumetric fog ได้ แต่เกมจะหนักขึ้น
 
+## อาคารเรียน 2.5D (ต้นแบบ ยังไม่ได้ใส่ในฉาก)
+
+ภาพหน้าอาคารเรียนของผู้เขียน (`art_source/school_building.png`) ขึ้นรูปเป็นกล่อง 3D ที่ความลึกจริง
+(`scripts/school_building_3d.gd`): เสา/ระเบียง ผนังห้องเรียนลึกเข้าไป 2.5 ม. โถงบันได 7 ม.
+กันสาด เสากันสาด บันไดหน้ายื่นออกมา หลังคาลาดถึงสัน ทุกหน้าระบายด้วยภาพเดิมฉายจากกล้องออกแบบ
+(`shaders/projected_paint.gdshader`) มองจากจุดนั้นได้ภาพเหมือนต้นฉบับทุกพิกเซล ขยับ/หมุนกล้องเล็กน้อย
+(ประมาณ ±6°) แล้วชิ้นที่อยู่ใกล้-ไกลเลื่อนซ้อนกันแบบ 3D
+
+ส่วนที่ถูกบังในภาพ (หลังเสา หลังระเบียง หลังกันสาด) เติมไว้ในภาพแต่ละชั้น:
+`python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building`
+(`front.png` ชั้นหน้าสุด, `mid.png` เสา/ระเบียง, `back.png` ผนัง/เพดาน/โถง)
+
 ## เขียนบท
 
 แก้ไฟล์ `data/chapter1.json`:
