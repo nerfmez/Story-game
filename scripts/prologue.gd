@@ -354,9 +354,9 @@ func _show_bubble(on: bool) -> void:
 		t.tween_property(_bubble, "scale", Vector2.ONE, 0.25)
 
 
-func _show_hint() -> void:
+func _show_hint(text := "◀  เดินไปโรงเรียน") -> void:
 	_hint = Label.new()
-	_hint.text = "◀  เดินไปโรงเรียน"
+	_hint.text = text
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_font_size_override("font_size", 15)
 	_hint.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0))

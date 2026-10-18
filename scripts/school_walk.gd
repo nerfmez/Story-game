@@ -1,7 +1,8 @@
 class_name SchoolWalk
 extends Node
 ## ตอนที่1 ต่อจากข้ามทางม้าลาย (ต้นฉบับ: "ฝนก็ยังเทลงมาไม่หยุด..." ถึง "สรุปแล้ว... ยัยนี่เป็นใครกันแน่?")
-## ทั้งคู่เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียน (มุมข้าง ขวาไปซ้ายเหมือนถนน ผู้เล่นเดินเอง สายฝนเดินข้างๆ)
+## ทั้งคู่เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียน (มุมข้าง ผู้เล่นเดินเอง สายฝนเดินข้างๆ) ข้ามถนนมาแล้วเดินต่อไปข้างหน้า
+## มองจากอีกฝั่งถนนจึงเดินซ้ายไปขวา ซันชิดกำแพง สายฝนฝั่งถนน
 ## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ภาพใกล้หน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
 ## ถึงประตูโรงเรียน: บท "gate" (ซัน: "นี่..." event "leave" = เธอเดินเข้าประตูหายไป) แล้ว "gate_after"
 ## ฉากหลัง: tools/compose_school.py (ภาพหน้าโรงเรียนจากผู้เขียน กลับซ้ายขวา ต่อกำแพงให้ยาว)
@@ -14,12 +15,12 @@ const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"TrainLayer", ^"HazeNear",
 		^"SunLight", ^"SkyReflection", ^"CityReflection", ^"RailReflection", ^"TrainReflectionLayer", ^"Road",
 		^"Crosswalk", ^"Signal", ^"Foreground", ^"Dust"]
-## ภาพกว้าง 2516: เริ่มทางขวา (จอยังไม่เลยขอบภาพ) หยุดเมื่อเธอ (ข้างหน้าซัน 18px) อยู่ข้างประตู
-## ประตูเปิดอยู่ที่ x 593-774 (กลาง 684: compose_school.py) เดิน 1370px ~28 วินาที
-const START_X := 2150.0
-const STOP_X := 780.0
-const GATE_X := 684.0
-const UNDER := -5.0                             # สายฝนเดินเคียงข้างซัน (ไม่นำหน้า) ใต้ร่มเดียวกัน
+## ภาพกว้าง 2516: เริ่มทางซ้าย (จอยังไม่เลยขอบภาพ) หยุดเมื่อทั้งคู่อยู่ข้างประตูทางขวา
+## ประตูเปิดอยู่ที่ x 1741-1922 (กลาง 1832: compose_school.py) เดิน 1370px ~28 วินาที
+const START_X := 360.0
+const STOP_X := 1730.0
+const GATE_X := 1832.0
+const UNDER := 7.0                              # สายฝนเดินเคียงข้างซัน ตัวตรงกัน (ไม่นำหน้า ไม่ตามหลัง) ใต้ร่มเดียวกัน
 ## เธออยู่ฝั่งถนน: เท้าต่ำกว่าตำแหน่งเดิม (161 ใน main.tscn) 4px ใกล้กล้องกว่า
 const ROAD_Y := 165.0
 ## เดินช้ากว่าเดินคนเดียว (54) ให้ใกล้ความเร็วก้าวของเธอ (44): ท่าเดินซันเล่นช้าลงตามสัดส่วน เท้าไม่ไถล
@@ -63,8 +64,8 @@ func setup() -> void:
 	hero.speed = SPEED
 	hero.walk_fps = hero.umbrella_walk_fps * SPEED / hero.umbrella_speed
 	hero.position.x = START_X
-	hero.min_x = STOP_X
-	hero.max_x = START_X
+	hero.min_x = START_X
+	hero.max_x = STOP_X
 	heroine.follow(hero, UNDER)
 	# เธอเดินข้างขวาของซัน (ต้นฉบับ: เสียงดังมา "จากด้านขวา") = ฝั่งถนน ใกล้กล้องกว่า: วาดทับซัน ต่ำลงนิดหน่อย
 	heroine.z_index = 1
@@ -89,10 +90,10 @@ func play() -> void:
 func _walk_to_gate() -> void:
 	hero.controllable = true
 	prologue._set_touch(true)
-	prologue._show_hint()
+	prologue._show_hint("เดินไปโรงเรียน  ▶")
 	var thoughts: Array = prologue._lines.get("school", []).duplicate()
-	while hero.position.x > STOP_X + 0.5:
-		var walked := (START_X - hero.position.x) / (START_X - STOP_X)
+	while hero.position.x < STOP_X - 0.5:
+		var walked := (hero.position.x - START_X) / (STOP_X - START_X)
 		if not dialogue_box.visible:
 			_set_glance(false)
 			for line in thoughts:
@@ -152,7 +153,7 @@ func _leave() -> void:
 	heroine.stop_following()
 	heroine.walk_to(GATE_X)
 	await heroine.arrived
-	heroine.walk_to(GATE_X - 24.0)
+	heroine.walk_to(GATE_X + 24.0)
 	var fade := create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
 	fade.tween_property(heroine, "position:y", heroine.position.y - 10.0, 1.4)
 	fade.tween_property(heroine, "modulate:a", 0.0, 1.4)

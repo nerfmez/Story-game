@@ -26,16 +26,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 FONT = "assets/fonts/Sarabun-Regular.ttf"
 K = 2
-BUILDING = (540, 1172)                   # game x of the building (where the painting has building, mirrored)
-GATE = (593, 774)                        # gate opening (compose_school.py)
+BUILDING = (1343, 1975)                  # game x of the building (where the painting has its building)
+GATE = (1741, 1922)                      # gate opening (compose_school.py)
 WALL_TOP, WALL_BASE = 129, 255
 ROOF_H = 10                              # drawn rows of roof
 FLOOR = 30                               # drawn rows per storey (60 game px)
 GROUND = ROOF_H + 3 * FLOOR              # drawn row of the courtyard at the building's foot (game 200)
 BAY = 26                                 # drawn px between column centres
-CENTRE = (800, 880)                      # game x of the middle block (forward, stairs, sign)
+CENTRE = (1635, 1715)                    # game x of the middle block (forward, stairs, sign)
 SIGN_TOP = 4                             # drawn row of the middle block's raised parapet
-FLAG_X = 732                             # game x of the flagpole (seen through the gate and over the wall)
+FLAG_X = 1783                            # game x of the flagpole (seen through the gate and over the wall)
 
 SKY = np.array((132, 148, 170))
 SKY_TOP = np.array((112, 130, 156))

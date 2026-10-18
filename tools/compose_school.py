@@ -1,15 +1,14 @@
 """Build the walk-to-school background from the author's school-front painting (rainy morning, side view).
 
 art_source/school_front_rain.png (2172x724) shows the school wall with the gate near its right end.
-The walk goes right to left like the street before it, so the strip is mirrored (gate near the left
-end) and the wall is made longer to walk along:
+Across the crossing the pair keep going, now seen from the far side of the road: they walk left to
+right, the boy on the wall side, toward the gate at the right end. The wall is made longer to walk along:
 
   - the stretch between the centres of the 1st and 3rd wall pillars (two bays with the two big
     trees) is repeated before the painting; every join is at a pillar centre, so the wall lines up
     and the join hides in the pillar. The trees above are cross-faded over a wider band.
   - one more stretch after the painting's right edge: the wall carries on past the gate, so the
     camera never shows the end while the boy stands at the gate
-  - mirrored as a whole, then the name plate on the gate pillar is mirrored back (readable text)
   - scaled so the wall is about as tall as the boy (0.5525) and cropped to 360 rows so the sidewalk
     lies under the characters' feet (row 273 in the game)
 
@@ -29,7 +28,6 @@ from PIL import Image
 PILLAR_1, PILLAR_3 = 276, 1162         # wall pillar centres (source x) bounding the repeated stretch
 REPEATS = 2
 WALL_TOP = 288                          # source row of the wall's top edge (trees above it)
-PLATE = (1990, 322, 2072, 362)          # name plate on the gate pillar (source box)
 GATE = (1656, 1983)                     # gate opening between the two gate pillars (source x)
 SCALE = 0.5525
 CROP_TOP = 30                           # game rows cut off the top after scaling
@@ -64,13 +62,8 @@ def main():
     tile_w = (PILLAR_3 - PILLAR_1)
     tail_at = REPEATS * tile_w                                   # strip x of source x PILLAR_1
     strip = strip[:, TREE_SEAM:]                                 # drop the first tile's fade margin
-    w = strip.shape[1]
-    strip = strip[:, ::-1]                                       # gate near the left end
-    def mirrored(x):                                             # source x -> mirrored strip x
-        return w - 1 - (tail_at + (x - PILLAR_1))
-    x0, y0, x1, y1 = PLATE
-    a, b = int(mirrored(x1)), int(mirrored(x0))
-    strip[y0:y1, a:b] = strip[y0:y1, a:b][:, ::-1]               # plate text reads the right way again
+    def placed(x):                                               # source x -> strip x
+        return tail_at + (x - PILLAR_1)
     img = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8), mode)
     size = (round(img.width * SCALE), round(img.height * SCALE))
     if mode == "RGBA":
@@ -79,7 +72,7 @@ def main():
         img = img.resize(size, Image.LANCZOS)
     img = img.crop((0, CROP_TOP, size[0], CROP_TOP + 360))
     img.save(sys.argv[2])
-    g0, g1 = sorted(mirrored(x) * SCALE for x in GATE)
+    g0, g1 = sorted(placed(x) * SCALE for x in GATE)
     print(f"{img.width}x{img.height} -> {sys.argv[2]}; gate opening x {g0:.0f}-{g1:.0f} "
           f"(centre {(g0 + g1) / 2:.0f}), wall rows {WALL_TOP * SCALE - CROP_TOP:.0f}-{515 * SCALE - CROP_TOP:.0f}")
 

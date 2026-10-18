@@ -9,7 +9,7 @@ the same all along the walk:
     the top, a damp darker band and moss at the foot; pillars where the painting has them (their
     caps stand above the wall, over the painting's own)
   - gate: two tall pillars with caps, open iron gate leaves folded against them, the name plate
-    "โรงเรียน" (Sarabun) on the left pillar; between them the painting's campus stays visible
+    "โรงเรียน" (Sarabun) on the right pillar; between them the painting's campus stays visible
   - sidewalk (narrow: rows 255-292): rows of slabs deeper toward the viewer, upright staggered joints, soaked: it mirrors the wall, pillars and trees above it
     (rippled, darker), with a few puddles holding the sky's light
   - curb and road: a light curb edge, dark wet asphalt mirroring the scene more faintly, a lane line
@@ -26,8 +26,8 @@ FONT = "assets/fonts/Sarabun-Regular.ttf"
 K = 2                                   # game pixels per drawn pixel
 WALL_TOP, WALL_BASE = 129, 255          # game rows (painting's wall line; feet stand at 273)
 CURB_TOP, ROAD_TOP = 292, 298         # narrow sidewalk (feet at 273 on it), wider road in front
-PILLARS = [21.5, 236, 511, 1047, 1261, 1536.6, 1750, 2026, 2240, 2515.5]   # game x (compose_school.py)
-GATE = (568.5, 798.0)                   # gate pillar centres; opening between them
+PILLARS = [0.0, 275.0, 489.0, 765.0, 978.4, 1254.0, 1468.0, 2004.0, 2279.0, 2493.5]   # game x (compose_school.py)
+GATE = (1717.0, 1946.5)                 # gate pillar centres; opening between them (gate at the right end)
 GATE_TOP = 104
 
 WALL = np.array((88, 108, 133))
@@ -169,8 +169,8 @@ def main():
         pillar(cx, 6.5, top - 3, 1)
         if rng.random() < 0.6:
             moss(int(round(cx / K)) + rng.integers(-5, 6), rng.integers(5, 13), rng.integers(4, 9))
-    lx = pillar(GATE[0], 13.5, GATE_TOP // K, 1)
-    rx = pillar(GATE[1], 12.5, GATE_TOP // K, 1)
+    lx = pillar(GATE[0], 12.5, GATE_TOP // K, 1)
+    rx = pillar(GATE[1], 13.5, GATE_TOP // K, 1)
 
     # gate leaves folded open against the pillars (vertical bars, a rail top and bottom)
     for x0, x1 in [(lx[1], lx[1] + 7), (rx[0] - 7, rx[0])]:
@@ -234,7 +234,7 @@ def main():
     d = ImageDraw.Draw(plate)
     d.rectangle([0, 0, 39, 13], outline=(150, 160, 176))
     d.text((20, 7), "โรงเรียน", font=ImageFont.truetype(FONT, 10), fill=(210, 218, 228), anchor="mm")
-    px, py = int(GATE[0] - 20), 150
+    px, py = int(GATE[1] - 20), 150                            # on the right pillar, as in the painting
     big[py:py + 14, px:px + 40] = np.asarray(plate)
     if len(sys.argv) > 3:                                     # the author's weeds at the wall's foot (trees layer)
         trees = np.asarray(Image.open(sys.argv[3]).convert("RGBA")).astype(float)
