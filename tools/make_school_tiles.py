@@ -15,6 +15,11 @@ by shaders/tiled_paint.gdshader at the densities its TILES table gives:
   paver.png      the path's pavers 0.5 x 0.25 m running bond, 48 px/m
   lawn.png       mown wet lawn (greens of the author's trees, grass tufts), seamless, 32 px/m
   hedge.png      clipped hedge leaves (the author's tree crown, branch-free patch), mirrored, 90 px/m
+  grime.png      the parapet's stained plaster (facade painting), mirrored: ends, parapet insides, 50 px/m
+  pillar_side.png  a pillar's lit face (facade painting) for the pillar sides, 50 px/m
+  core_wall.png  stair-core wall for one storey (3.3 m): the close view's hall wall above a painted dado
+                 1.1 m high with a light rail line, stains from the parapet plaster, 50 px/m
+  vent.png       the breeze-block vent screen (close view, above the notice board), 50 px/m
   sheet.png      blue corrugated roof sheet of the covered walkway, 40 px/m
   steel.png      painted steel posts, 40 px/m
 
@@ -146,6 +151,22 @@ def main():
     leaves = leaves.resize((round(leaves.width * 0.45), round(leaves.height * 0.45)), Image.LANCZOS)
     mirror_tile(leaves).save(os.path.join(out, "hedge.png"))
     sheet().save(os.path.join(out, "sheet.png"))
+    grime = facade.crop((412, 442, 640, 478))
+    mirror_tile(grime).save(os.path.join(out, "grime.png"))
+    pil = np.asarray(facade.crop((376, 160, 394, 640)))
+    Image.fromarray(np.concatenate([pil, pil[:, ::-1]], 1)).save(os.path.join(out, "pillar_side.png"))
+    # core wall: 165 px = one storey; wall light from the close view, dado below, parapet stains on both
+    top = np.asarray(flat_rows(crop(close, (470, 300, 556, 500), 50 / 116), 128, 8).resize((128, 110)), float)
+    dado = np.ones((55, 128, 3)) * np.array([62, 76, 104], float)
+    dado[:2] = (150, 160, 182)                                   # painted rail line
+    dado[-3:] *= 0.7                                             # skirting
+    wall = np.concatenate([top, dado], 0)
+    stains = np.asarray(grime.resize((128, 165)).convert("L"), float)
+    wall *= (0.86 + 0.14 * stains / max(1.0, stains.max()))[..., None]
+    Image.fromarray(np.clip(wall, 0, 255).astype(np.uint8)).save(os.path.join(out, "core_wall.png"))
+    vent = close.crop((980, 300, 1165, 350))
+    vent.resize((round(vent.width * 50 / 126), round(vent.height * 50 / 126)), Image.LANCZOS).save(
+            os.path.join(out, "vent.png"))
     Image.new("RGB", (4, 4), (122, 134, 158)).save(os.path.join(out, "steel.png"))
     print(f"school tiles -> {out}")
 

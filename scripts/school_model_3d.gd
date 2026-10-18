@@ -73,6 +73,14 @@ var MATERIALS := {
 	"floor": ["tread", Vector2(50, 50), Vector2.ZERO, 0.9, 0.35, Color.WHITE, false],
 	"ceiling": ["ceiling", Vector2(46, 46), Vector2.ZERO, 0.85, 0.35, Color.WHITE, false],
 	"hall_wall": ["hall_wall", Vector2(50, 50), Vector2(0.0, CEILS[2]), 0.85, 0.35, Color.WHITE, false],
+	# ผนังช่องบันได: ชั้นละหนึ่งรอบลาย (ผนังบน บัวผนังทาสีล่าง 1.1 ม.) เริ่มที่พื้นชั้นล่าง
+	"core_wall": ["core_wall", Vector2(50, 50), Vector2(0.0, FLOORS[0] + 3.3), 0.9, 0.35, Color.WHITE, false],
+	"grime": ["grime", Vector2(50, 50), Vector2.ZERO, 0.95, 0.0, Color.WHITE, false],
+	"grime_in": ["grime", Vector2(50, 50), Vector2.ZERO, 0.8, 0.2, Color(0.88, 0.9, 0.96), false],
+	"pillar_side": ["pillar_side", Vector2(50, 50), Vector2.ZERO, 0.85, 0.0, Color(0.9, 0.92, 0.97), false],
+	"vent": ["vent", Vector2(50, 50), Vector2.ZERO, 1.0, 0.2, Color.WHITE, false],
+	"rail": ["steel", Vector2(40, 40), Vector2.ZERO, 1.25, 0.2, Color(0.92, 0.95, 1.0), false],
+	"nosing": ["tread", Vector2(50, 50), Vector2.ZERO, 1.25, 0.2, Color.WHITE, false],
 	"riser": ["riser", Vector2(100, 100), Vector2.ZERO, 0.85, 0.35, Color.WHITE, false],
 	"tread": ["tread", Vector2(50, 50), Vector2.ZERO, 0.95, 0.35, Color.WHITE, false],
 	"low_wall": ["parapet", Vector2(50, 50), Vector2.ZERO, 0.9, 0.35, Color.WHITE, false],
@@ -133,9 +141,9 @@ func _block() -> void:
 		_box({"all": "plaster_shade", "top": "floor", "bottom": "ceiling"}, LEFT, RIGHT, under, FLOORS[k],
 				Z_FRONT, Z_WALL)
 		# ระเบียง: หน้า = ภาพ, ด้านใน ด้านบน = ปูน
-		_box({"all": "plaster", "front": "facade_mid"}, LEFT, RIGHT, under, PARAPET_TOPS[k], Z_FRONT, 0.0)
+		_box({"all": "grime_in", "front": "facade_mid"}, LEFT, RIGHT, under, PARAPET_TOPS[k], Z_FRONT, 0.0)
 		for x in [LEFT, RIGHT]:
-			_box({"all": "plaster"}, x - 0.15 if x > 0 else x, x if x > 0 else x + 0.15, FLOORS[k], PARAPET_TOPS[k],
+			_box({"all": "grime_in"}, x - 0.15 if x > 0 else x, x if x > 0 else x + 0.15, FLOORS[k], PARAPET_TOPS[k],
 					0.0, Z_WALL)
 	# เพดานชั้น 3 ชายคา
 	_box({"all": "plaster_shade", "front": "facade_front", "bottom": "ceiling"}, LEFT - 0.8, RIGHT + 0.8,
@@ -144,10 +152,10 @@ func _block() -> void:
 	for i in PILLARS.size():
 		var p: Array = PILLARS[i]
 		var y0 := fy(CANOPY[2]) if i in HALL_PILLARS else 0.0
-		_box({"all": "plaster_shade", "front": "facade_mid"}, fx(p[0]), fx(p[1]), y0, EAVE[0], 0.3, -0.3)
+		_box({"all": "pillar_side", "front": "facade_mid"}, fx(p[0]), fx(p[1]), y0, EAVE[0], 0.3, -0.3)
 	# หัวท้ายอาคาร หลังอาคาร (หน้าต่างห้องเรียนจากภาพ) แถบพื้นระหว่างชั้น
 	for x in [LEFT, RIGHT]:
-		_box({"all": "plaster"}, x - 0.2 if x < 0 else x, x if x < 0 else x + 0.2, 0.0, EAVE[0], Z_WALL, Z_BACK)
+		_box({"all": "grime"}, x - 0.2 if x < 0 else x, x if x < 0 else x + 0.2, 0.0, EAVE[0], Z_WALL, Z_BACK)
 	for k in 3:
 		_face_z("back_bay" if k == 0 else "back_bay%d" % (k + 1), LEFT, RIGHT, FLOORS[k], CEILS[k], Z_BACK, false)
 		if k > 0:
@@ -167,7 +175,7 @@ func _block() -> void:
 				Vector3(RIGHT + 0.8, b.y, b.z), Vector3(LEFT - 0.8, b.y, b.z))
 	for x in [LEFT - 0.8, RIGHT + 0.8]:
 		var n := Vector3.LEFT if x < 0 else Vector3.RIGHT
-		_tri("plaster_shade", n, Vector3(x, EAVE[1], EAVE[2]), Vector3(x, RIDGE[0], RIDGE[1]), Vector3(x, EAVE[1], BACK_EAVE))
+		_tri("grime", n, Vector3(x, EAVE[1], EAVE[2]), Vector3(x, RIDGE[0], RIDGE[1]), Vector3(x, EAVE[1], BACK_EAVE))
 	# ไฟเพดานทางเดิน
 	for k in 3:
 		for i in PILLARS.size() - 1:
@@ -180,14 +188,16 @@ func _block() -> void:
 func _core() -> void:
 	var y0: float = 0.0
 	var top: float = CEILS[2]
-	_box({"all": "hall_wall"}, CORE[0] - 0.2, CORE[0], y0, top, CORE[2], CORE[3])
-	_box({"all": "hall_wall"}, CORE[1], CORE[1] + 0.2, y0, top, CORE[2], CORE[3])
-	_box({"all": "hall_wall"}, CORE[0], CORE[1], y0, top, CORE[3], CORE[3] - 0.2)
-	_box({"all": "hall_wall"}, DIVIDER[0], DIVIDER[1], FLOORS[0], top, STAIR_FRONT, STAIR_FRONT - TREAD * 9)
+	_box({"all": "core_wall"}, CORE[0] - 0.2, CORE[0], y0, top, CORE[2], CORE[3])
+	_box({"all": "core_wall"}, CORE[1], CORE[1] + 0.2, y0, top, CORE[2], CORE[3])
+	_box({"all": "core_wall"}, CORE[0], CORE[1], y0, top, CORE[3], CORE[3] - 0.2)
+	_box({"all": "core_wall"}, DIVIDER[0], DIVIDER[1], FLOORS[0], top, STAIR_FRONT, STAIR_FRONT - TREAD * 9)
+	# ราวกันตกขอบช่องบันไดชั้น 3: ราวจับบนผนังเตี้ย
 	_box({"all": "floor"}, CORE[0], CORE[1], 0.0, FLOORS[0], CORE[2], CORE[3])
 	_box({"all": "ceiling"}, CORE[0], CORE[1], top, top + 0.1, CORE[2], CORE[3])
 	# ชั้น 3 ไม่มีบันไดขึ้นต่อ: ผนังเตี้ยกั้นขอบช่องบันได
 	_box({"all": "low_wall"}, CORE[0], DIVIDER[0], FLOORS[2], FLOORS[2] + 1.0, STAIR_FRONT + 0.1, STAIR_FRONT)
+	_beam("rail", Vector3(CORE[0], FLOORS[2] + 1.03, STAIR_FRONT + 0.05), Vector3(DIVIDER[0], FLOORS[2] + 1.03, STAIR_FRONT + 0.05), 0.06)
 	for k in 3:
 		_lamp(Vector3(-1.0, CEILS[k] - 0.04, -2.75), true)
 
@@ -204,6 +214,7 @@ func _stairs(k: int) -> void:
 		var z0 := STAIR_FRONT - TREAD * i
 		var bottom := y0 if k == 0 else top - rise - 0.3
 		_box({"all": "riser", "top": "tread"}, FLIGHT_A[0], FLIGHT_A[1], bottom, top, z0, z0 - TREAD)
+		_box({"all": "nosing"}, FLIGHT_A[0], FLIGHT_A[1], top - 0.02, top + 0.004, z0, z0 - 0.04)
 	_box({"all": "riser", "top": "tread", "bottom": "ceiling"}, CORE[0], CORE[1], landing - 0.3, landing,
 			landing_z, CORE[3])
 	for j in 9:
@@ -211,10 +222,28 @@ func _stairs(k: int) -> void:
 		var z0 := landing_z + TREAD * j
 		_box({"all": "riser", "top": "tread", "bottom": "ceiling"}, FLIGHT_B[0], FLIGHT_B[1], top - rise - 0.3, top,
 				z0, z0 + TREAD)
+		_box({"all": "nosing"}, FLIGHT_B[0], FLIGHT_B[1], top - 0.02, top + 0.004, z0 + TREAD, z0 + TREAD - 0.04)
 	# ชานหน้าบันไดชั้นบน (ระหว่างผนังห้องเรียนกับขั้นแรก)
 	_box({"all": "plaster_shade", "top": "floor", "bottom": "ceiling"}, CORE[0], CORE[1], y1 - 0.32, y1,
 			CORE[2], STAIR_FRONT)
 	_lamp(Vector3(-0.2, landing + 2.5, landing_z - 0.8), true)
+	# ราวจับ: ทั้งสองข้างของทั้งสองช่วง (ติดผนังกั้นกลางกับผนังช่องบันได) ต่อเลียบชานพัก
+	var h := 0.9
+	var a0 := Vector3(0, y0 + rise * 0.5 + h, STAIR_FRONT + 0.15)
+	var a1 := Vector3(0, landing + h, landing_z - 0.05)
+	var b0 := Vector3(0, landing + h, landing_z + 0.05)
+	var b1 := Vector3(0, y1 - rise * 0.5 + h, STAIR_FRONT - 0.05)
+	for x: float in [CORE[0] + 0.07, DIVIDER[0] - 0.07]:
+		_handrail(Vector3(x, a0.y, a0.z), Vector3(x, a1.y, a1.z), x < DIVIDER[0] - 0.5)
+	for x: float in [DIVIDER[1] + 0.07, CORE[1] - 0.07]:
+		_handrail(Vector3(x, b0.y, b0.z), Vector3(x, b1.y, b1.z), x > DIVIDER[1] + 0.5)
+	_handrail(Vector3(CORE[0] + 0.07, landing + h, landing_z - 0.05), Vector3(CORE[0] + 0.07, landing + h, CORE[3] + 0.07), true)
+	_handrail(Vector3(CORE[0] + 0.07, landing + h, CORE[3] + 0.07), Vector3(CORE[1] - 0.07, landing + h, CORE[3] + 0.07), false)
+	_handrail(Vector3(CORE[1] - 0.07, landing + h, CORE[3] + 0.07), Vector3(CORE[1] - 0.07, landing + h, landing_z + 0.05), true)
+	# ช่องลมบล็อกบนผนังหลังเหนือชานพัก (ตามภาพทางเข้า)
+	var vy := landing + 1.4
+	MATERIALS["vent%d" % k] = ["vent", Vector2(50, 50), Vector2(-2.0, vy + 0.5), 1.0, 0.2, Color.WHITE, false]
+	_face_z("vent%d" % k, -2.0, -0.2, vy, vy + 0.5, CORE[3] + 0.01, true)
 
 
 # ---------------------------------------------------------------- ทางเข้า
@@ -332,6 +361,34 @@ func _card(mat: String, x0: float, x1: float, y0: float, y1: float, z: float, or
 		base[2] = origin
 		MATERIALS[key] = base
 	_face_z(key, x0, x1, y0, y1, z, true)
+
+
+## ท่อกลมสี่เหลี่ยมเล็กจาก a ถึง b (หน้าตัด w)
+func _beam(mat: String, a: Vector3, b: Vector3, w: float) -> void:
+	var d := (b - a).normalized()
+	var side := d.cross(Vector3.UP)
+	if side.length() < 0.01:
+		side = Vector3.RIGHT
+	side = side.normalized() * w / 2.0
+	var up := side.cross(d).normalized() * w / 2.0
+	var c := [side + up, -side + up, -side - up, side - up]
+	for i in 4:
+		var p: Vector3 = c[i]
+		var q: Vector3 = c[(i + 1) % 4]
+		var n := (p + q).normalized()
+		_quad(mat, n, a + p, a + q, b + q, b + p)
+
+
+## ราวจับติดผนัง: ท่อตามแนวบันได ขายึดทุก ~1 ม. (wall_left: ผนังอยู่ทาง -x)
+func _handrail(a: Vector3, b: Vector3, wall_left: bool) -> void:
+	_beam("rail", a, b, 0.05)
+	var n := maxi(1, int(a.distance_to(b) / 1.0))
+	var off := Vector3(-0.07 if wall_left else 0.07, 0, 0)
+	if absf(a.x - b.x) > 0.5:
+		off = Vector3(0, 0, -0.07)
+	for i in n + 1:
+		var p := a.lerp(b, float(i) / n)
+		_beam("rail", p, p + off, 0.025)
 
 
 func _lamp(p: Vector3, inside: bool) -> void:
