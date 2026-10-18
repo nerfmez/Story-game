@@ -3,6 +3,7 @@ extends Control
 ## กล่องข้อความแบบ visual novel: ป้ายชื่อ + ข้อความพิมพ์ทีละตัว
 ## คลิกซ้าย / Space / Enter: ถ้ายังพิมพ์อยู่จะแสดงทั้งบรรทัด ถ้าพิมพ์จบแล้วจะไปบรรทัดถัดไป
 ## บรรทัดที่มี "pause" (วินาที): เงียบก่อน (กล่องข้อความหายไป แตะไม่ได้) แล้วค่อยพิมพ์ ("event" ของบรรทัดเกิดตั้งแต่เริ่มเงียบ)
+## บรรทัดที่มี "auto": true ขึ้นเองไม่ต้องกดเหมือนซับไตเติล (ความคิดระหว่างเดิน ไม่ต้องหยุดเดินมาแตะ)
 ## ซับไตเติล (คัทซีน) ขึ้นเองไม่ต้องกด: พิมพ์จบแล้วค้างไว้ให้อ่านทัน (subtitle_hold + ตามความยาว) แล้วไปบรรทัดถัดไปเอง
 ## ข้อความไม่ตัดขอบ (clip_contents = false ใน dialogue_box.tscn): วรรณยุกต์ที่ซ้อนบนสระบน (นี้ ที่) สูงเกินบรรทัดแรก เดิมโดนตัดหาย
 
@@ -29,6 +30,7 @@ var _time := 0.0
 var _subtitles := false
 var _hold := 0.0
 var _pause := 0.0
+var _auto := false                              # บรรทัดนี้ขึ้นเอง (ซับไตเติล หรือ "auto")
 var _box_style: StyleBox
 
 
@@ -78,6 +80,7 @@ func _next() -> void:
 	_text.visible_characters = 0
 	_shown = 0.0
 	_pause = float(line.get("pause", 0.0))
+	_auto = _subtitles or bool(line.get("auto", false))
 	_typing = _pause <= 0.0
 	modulate.a = 0.0 if _pause > 0.0 else 1.0
 	_next_icon.hide()
@@ -87,11 +90,13 @@ func _next() -> void:
 func _finish_typing() -> void:
 	_typing = false
 	_text.visible_characters = -1
-	_next_icon.visible = not _subtitles
+	_next_icon.visible = not _auto             # ขึ้นเอง: ไม่มีลูกศรให้แตะ
 	_hold = subtitle_hold + _text.get_total_character_count() / subtitle_read_chars_per_second
 
 
 func _process(delta: float) -> void:
+	if not visible:                            # จบบทแล้ว (ซ่อน): ไม่นับเวลาบรรทัดขึ้นเองต่อ ไม่งั้น finished ซ้ำทุกเฟรม
+		return
 	if _pause > 0.0:
 		_pause -= delta
 		if _pause <= 0.0:
@@ -102,7 +107,7 @@ func _process(delta: float) -> void:
 		_text.visible_characters = int(_shown)
 		if _text.visible_characters >= _text.get_total_character_count():
 			_finish_typing()
-	elif _subtitles:
+	elif _auto:
 		_hold -= delta
 		if _hold <= 0.0:
 			_next()

@@ -320,7 +320,7 @@ centered = false
 hframes = 50
 
 [node name="Hero" type="Node2D" parent="Characters" node_paths=PackedStringArray("step_sound")]
-position = Vector2(1020, 152)
+position = Vector2(1730, 152)
 script = ExtResource("18_walker")
 idle_texture = ExtResource("44_idle")
 walk_texture = ExtResource("21_walk")

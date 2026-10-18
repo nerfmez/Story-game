@@ -12,6 +12,9 @@ Outputs (assets/audio/, Ogg Vorbis):
                         whine and the clack-clack of the wheels over rail joints
   step_1..3.ogg         footsteps on wet asphalt (soft scuff + tiny splash)
   bird_1..3.ogg         short calls of a small bird (2-4 tweets), played by the flocks
+  car_pass.ogg          2.4 s: a car passing close on the wet road: tyre hiss through water
+                        swelling and fading, low engine, and the splash where it hits a puddle
+  meow.ogg              a kitten's short meow (rising then falling, nasal)
 
 Everything that loops is built circularly (noise shaped in the frequency domain,
 events wrapped around the end), so the loops have no seam.
@@ -164,6 +167,28 @@ def step(seed):
     return out
 
 
+def car_pass():
+    ln = int(2.4 * SR)
+    t = np.arange(ln) / SR
+    near = np.exp(-((t - 1.0) / 0.42) ** 2)                      # loudest as it passes the camera
+    hiss = shaped_noise(ln, 900, 6500, -0.2) * (0.15 + near)
+    rumble = shaped_noise(ln, 40, 260, -0.6) * (0.1 + 0.6 * near)
+    engine = np.sin(2 * np.pi * np.cumsum(np.interp(t, [0, 1.0, 2.4], [96, 84, 72])) / SR) * 0.12 * near
+    splash = shaped_noise(ln, 600, 5000) * np.exp(-np.maximum(t - 0.95, 0) * 6) * (t > 0.95) * 0.9
+    out = 0.55 * hiss + 0.5 * rumble + engine + splash
+    return out * env(ln, 0.3, 0.6)
+
+
+def meow():
+    ln = int(0.55 * SR)
+    t = np.arange(ln) / SR
+    f0 = np.interp(t, [0, 0.12, 0.3, 0.55], [620, 900, 820, 560])
+    ph = 2 * np.pi * np.cumsum(f0) / SR
+    voice = sum(np.sin(k * ph) / k ** 1.2 for k in range(1, 8))
+    nasal = 1 + 0.6 * np.sin(2 * np.pi * 1300 * t) * np.interp(t, [0, 0.2, 0.55], [1, 0.3, 0.6])
+    return voice * nasal * env(ln, 0.04, 0.22)
+
+
 def save_ogg(name, x, peak=0.8):
     x = x / (np.abs(x).max() + 1e-9) * peak
     pcm = (x * 32767).astype(np.int16)
@@ -184,7 +209,9 @@ if __name__ == "__main__":
     files = {"ambience_evening.ogg": lambda: save_ogg("ambience_evening.ogg", ambience(), 0.7),
              "ambience_morning.ogg": lambda: save_ogg("ambience_morning.ogg", ambience_morning(), 0.7),
              "ambience_rain.ogg": lambda: save_ogg("ambience_rain.ogg", ambience_rain(), 0.7),
-             "train_pass.ogg": lambda: save_ogg("train_pass.ogg", train_loop(), 0.8)}
+             "train_pass.ogg": lambda: save_ogg("train_pass.ogg", train_loop(), 0.8),
+             "car_pass.ogg": lambda: save_ogg("car_pass.ogg", car_pass(), 0.8),
+             "meow.ogg": lambda: save_ogg("meow.ogg", meow(), 0.6)}
     for i in range(3):
         files[f"step_{i + 1}.ogg"] = lambda i=i: save_ogg(f"step_{i + 1}.ogg", step(100 + i), 0.6)
         files[f"bird_{i + 1}.ogg"] = lambda i=i: save_ogg(f"bird_{i + 1}.ogg", bird_call(200 + i), 0.6)

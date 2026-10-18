@@ -196,5 +196,5 @@ func _on_line_started(line: Dictionary) -> void:
 	# คำสั่งเสริมในแต่ละบรรทัดของบท (ไม่ใส่ก็ได้)
 	if line.has("camera_x"):
 		camera.pan_to(float(line["camera_x"]))
-	if line.get("event", "") == "train":
+	if line.get("event", "") == "train" and not train._running:   # ผ่านอยู่แล้วก็ไม่เริ่มใหม่
 		train.pass_by()

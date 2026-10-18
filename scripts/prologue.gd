@@ -15,9 +15,9 @@ extends Node
 @export var touch_controls: Control
 @export var cards: Node
 ## ตำแหน่งที่ซันยืนรอที่ขอบทางม้าลาย (พิกัดโลก) และขอบขวาที่เดินถอยไปได้
-## ซันเริ่มที่ x = 1020 (main.tscn): เดินไปทางม้าลาย 1190px ที่ 54px/วินาที ประมาณ 22 วินาที
+## ซันเริ่มที่ x = 1730 (main.tscn): เดินไปทางม้าลาย 1900px ที่ 54px/วินาที ประมาณ 35 วินาที (เว้นช่วงเงียบระหว่างเหตุการณ์ระหว่างทาง)
 @export var wait_x := -170.0
-@export var start_limit := 1140.0
+@export var start_limit := 1850.0
 ## สายฝนเริ่มเดินจากซ้ายนอกจอ เดินเข้ามาจนชิดใต้ร่มข้างซันเลย แล้วค่อยพูด (เทียบตำแหน่งซัน)
 @export var heroine_from := -330.0
 @export var heroine_under := -18.0
@@ -26,7 +26,13 @@ extends Node
 const SIGNAL_ZOOM := 3.0
 const SIGNAL_LOOK := Vector2(16.0, 54.0)
 
+## ลูกแมวนั่งอยู่บนทางเท้าตรงนี้ (เท้า) ก่อนถึงทางม้าลาย
+const KITTEN_AT := Vector2(100.0, 273.0)
+
 var _lines := {}
+var _car: CrossingCar
+var _kitten: Kitten
+var _kitten_noticed := false
 var _camera_before = null                     # ตำแหน่ง/ซูมกล้องก่อนตัดเข้าแคบที่ไฟสัญญาณ (null = ไม่ได้แคบอยู่)
 var _closeup: PhoneCloseup
 var _bubble: Node2D
@@ -76,6 +82,7 @@ func begin() -> void:
 	cards.reveal_scene()
 	await get_tree().create_timer(2.0).timeout
 	await _say("street")
+	_add_walk_props()
 	await _walk_to_crossing()
 	camera.pan_to(230.0)                       # เลื่อนกล้องไปทางซ้าย: เห็นทางที่เธอเดินมา
 	await _heroine_arrives()
@@ -122,9 +129,13 @@ func _on_line(line: Dictionary) -> void:
 	match str(line.get("event", "")):
 		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
 			hero.put_away_phone()
-			var t := create_tween().set_trans(Tween.TRANS_SINE)
-			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
-			t.tween_property(hero, "position:y", hero.position.y, 0.12)
+			_flinch()
+		"car":                                  # รถวิ่งผ่านเลนใกล้กล้อง น้ำกระเด็น ซันสะดุ้งตอนรถผ่าน (บรรทัดนี้มี pause)
+			if _car:
+				_car.drive_by(hero.position.x)
+		"kitten":                               # ซันพูดกับลูกแมว แล้วมันร้องวิ่งหนีไป
+			if _kitten:
+				get_tree().create_timer(1.2).timeout.connect(_kitten.run_away)
 		"green":
 			crossing_signal.go_green()
 		"signal_closeup":                       # ตัดเข้าแคบที่ไฟสัญญาณ ไฟเปลี่ยนเป็นเขียว (บรรทัดนี้มี pause ให้เห็นไฟเปลี่ยนก่อนข้อความ)
@@ -132,6 +143,26 @@ func _on_line(line: Dictionary) -> void:
 			crossing_signal.go_green()
 		_:
 			_signal_closeup(false)              # บรรทัดถัดไป: ตัดกลับมุมเดิม
+
+
+func _flinch() -> void:
+	var y: float = hero.position.y
+	var t := create_tween().set_trans(Tween.TRANS_SINE)
+	t.tween_property(hero, "position:y", y - 2.0, 0.07)
+	t.tween_property(hero, "position:y", y, 0.12)
+
+
+## ของระหว่างทางไปทางม้าลาย: รถที่วิ่งผ่านเลนใกล้กล้อง และลูกแมวบนทางเท้า
+func _add_walk_props() -> void:
+	_car = CrossingCar.new()
+	_car.camera = camera
+	_car.passing.connect(_flinch)
+	get_parent().add_child(_car)
+	_kitten = Kitten.new()
+	_kitten.hero = hero
+	_kitten.position = KITTEN_AT
+	_kitten.noticed.connect(func(): _kitten_noticed = true)
+	get_parent().add_child(_kitten)
 
 
 ## ตัดฉับเข้าแคบที่ดวงไฟสัญญาณ (ไฟรถบน ไฟคนข้ามล่าง) หรือกลับมุมเดิม
@@ -157,7 +188,19 @@ func _walk_to_crossing() -> void:
 	_set_touch(true)
 	_show_hint()
 	var start := hero.position.x
+	# ความคิดระหว่างเดิน (บท "walk"): แต่ละบรรทัดขึ้นเองเมื่อเดินมาถึงสัดส่วน "at" ของทาง ไม่ต้องหยุดมาแตะ
+	# บรรทัดที่มี "when": "kitten" ขึ้นเมื่อแตะลูกแมวหรือเดินมาใกล้มัน (ทีละบรรทัด เมื่อกล่องข้อความว่าง)
+	var thoughts: Array = _lines.get("walk", []).duplicate()
 	while hero.position.x > wait_x + 0.5:
+		var walked := (start - hero.position.x) / maxf(start - wait_x, 1.0)
+		if not dialogue_box.visible:
+			for line in thoughts:
+				var due := _kitten_noticed if str(line.get("when", "")) == "kitten" \
+						else walked >= float(line.get("at", 0.0))
+				if due:
+					thoughts.erase(line)
+					dialogue_box.start([line])
+					break
 		if _hint and absf(hero.position.x - start) > 40.0:
 			_hide_hint()
 		await get_tree().process_frame
@@ -165,6 +208,8 @@ func _walk_to_crossing() -> void:
 	hero.controllable = false
 	hero.touch_dir = 0.0
 	_set_touch(false)
+	if dialogue_box.visible:                   # ความคิดบรรทัดสุดท้ายยังขึ้นอยู่: ให้จบก่อนควักโทรศัพท์
+		await dialogue_box.finished
 	await get_tree().create_timer(0.6).timeout
 
 
