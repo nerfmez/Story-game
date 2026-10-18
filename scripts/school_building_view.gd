@@ -2,14 +2,14 @@ class_name SchoolBuildingView
 extends SubViewportContainer
 ## อาคารเรียน 2.5D (SchoolBuilding3D) เรนเดอร์ที่ความละเอียดเกม 640x360 แล้วขยายแบบ Nearest
 ## ให้เป็นพิกเซลเหมือนฉากอื่น (เหมือนฉาก HD-2D) พื้นหลังโปร่งใส วางซ้อนกับฉาก 2D ได้
-## turn(องศา): หมุนกล้องรอบอาคารเล็กน้อย (0 = ภาพเหมือนต้นฉบับ)
+## turn(องศา): มองอาคารเฉียงเล็กน้อย (0 = ภาพเหมือนต้นฉบับ) โดยเลื่อนกล้องไปข้างๆ แล้วเลื่อนเลนส์
+## ให้หน้าอาคาร (z 0) อยู่ที่เดิมบนจอ ไม่หมุนตัวกล้อง: เส้นแนวนอนจึงตรงเสมอ (หมุนจริงแล้วเส้นเอียงเป็นขั้นบันไดพิกเซล)
+## เห็นข้างเสาและความลึกของโถงเหมือนหมุน
 
 const SIZE := Vector2i(640, 360)
 ## กรอบภาพที่ระยะออกแบบ (เมตร): สูง 15m ศูนย์กลางที่ 6.4m
 @export var frame_height := 15.0
 @export var frame_centre_y := 6.4
-## จุดหมุน (ระดับสายตา กลางระเบียง)
-@export var pivot := Vector3(0.0, 1.6, -2.0)
 
 var camera: Camera3D
 var building: SchoolBuilding3D
@@ -32,14 +32,15 @@ func _ready() -> void:
 	camera.projection = Camera3D.PROJECTION_FRUSTUM
 	camera.near = 0.5
 	camera.far = 200.0
-	var distance := SchoolBuilding3D.DESIGN_CAMERA.z
-	camera.size = frame_height * camera.near / distance
-	camera.frustum_offset = Vector2(0.0, (frame_centre_y - SchoolBuilding3D.DESIGN_CAMERA.y) * camera.near / distance)
+	camera.size = frame_height * camera.near / SchoolBuilding3D.DESIGN_CAMERA.z
 	_viewport.add_child(camera)
 	turn(0.0)
 
 
 func turn(yaw_degrees: float) -> void:
-	var yaw := deg_to_rad(yaw_degrees)
-	camera.position = pivot + (SchoolBuilding3D.DESIGN_CAMERA - pivot).rotated(Vector3.UP, yaw)
-	camera.rotation = Vector3(0.0, yaw, 0.0)
+	var cam := SchoolBuilding3D.DESIGN_CAMERA
+	var dx := cam.z * tan(deg_to_rad(yaw_degrees))
+	camera.position = cam + Vector3(dx, 0.0, 0.0)
+	# เลนส์เลื่อนกลับให้ภาพที่ระยะออกแบบ (z 0) อยู่กรอบเดิม: ระนาบนั้นนิ่ง ชิ้นที่ใกล้/ไกลกว่าเลื่อนออกจากกัน
+	var k := camera.near / cam.z
+	camera.frustum_offset = Vector2(-dx * k, (frame_centre_y - cam.y) * k)
