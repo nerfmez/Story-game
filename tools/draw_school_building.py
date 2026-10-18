@@ -1,9 +1,8 @@
 """Draw the school building and the courtyard seen through the gate as pixel art, keeping the painting's trees.
 
-Runs on the composed strip (tools/compose_school.py), before tools/draw_school_wall.py. The painting's
-trees are kept (a colour mask: greenish leaves and dark saturated ones, smoothed); everything else
-behind the wall in the building's stretch is drawn here, on a half-size grid (1 drawn pixel = 2x2 game
-pixels, like the wall):
+Runs on the trees-only strip (tools/compose_school.py on the author's art_source/school_trees_rain.png),
+before tools/draw_school_wall.py. Everything behind the author's trees is drawn here: a rain sky with a
+faint far treeline, and on a half-size grid (1 drawn pixel = 2x2 game pixels, like the wall):
 
   - a Thai school block, three storeys of open corridors, each storey 60 game px (in scale with the
     characters in front): cream walls, a band of the school colour along every parapet, a hipped roof
@@ -18,12 +17,12 @@ pixels, like the wall):
     mirrors the building, puddles, a planter, and the flagpole with the Thai flag hanging wet
 
 Usage:
-  python3 tools/draw_school_building.py IN.png OUT.png
+  python3 tools/draw_school_building.py trees.png OUT.png
 """
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 FONT = "assets/fonts/Sarabun-Regular.ttf"
 K = 2
@@ -39,6 +38,9 @@ SIGN_TOP = 4                             # drawn row of the middle block's raise
 FLAG_X = 732                             # game x of the flagpole (seen through the gate and over the wall)
 
 SKY = np.array((132, 148, 170))
+SKY_TOP = np.array((112, 130, 156))
+SKY_LOW = np.array((150, 164, 184))
+FAR_TREES = np.array((70, 94, 108))
 TILE = np.array((146, 84, 70))
 TILE_DARK = np.array((112, 62, 56))
 TILE_LIT = np.array((170, 108, 88))
@@ -75,15 +77,6 @@ SHRUB = np.array((46, 86, 66))
 SHRUB_LIT = np.array((82, 128, 90))
 INK = (72, 92, 128)                      # sign letters and emblem ring
 GOLD = (150, 120, 72)
-
-
-def tree_mask(img):
-    hsv = np.asarray(img.convert("HSV")).astype(float)
-    h, s, v = hsv[..., 0] * 360 / 255, hsv[..., 1] / 255, hsv[..., 2] / 255
-    tree = ((h < 203) & (s > 0.25)) | ((v < 0.36) & (s > 0.45))
-    m = Image.fromarray((tree * 255).astype(np.uint8))
-    m = m.filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))
-    return np.asarray(m) > 127
 
 
 def roof(out, x0, x1, top, rows):
@@ -232,23 +225,34 @@ def draw_campus(out, w, h, rng):
             out[16 + k, fx + j] = FLAG[stripe] * (0.8 if j % 3 == 0 else 1.0)
 
 
+def sky(H, W, rng):
+    """Rain sky behind everything: brighter and mistier toward the horizon, a faint far treeline."""
+    rows = np.arange(H)[:, None, None] / WALL_TOP
+    out = SKY_TOP * (1 - np.clip(rows, 0, 1)) + SKY_LOW * np.clip(rows, 0, 1)
+    out = np.repeat(out, W, 1)
+    knots = rng.random(W // 40 + 3)
+    ridge = WALL_TOP - 30 - np.interp(np.arange(W) / 40, np.arange(len(knots)), knots) * 26
+    for x in range(W):
+        top = int(ridge[x] + rng.integers(0, 3))
+        out[top:WALL_TOP, x] = out[top:WALL_TOP, x] * 0.7 + FAR_TREES * 0.3
+    return out
+
+
 def main():
+    """IN is the trees-only strip (compose_school.py on art_source/school_trees_rain.png, RGBA)."""
     rng = np.random.default_rng(11)
-    img = Image.open(sys.argv[1]).convert("RGB")
-    src = np.asarray(img).astype(float)
-    H, W = src.shape[:2]
+    trees = np.asarray(Image.open(sys.argv[1]).convert("RGBA")).astype(float)
+    H, W = trees.shape[:2]
     w, h = W // K, H // K
     drawn = draw_building(w, h, rng)
     draw_campus(drawn, w, h, rng)
     big = np.repeat(np.repeat(drawn, K, 0), K, 1)
-    trees = tree_mask(img)
-    out = src.copy()
+    out = sky(H, W, rng)
     have = ~np.isnan(big[..., 0])
     rows = np.arange(H)[:, None]
     cols = np.arange(W)[None, :]
-    in_building = (cols >= BUILDING[0] - 6) & (cols < BUILDING[1] + 6) & (rows < WALL_TOP)
-    in_gate = (cols >= GATE[0]) & (cols < GATE[1]) & (rows >= WALL_TOP - 20) & (rows < WALL_BASE)
-    paint = have & ((in_building & ~trees) | in_gate)
+    in_gate = (cols >= GATE[0]) & (cols < GATE[1]) & (rows < WALL_BASE)
+    paint = have & ((rows < WALL_TOP) | in_gate)
     out[paint] = big[paint]
     # sign and emblem on the middle block's parapet, at full resolution so the letters read
     sign = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
@@ -257,7 +261,11 @@ def main():
     d.text((cx + 7, cy), "อาคาร 1", font=ImageFont.truetype(FONT, 11), fill=INK, anchor="mm")
     d.ellipse([cx - 30, cy - 6, cx - 18, cy + 6], outline=INK, width=2)
     d.ellipse([cx - 27, cy - 3, cx - 21, cy + 3], fill=GOLD)
-    sign.save(sys.argv[2])
+    out = np.asarray(sign).astype(float)
+    # the author's trees in front of the sky and the building (the wall is drawn over their feet later)
+    a = trees[..., 3:4] / 255.0
+    out = out * (1 - a) + trees[..., :3] * a
+    Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(sys.argv[2])
     print(f"{W}x{H} -> {sys.argv[2]}")
 
 

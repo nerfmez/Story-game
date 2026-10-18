@@ -15,8 +15,11 @@ end) and the wall is made longer to walk along:
 
 Prints where the gate is in the game strip (prologue's school scene uses these).
 
+Also runs on the author's trees-only layer of the same painting (art_source/school_trees_rain.png, RGBA):
+the same strip, alpha kept, for tools/draw_school_building.py to lay over the drawn sky and building.
+
 Usage:
-  python3 tools/compose_school.py art_source/school_front_rain.png assets/bg/school/school_front.png
+  python3 tools/compose_school.py art_source/school_trees_rain.png trees.png
 """
 import sys
 
@@ -50,7 +53,9 @@ def join(parts):
 
 
 def main():
-    src = np.asarray(Image.open(sys.argv[1]).convert("RGB"))
+    pic = Image.open(sys.argv[1])
+    mode = "RGBA" if "A" in pic.getbands() else "RGB"            # the trees-only layer keeps its alpha
+    src = np.asarray(pic.convert(mode))
     tile = src[:, PILLAR_1 - TREE_SEAM:PILLAR_3 + TREE_SEAM]
     tail = src[:, PILLAR_1 - TREE_SEAM:]                        # painting from the 1st pillar to its end
     ext = src[:, PILLAR_1 - TREE_SEAM:PILLAR_3 + TREE_SEAM]
@@ -66,9 +71,13 @@ def main():
     x0, y0, x1, y1 = PLATE
     a, b = int(mirrored(x1)), int(mirrored(x0))
     strip[y0:y1, a:b] = strip[y0:y1, a:b][:, ::-1]               # plate text reads the right way again
-    img = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8))
+    img = Image.fromarray(np.clip(strip, 0, 255).astype(np.uint8), mode)
     size = (round(img.width * SCALE), round(img.height * SCALE))
-    img = img.resize(size, Image.LANCZOS).crop((0, CROP_TOP, size[0], CROP_TOP + 360))
+    if mode == "RGBA":
+        img = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")   # premultiplied: no dark fringes
+    else:
+        img = img.resize(size, Image.LANCZOS)
+    img = img.crop((0, CROP_TOP, size[0], CROP_TOP + 360))
     img.save(sys.argv[2])
     g0, g1 = sorted(mirrored(x) * SCALE for x in GATE)
     print(f"{img.width}x{img.height} -> {sys.argv[2]}; gate opening x {g0:.0f}-{g1:.0f} "

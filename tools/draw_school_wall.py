@@ -14,8 +14,8 @@ the same all along the walk:
     (rippled, darker), with a few puddles holding the sky's light
   - curb and road: a light curb edge, dark wet asphalt mirroring the scene more faintly, a lane line
 
-Usage:
-  python3 tools/draw_school_wall.py assets/bg/school/school_front.png assets/bg/school/school_front.png
+Usage (TREES: the trees-only strip; its weeds at the wall's foot are laid over the drawn wall):
+  python3 tools/draw_school_wall.py IN.png OUT.png [TREES.png]
 """
 import sys
 
@@ -236,6 +236,11 @@ def main():
     d.text((20, 7), "โรงเรียน", font=ImageFont.truetype(FONT, 10), fill=(210, 218, 228), anchor="mm")
     px, py = int(GATE[0] - 20), 150
     big[py:py + 14, px:px + 40] = np.asarray(plate)
+    if len(sys.argv) > 3:                                     # the author's weeds at the wall's foot (trees layer)
+        trees = np.asarray(Image.open(sys.argv[3]).convert("RGBA")).astype(float)
+        a = trees[..., 3:4] / 255.0
+        a[:WALL_TOP + 6] = 0                                  # trees stay behind the wall; only the weeds come in front
+        big = (big * (1 - a) + trees[..., :3] * a).astype(np.uint8)
     Image.fromarray(big).save(sys.argv[2])
     print(f"{W}x{H} -> {sys.argv[2]}")
 

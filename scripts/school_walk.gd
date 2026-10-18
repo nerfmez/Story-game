@@ -2,7 +2,7 @@ class_name SchoolWalk
 extends Node
 ## ตอนที่1 ต่อจากข้ามทางม้าลาย (ต้นฉบับ: "ฝนก็ยังเทลงมาไม่หยุด..." ถึง "สรุปแล้ว... ยัยนี่เป็นใครกันแน่?")
 ## ทั้งคู่เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียน (มุมข้าง ขวาไปซ้ายเหมือนถนน ผู้เล่นเดินเอง สายฝนเดินข้างๆ)
-## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ตัดแคบหน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
+## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ภาพใกล้หน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
 ## ถึงประตูโรงเรียน: บท "gate" (ซัน: "นี่..." event "leave" = เธอเดินเข้าประตูหายไป) แล้ว "gate_after"
 ## ฉากหลัง: tools/compose_school.py (ภาพหน้าโรงเรียนจากผู้เขียน กลับซ้ายขวา ต่อกำแพงให้ยาว)
 
@@ -22,10 +22,11 @@ const GATE_X := 684.0
 const UNDER := -18.0                            # สายฝนเดินข้างหน้าซันนิดเดียว ใต้ร่มเดียวกัน (เท่าตอนยืนรอไฟ)
 ## เดินช้ากว่าเดินคนเดียว (54) ให้ใกล้ความเร็วก้าวของเธอ (44): ท่าเดินซันเล่นช้าลงตามสัดส่วน เท้าไม่ไถล
 const SPEED := 48.0
-## แอบมอง: ซูมเท่านี้ หน้าเธอ (จากตำแหน่งตัว) อยู่ค่อนบนจอ เหนือกล่องข้อความ
-const GLANCE_ZOOM := 3.2
-const FACE := Vector2(15.0, 26.0)
-const FACE_ON_SCREEN_Y := 120.0
+## แอบมอง: ภาพใกล้หน้าเธอจากผู้เขียน (art_source/heroine_glance_rain.png ย่อเป็น 640x400) จางเข้าทับฉาก
+## ค่อยๆ เลื่อนลงช้าๆ ระหว่างบรรทัด แล้วจางออก (ชั้น 25: ใต้กล่องข้อความ)
+const GLANCE := preload("res://assets/characters/closeup/heroine_glance.png")
+const GLANCE_FADE := 0.5
+const GLANCE_DRIFT := 40.0
 
 var prologue: Node
 var hero: Node2D
@@ -35,6 +36,9 @@ var dialogue_box: DialogueBox
 var cards: Node
 
 var _glance := false
+var _glance_layer: CanvasLayer
+var _glance_image: TextureRect
+var _glance_tween: Tween
 
 
 ## ใต้จอดำ: เปลี่ยนฉากเป็นหน้าโรงเรียน วางทั้งคู่ทางขวา
@@ -93,8 +97,6 @@ func _walk_to_gate() -> void:
 					break
 		if absf(hero.position.x - START_X) > 40.0:
 			prologue._hide_hint()
-		if _glance:
-			camera.position = heroine.position + FACE + Vector2(0.0, (180.0 - FACE_ON_SCREEN_Y) / GLANCE_ZOOM)
 		await get_tree().process_frame
 	prologue._hide_hint()
 	hero.controllable = false
@@ -106,15 +108,30 @@ func _walk_to_gate() -> void:
 	await get_tree().create_timer(0.5).timeout
 
 
-## แคบหน้าเธอ (ตามเธอไปขณะเดิน) / กลับมุมข้าง
+## ภาพใกล้หน้าเธอจางเข้า (ซันแอบมอง ทั้งคู่ยังเดินต่อข้างหลัง) / จางออกกลับมุมข้าง
 func _set_glance(on: bool) -> void:
 	if on == _glance:
 		return
 	_glance = on
-	camera.set_process(not on)
-	camera.zoom = Vector2.ONE * (GLANCE_ZOOM if on else 1.0)
-	if not on:
-		camera.position.y = 180.0
+	if _glance_layer == null:
+		_glance_layer = CanvasLayer.new()
+		_glance_layer.layer = 25
+		add_child(_glance_layer)
+		_glance_image = TextureRect.new()
+		_glance_image.texture = GLANCE
+		_glance_image.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_glance_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_glance_image.modulate.a = 0.0
+		_glance_layer.add_child(_glance_image)
+	if _glance_tween:
+		_glance_tween.kill()
+	_glance_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
+	if on:
+		_glance_image.position = Vector2(0.0, -GLANCE_DRIFT)
+		_glance_tween.tween_property(_glance_image, "modulate:a", 1.0, GLANCE_FADE)
+		_glance_tween.tween_property(_glance_image, "position:y", 0.0, 6.0)
+	else:
+		_glance_tween.tween_property(_glance_image, "modulate:a", 0.0, GLANCE_FADE)
 
 
 func _on_line(line: Dictionary) -> void:
