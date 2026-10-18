@@ -20,6 +20,7 @@ const START_X := 2150.0
 const STOP_X := 780.0
 const GATE_X := 684.0
 const UNDER := -18.0                            # สายฝนเดินข้างหน้าซันนิดเดียว ใต้ร่มเดียวกัน (เท่าตอนยืนรอไฟ)
+const ROAD_SIDE := 4.0                          # เธออยู่ฝั่งถนน: เท้าต่ำกว่าซันเท่านี้ (ใกล้กล้องกว่า)
 ## เดินช้ากว่าเดินคนเดียว (54) ให้ใกล้ความเร็วก้าวของเธอ (44): ท่าเดินซันเล่นช้าลงตามสัดส่วน เท้าไม่ไถล
 const SPEED := 48.0
 ## แอบมอง: ภาพใกล้หน้าเธอจากผู้เขียน (art_source/heroine_glance_rain.png ย่อเป็น 640x400) จางเข้าทับฉาก
@@ -64,6 +65,9 @@ func setup() -> void:
 	hero.min_x = STOP_X
 	hero.max_x = START_X
 	heroine.follow(hero, UNDER)
+	# เธอเดินข้างขวาของซัน (ต้นฉบับ: เสียงดังมา "จากด้านขวา") = ฝั่งถนน ใกล้กล้องกว่า: วาดทับซัน ต่ำลงนิดหน่อย
+	heroine.z_index = 1
+	heroine.position.y += ROAD_SIDE
 	camera.pan_to(320.0)
 	dialogue_box.set_subtitles(false)
 	dialogue_box.line_started.connect(_on_line)
