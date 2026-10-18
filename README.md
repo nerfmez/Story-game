@@ -564,7 +564,8 @@ python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/charac
 (ประมาณ ±6°) แล้วชิ้นที่อยู่ใกล้-ไกลเลื่อนซ้อนกันแบบ 3D
 
 ส่วนที่ถูกบังในภาพ (หลังเสา หลังระเบียง หลังกันสาด) เติมไว้ในภาพแต่ละชั้น:
-`python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building`
+`python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building art_source/school_entrance_close.png`
+(ทางเข้าชั้นล่างในภาพตึกใช้ภาพทางเข้าระยะใกล้ของผู้เขียนย่อลงวาง: มองไกลกับเดินเข้าใกล้เป็นทางเข้าเดียวกัน)
 (`front.png` ชั้นหน้าสุด, `mid.png` เสา/ระเบียง, `back.png` ผนัง/เพดาน/โถง, `props.png` ม้านั่ง)
 ภาพทุกชั้นย่อเป็นพิกเซลอาร์ต (24px = 1m ใช้จานสีเดียวกัน) อ่านแบบ Nearest และ `scripts/school_building_view.gd`
 เรนเดอร์ที่ 640×360 แล้วขยายแบบ Nearest ให้เป็นพิกเซลเท่าฉากอื่น (`turn(องศา)` มองเฉียง: เลื่อนกล้องข้างๆ + เลื่อนเลนส์ ไม่หมุนกล้อง เส้นแนวนอนจึงไม่เอียงเป็นขั้นบันได)

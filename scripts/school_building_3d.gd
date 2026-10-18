@@ -7,6 +7,8 @@ extends Node3D
 ## ทุกหน้าระบายด้วยภาพเดิมฉายจากกล้องออกแบบ (shaders/projected_paint.gdshader):
 ## มองจากจุด DESIGN_CAMERA ได้ภาพเหมือนต้นฉบับ ขยับ/หมุนกล้องเล็กน้อยแล้วชั้นต่างๆ เลื่อนซ้อนกันแบบ 3D
 ## ภาพแต่ละชั้นที่เติมส่วนที่ถูกบังไว้: tools/make_building_layers.py
+## ทางเข้าชั้นล่าง (กันสาด เสา โถงบันได ม้านั่ง บอร์ด ถังขยะ บันไดหน้า) ใช้ภาพทางเข้าระยะใกล้ของผู้เขียน
+## ย่อลงวางในภาพตึก ให้มองไกลกับเดินเข้าไปใกล้เป็นทางเข้าเดียวกัน
 ## หน่วย: เมตร 50px ของภาพต้นฉบับ = 1m (ตำแหน่งชิ้นส่วนวัดจากภาพต้นฉบับ), x 0 = กลางอาคาร (px 1083.5), y 0 = พื้น (px 668)
 
 const PAINT := {
@@ -30,7 +32,7 @@ const PILLARS := [[73, 109], [372, 398], [650, 675], [921, 945], [1220, 1245], [
 		[1769, 1794], [2057, 2094]]
 const HALL := [945, 1220]
 const PASSAGE_END := 1122                        # โถง: ซ้ายเป็นทางเดินลึก ขวาเป็นผนังบันไดหันออกมา
-const BENCH := [948, 1028, 602, 647]
+const BENCH := [950, 1023, 602, 646]
 const PARAPETS := [[271, 329], [435, 496]]
 const CEILINGS := [157, 329, 496]
 const LEFT := 73
@@ -38,8 +40,8 @@ const RIGHT := 2094
 const EAVE := [141, 157]
 const ROOF_TOP := 74
 const ROOF := [13, 2155]
-const CANOPY := [884, 1284, 463, 488]
-const CANOPY_PILLARS := [[912, 942], [1225, 1252]]
+const CANOPY := [884, 1284, 471, 490]
+const CANOPY_PILLARS := [[912, 943], [1210, 1242]]
 const FLOOR := 645
 const GROUND := 668
 
@@ -105,8 +107,8 @@ func _build() -> void:
 	_box("front", CANOPY[0], CANOPY[1], CANOPY[2], CANOPY[3], Z_CANOPY, 0.0)
 	for p in CANOPY_PILLARS:
 		_box("front", p[0], p[1], CANOPY[3], FLOOR, Z_CANOPY_PILLAR[0], Z_CANOPY_PILLAR[1])
-	_box("front", 907, 1257, FLOOR, 656, Z_STEPS[0], 0.0)
-	_box("front", 898, 1266, 656, GROUND, Z_STEPS[1], 0.0)
+	_box("front", 908, 1257, 650, 660, Z_STEPS[0], 0.0)
+	_box("front", 899, 1265, 660, GROUND, Z_STEPS[1], 0.0)
 	# หัวท้ายอาคาร (สีเรียบ)
 	for x in [LEFT, RIGHT]:
 		var a := at(x, GROUND, Z_PILLAR[1])

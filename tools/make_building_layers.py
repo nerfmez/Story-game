@@ -21,7 +21,8 @@ view's 15 m frame one texel is one game pixel at rest), alpha cut hard, and all 
 shared palette without dithering, then read with nearest filtering like the other backgrounds.
 
 Usage:
-  python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building
+  python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building \
+          art_source/school_entrance_close.png
 """
 import os
 import sys
@@ -37,10 +38,21 @@ HALL = (945, 1220)                       # stair hall opening between its pillar
 PARAPETS = [(271, 329), (435, 496)]      # rows: 3rd / 2nd floor parapet incl. slab edge
 PLINTH = (645, 668)
 EAVE_BOTTOM = 157                        # soffit row; pillars and walls start below it
-CANOPY = (884, 1284, 463, 497)           # slab incl. its soffit (x0, x1, y0, y1)
-CANOPY_PILLARS = [(912, 942), (1225, 1252)]
-STEPS = (898, 1266, 645, 668)
-BENCH = (948, 1028, 602, 647)            # bench in front of the stair passage: its own card (props.png)
+# the entrance as the author's close view draws it (pasted in by entrance(), boxes in facade px)
+CANOPY = (884, 1284, 471, 497)           # slab incl. its soffit (x0, x1, y0, y1)
+CANOPY_PILLARS = [(912, 943), (1210, 1242)]
+STEPS = (898, 1265, 650, 668)
+BENCH = (950, 1023, 602, 646)            # bench in front of the stair passage: its own card (props.png)
+BENCH_FLOOR = 640                        # where the passage wall meets the floor behind it
+
+# art_source/school_entrance_close.png scaled into the facade: its pillars' outer edges (328, 1306)
+# land on the facade's canopy pillars, its lowest step (y 692) on the ground (668); the canopy
+# then spans 885-1284 like the facade's, and the hall's board wall starts at the passage end (1122)
+ENTRANCE_SCALE = 0.348
+ENTRANCE_AT = (912.0, 668.0)             # facade px of close-view px (328, 692)
+ENTRANCE_PARTS = [(252, 128, 1398, 202),  # canopy (close-view px)
+                  (328, 202, 1306, 642),  # pillars and the stair hall between them
+                  (290, 642, 1340, 692)]  # entrance steps
 
 
 PIXEL = 0.48
@@ -107,8 +119,27 @@ def inpaint(img, mask):
     img[..., :3] = np.where(mask[..., None] > 0, rgb, img[..., :3])
 
 
+def entrance(src, path):
+    """Paste the author's close view of the entrance into the facade (same entrance in both views)."""
+    close = Image.open(path).convert("RGB")
+    size = (round(close.width * ENTRANCE_SCALE), round(close.height * ENTRANCE_SCALE))
+    small = np.asarray(close.resize(size, Image.LANCZOS))
+    ox = ENTRANCE_AT[0] - 328 * ENTRANCE_SCALE
+    oy = ENTRANCE_AT[1] - 692 * ENTRANCE_SCALE
+    out = src.copy()
+    for x0, y0, x1, y1 in ENTRANCE_PARTS:
+        a0, b0 = round(x0 * ENTRANCE_SCALE), round(y0 * ENTRANCE_SCALE)
+        a1, b1 = round(x1 * ENTRANCE_SCALE), round(y1 * ENTRANCE_SCALE)
+        u, v = round(ox + a0), round(oy + b0)
+        out[v:v + b1 - b0, u:u + a1 - a0, :3] = small[b0:b1, a0:a1]
+        out[v:v + b1 - b0, u:u + a1 - a0, 3] = 255
+    return out
+
+
 def main():
     src = np.asarray(Image.open(sys.argv[1]).convert("RGBA")).copy()
+    if len(sys.argv) > 3:
+        src = entrance(src, sys.argv[3])
     out = sys.argv[2]
     os.makedirs(out, exist_ok=True)
     palette = make_palette(src)
@@ -123,8 +154,11 @@ def main():
     mask = np.zeros(src.shape[:2], np.uint8)
     x0, x1, y0, y1 = CANOPY
     mask[y0:y1, x0:x1] = 255
-    for a, b in CANOPY_PILLARS:
-        mask[y1:PLINTH[0], a - 2:b + 2] = 255
+    # canopy pillars: plain rows of the wall beside them (left: facade past the pot, right: the
+    # board wall inside the hall), so no pot or door is copied
+    for (a, b), (s0, s1) in zip(CANOPY_PILLARS, ((852, 876), (1124, 1135))):
+        rows = np.median(mid[y1:PLINTH[0], s0:s1].astype(float), axis=1)[:, None, :]
+        mid[y1:PLINTH[0], a - 2:b + 2] = rows.astype(np.uint8)
     sx0, sx1, sy0, sy1 = STEPS
     mask[sy0:sy1, sx0:sx1] = 255
     # the 2nd-floor parapet runs on behind the canopy: its hidden rows copied from a plain bay
@@ -146,16 +180,18 @@ def main():
     # bench: cut out to its own card, the passage floor and wall behind it inpainted
     bx0, bx1, by0, by1 = BENCH
     box = src[by0:by1, bx0:bx1, :3].astype(int)
-    wood = box[..., 0] > box[..., 2] + 15
-    legs = (box.mean(2) < 60) & (np.arange(by1 - by0)[:, None] > 26)
-    bench = cv2.dilate((wood | legs).astype(np.uint8) * 255, np.ones((3, 3), np.uint8))
+    # everything in the box that is not the bluish wall/floor behind it
+    wall_like = (box[..., 2] > box[..., 0] + 12) & (box.mean(2) > 75)
+    bench = cv2.morphologyEx((~wall_like).astype(np.uint8) * 255, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
     props = np.zeros_like(src)
     props[by0:by1, bx0:bx1] = src[by0:by1, bx0:bx1]
     props[by0:by1, bx0:bx1, 3] = bench
     save(props, "props")
-    mask = np.zeros(src.shape[:2], np.uint8)
-    mask[by0:by1, bx0:bx1] = cv2.dilate(bench, np.ones((5, 5), np.uint8))
-    inpaint(back, mask)
+    # behind it: the passage wall above carried down, the floor from further along the passage
+    wall = back[by0 - 10:by0, bx0:bx1].copy()
+    for v in range(by0, BENCH_FLOOR):
+        back[v, bx0:bx1] = wall[(v - by0) % 10]
+    back[BENCH_FLOOR:by1, bx0:bx1] = back[BENCH_FLOOR:by1, bx1 + 40:bx1 + 40 + (bx1 - bx0)]
     for y0, y1 in PARAPETS + [PLINTH]:
         fill_rows(back, y0, y1, wall_colour(src, y0))
     save(back, "back")
