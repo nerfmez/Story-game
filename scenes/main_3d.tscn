@@ -1,0 +1,124 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Shader" path="res://shaders/hd2d_post.gdshader" id="2_post"]
+[ext_resource type="Script" path="res://scripts/hd2d_set.gd" id="3_set"]
+[ext_resource type="Script" path="res://scripts/train_3d.gd" id="4_train"]
+[ext_resource type="Script" path="res://scripts/camera_3d.gd" id="5_camera"]
+[ext_resource type="PackedScene" path="res://scenes/dialogue_box.tscn" id="6_dialogue"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_post"]
+shader = ExtResource("2_post")
+shader_parameter/focus_center = 0.62
+shader_parameter/focus_width = 0.3
+shader_parameter/blur_amount = 2.5
+shader_parameter/tint = Color(1.05, 0.97, 0.92, 1)
+shader_parameter/saturation = 1.15
+shader_parameter/vignette = 0.35
+shader_parameter/contrast = 1.12
+
+[sub_resource type="Environment" id="Environment_dusk"]
+background_mode = 1
+background_color = Color(0.32, 0.26, 0.5, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.44, 0.72, 1)
+ambient_light_energy = 0.7
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.55
+glow_bloom = 0.08
+glow_hdr_threshold = 0.9
+fog_enabled = true
+fog_light_color = Color(0.75, 0.55, 0.62, 1)
+fog_density = 0.0035
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mission"]
+content_margin_left = 10.0
+content_margin_top = 3.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+bg_color = Color(0.05, 0.07, 0.15, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.86, 0.89, 0.96, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Main3D" type="Node" node_paths=PackedStringArray("camera", "train")]
+script = ExtResource("1_main")
+camera = NodePath("View/SubViewport/Camera3D")
+train = NodePath("View/SubViewport/Train")
+other_scene = "res://scenes/main.tscn"
+
+[node name="View" type="SubViewportContainer" parent="."]
+texture_filter = 1
+material = SubResource("ShaderMaterial_post")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="View"]
+handle_input_locally = false
+size = Vector2i(640, 360)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="View/SubViewport"]
+environment = SubResource("Environment_dusk")
+
+[node name="Sun" type="DirectionalLight3D" parent="View/SubViewport"]
+transform = Transform3D(-0.939693, -0.116978, 0.321394, 0, 0.939693, 0.34202, -0.34202, 0.321394, -0.883022, 0, 10, -20)
+light_color = Color(1, 0.62, 0.42, 1)
+light_energy = 0.9
+shadow_enabled = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="View/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 5, 10)
+light_color = Color(1, 0.9, 0.82, 1)
+light_energy = 0.45
+
+[node name="HD2DSet" type="Node3D" parent="View/SubViewport"]
+script = ExtResource("3_set")
+
+[node name="Train" type="Node3D" parent="View/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 1.2, -9)
+script = ExtResource("4_train")
+
+[node name="Camera3D" type="Camera3D" parent="View/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 14)
+fov = 30.0
+script = ExtResource("5_camera")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Mission" type="PanelContainer" parent="UI"]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 190.0
+offset_bottom = 34.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mission")
+
+[node name="Row" type="HBoxContainer" parent="UI/Mission"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RecDot" type="ColorRect" parent="UI/Mission/Row"]
+custom_minimum_size = Vector2(8, 8)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.92, 0.25, 0.25, 1)
+
+[node name="Label" type="Label" parent="UI/Mission/Row"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "ถ่ายวิดีโอหลังเลิกเรียน"
+
+[node name="DialogueBox" parent="UI" instance=ExtResource("6_dialogue")]

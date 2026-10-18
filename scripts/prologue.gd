@@ -1,0 +1,231 @@
+extends Node
+## ตอนที่1 [15 เซนติเมตร] (บทจากต้นฉบับ: data/prologue.json) ลำดับตามต้นฉบับ:
+## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
+## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่ม
+## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์
+## -> ไฟเขียว -> ปุ่ม "ข้ามทางม้าลาย" -> คัทซีนแบบหนัง: ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ -> จอดำ -> แตะเพื่อเล่นอีกครั้ง
+## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
+
+@export_file("*.json") var script_file := "res://data/prologue.json"
+@export var hero: Node2D
+@export var heroine: Node2D
+@export var crossing_signal: Node2D
+@export var camera: Node
+@export var dialogue_box: DialogueBox
+@export var touch_controls: Control
+@export var cards: Node
+## ตำแหน่งที่ซันยืนรอที่ขอบทางม้าลาย (พิกัดโลก) และขอบขวาที่เดินถอยไปได้
+## ซันเริ่มที่ x = 1020 (main.tscn): เดินไปทางม้าลาย 1190px ที่ 54px/วินาที ประมาณ 22 วินาที
+@export var wait_x := -170.0
+@export var start_limit := 1140.0
+## สายฝนเริ่มเดินจากซ้ายนอกจอ เดินเข้ามาจนชิดใต้ร่มข้างซันเลย แล้วค่อยพูด (เทียบตำแหน่งซัน)
+@export var heroine_from := -330.0
+@export var heroine_under := -18.0
+
+var _lines := {}
+var _closeup: PhoneCloseup
+var _bubble: Node2D
+var _hint: Label
+var _hint_pulse: Tween
+
+
+func _ready() -> void:
+	var file := FileAccess.open(script_file, FileAccess.READ)
+	var data = JSON.parse_string(file.get_as_text()) if file else null
+	if typeof(data) == TYPE_DICTIONARY:
+		_lines = data
+	else:
+		push_error("อ่านบทไม่ได้: %s" % script_file)
+	hero.controllable = false
+	_set_touch(false)
+	_closeup = PhoneCloseup.new()
+	add_child(_closeup)
+	_bubble = _make_bubble()
+	heroine.add_child(_bubble)
+
+
+func _set_touch(on: bool) -> void:
+	if touch_controls and touch_controls.has_method("set_active"):
+		touch_controls.set_active(on)
+
+
+## เล่นบทหนึ่งช่วงจนจบ (ผู้เล่นแตะทีละบรรทัด)
+func _say(part: String) -> void:
+	var lines: Array = _lines.get(part, [])
+	if lines.is_empty():                       # ช่วงนี้ไม่มีบท (เช่น "home": วิดีโอเปิดเรื่องเล่าไปแล้ว)
+		return
+	dialogue_box.start(lines)
+	await dialogue_box.finished
+
+
+func begin() -> void:
+	dialogue_box.line_started.connect(_on_line)
+	await cards.show_chapter()
+	var caption := str(_lines.get("caption", ""))
+	if caption != "":                          # บอกเวลาบนจอดำ (ตอนนี้ว่าง: วิดีโอเปิดเรื่องเล่าไปแล้ว)
+		cards.caption(caption)
+		await get_tree().create_timer(2.5).timeout
+	await _say("home")                         # ที่บ้าน: เสียงในใจบนจอดำ (มีแต่เสียงฝน)
+	if caption != "":
+		cards.clear_caption()
+	cards.reveal_scene()
+	await get_tree().create_timer(2.0).timeout
+	await _say("street")
+	await _walk_to_crossing()
+	camera.pan_to(230.0)                       # เลื่อนกล้องไปทางซ้าย: เห็นทางที่เธอเดินมา
+	await _heroine_arrives()
+	camera.pan_to(296.0)                       # ทั้งคู่อยู่กลางจอ
+	await _say("meet")
+	await _crossing()
+
+
+## ไฟเขียว: ปุ่มข้ามทางม้าลาย แล้วตัดเป็นคัทซีนแบบหนัง ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ
+func _crossing() -> void:
+	var cross := CrossingCutscene.new()
+	cross.hero = hero
+	cross.heroine = heroine
+	cross.camera = camera
+	cross.ui = dialogue_box.get_parent()
+	add_child(cross)
+	await cross.ask()
+	await cross.play(16.0)
+	dialogue_box.set_subtitles(true, CrossingCutscene.BAR)
+	await get_tree().create_timer(1.8).timeout
+	await _say("end")
+	await get_tree().create_timer(1.2).timeout
+	await cards.fade_to_black()
+	await cards.wait_restart()
+
+
+## ทางลัดสำหรับทดสอบ (เปิดเกมด้วย #cross ท้ายลิงก์): ข้ามไปที่ทั้งคู่ยืนใต้ร่มตอนไฟเขียว แล้วเล่นช่วงข้ามทางม้าลาย
+func debug_crossing() -> void:
+	dialogue_box.line_started.connect(_on_line)
+	hero.position.x = wait_x
+	heroine.enter(hero.position.x + heroine_under, hero.position.x + heroine_under)
+	crossing_signal.go_green()
+	camera.pan_to(296.0)
+	cards.reveal_scene()
+	await get_tree().create_timer(1.5).timeout
+	await _crossing()
+
+
+## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา
+func _on_line(line: Dictionary) -> void:
+	# บรรทัดที่มีชื่อผู้พูด (เธอ: "???") = ฟองคำพูดเด้งขึ้นเหนือหัวเธอ บรรทัดเสียงในใจซันไม่มี
+	_show_bubble(str(line.get("speaker", "")) != "")
+	match str(line.get("event", "")):
+		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
+			hero.put_away_phone()
+			var t := create_tween().set_trans(Tween.TRANS_SINE)
+			t.tween_property(hero, "position:y", hero.position.y - 2.0, 0.07)
+			t.tween_property(hero, "position:y", hero.position.y, 0.12)
+		"green":
+			crossing_signal.go_green()
+
+
+func _walk_to_crossing() -> void:
+	hero.min_x = wait_x
+	hero.max_x = start_limit
+	hero.controllable = true
+	_set_touch(true)
+	_show_hint()
+	var start := hero.position.x
+	while hero.position.x > wait_x + 0.5:
+		if _hint and absf(hero.position.x - start) > 40.0:
+			_hide_hint()
+		await get_tree().process_frame
+	_hide_hint()
+	hero.controllable = false
+	hero.touch_dir = 0.0
+	_set_touch(false)
+	await get_tree().create_timer(0.6).timeout
+
+
+## รอไฟ: ควักโทรศัพท์ขึ้นมาดูเวลา ภาพตัดใกล้จอ (7:35) พร้อมบท "arrive" แล้วถือโทรศัพท์ยืนรอ
+## ระหว่างนั้นสายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่มข้างซัน
+func _heroine_arrives() -> void:
+	hero.take_out_phone()
+	await hero.phone_out
+	await get_tree().create_timer(0.3).timeout
+	await _closeup.show_phone()
+	await _say("arrive")
+	await _closeup.hide_phone()
+	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_under)
+	await heroine.arrived
+	await get_tree().create_timer(0.8).timeout
+
+
+## ฟองคำพูดพิกเซลเล็กๆ เหนือหัวเธอ (บอกว่าบรรทัดนี้เธอพูด)
+func _make_bubble() -> Node2D:
+	var root := Node2D.new()
+	root.position = Vector2(19, 3)              # เหนือหัวเธอ (ภาพเธอสูง 113 หัวเริ่มราวแถว 12)
+	root.z_index = 50
+	root.visible = false
+	var ink := Color(0.16, 0.18, 0.28)
+	var paper := Color(0.94, 0.95, 0.99)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = paper
+	style.border_color = ink
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = -3
+	style.content_margin_bottom = -2
+	panel.add_theme_stylebox_override("panel", style)
+	var dots := Label.new()
+	dots.text = "..."
+	dots.add_theme_font_size_override("font_size", 10)
+	dots.add_theme_color_override("font_color", ink)
+	panel.add_child(dots)
+	root.add_child(panel)
+	var tail := Polygon2D.new()                 # หางชี้ลงไปที่หัวเธอ
+	tail.polygon = PackedVector2Array([Vector2(-3, -1.5), Vector2(2, -1.5), Vector2(-2, 3)])
+	tail.color = paper
+	root.add_child(tail)
+	var edge := Line2D.new()
+	edge.points = PackedVector2Array([Vector2(-3, -0.5), Vector2(-2, 3), Vector2(2, -0.5)])
+	edge.width = 1.0
+	edge.default_color = ink
+	root.add_child(edge)
+	panel.resized.connect(func(): panel.position = Vector2(-panel.size.x / 2.0, -panel.size.y + 0.5))
+	return root
+
+
+func _show_bubble(on: bool) -> void:
+	if on == _bubble.visible:
+		return
+	_bubble.visible = on
+	if on:
+		_bubble.scale = Vector2(0.4, 0.4)
+		var t := _bubble.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(_bubble, "scale", Vector2.ONE, 0.25)
+
+
+func _show_hint() -> void:
+	_hint = Label.new()
+	_hint.text = "◀  เดินไปโรงเรียน"
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.add_theme_font_size_override("font_size", 15)
+	_hint.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0))
+	_hint.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.15))
+	_hint.add_theme_constant_override("outline_size", 5)
+	_hint.position = Vector2(0, 312)
+	_hint.size = Vector2(640, 24)
+	_hint.modulate.a = 0.0
+	dialogue_box.get_parent().add_child(_hint)
+	_hint_pulse = _hint.create_tween().set_loops()
+	_hint_pulse.tween_property(_hint, "modulate:a", 0.95, 0.9).set_trans(Tween.TRANS_SINE)
+	_hint_pulse.tween_property(_hint, "modulate:a", 0.4, 0.9).set_trans(Tween.TRANS_SINE)
+
+
+func _hide_hint() -> void:
+	if _hint == null:
+		return
+	var hint := _hint
+	_hint = null
+	_hint_pulse.kill()
+	var tween := hint.create_tween()
+	tween.tween_property(hint, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(hint.queue_free)
