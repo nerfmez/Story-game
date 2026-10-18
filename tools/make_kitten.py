@@ -5,7 +5,8 @@ paws, eyes) as material labels, shrunk to game pixels by taking the material tha
 pixel (no blended colours, so no stray specks), and given a 1 px dark outline like the other sprites. Grey tabby, fur darkened by the rain. Faces right; the game flips it to run left.
 
   frames 0-3: sitting, looking at the boy (tail tip flicks, a blink on frame 2)
-  frames 4-9: running (gallop: legs gather and stretch, body and tail bob)
+  frames 4-9: running: one gallop stride (stretch, front feet land, gather with the back arched,
+              hind feet push, launch), each leg placed by hand per frame
 
 Usage:
   python3 tools/make_kitten.py assets/characters/kitten.png
@@ -108,28 +109,54 @@ def sitting(i):
     return im
 
 
+# gallop, one stride in 6 frames: (body y, body length, spine arch, front near/far feet, hind near/far feet, tail lift)
+# feet are (x, y) in the 32x24 layout, ground at y = 22; far legs are drawn darker, behind the body
+GALLOP = [
+    # 0: fully stretched, flying: front legs reach forward, hind legs kick back
+    (14.6, 8.4, 0.0, (25.6, 19.6), (24.0, 20.6), (4.0, 19.8), (5.6, 20.8), 0.0),
+    # 1: front feet land one after the other, hind legs swing forward
+    (15.4, 7.8, 0.4, (22.6, 22.0), (24.4, 21.2), (7.6, 20.0), (6.2, 21.0), 0.6),
+    # 2: gathered: front feet push back under the chest, hind feet reach under the belly, back arched
+    (14.2, 6.6, 1.6, (18.4, 22.0), (19.8, 22.0), (13.6, 21.6), (12.4, 22.0), 1.4),
+    # 3: hind feet land and push, front feet leave the ground
+    (14.0, 6.8, 1.2, (17.2, 20.4), (18.8, 21.4), (11.2, 22.0), (12.6, 22.0), 1.0),
+    # 4: launching: front legs swing forward, hind legs straighten behind
+    (14.4, 7.6, 0.4, (21.6, 19.8), (20.2, 20.8), (7.4, 22.0), (8.8, 21.6), 0.4),
+    # 5: almost stretched
+    (14.4, 8.2, 0.0, (24.4, 19.4), (22.8, 20.4), (5.0, 20.6), (6.6, 21.6), 0.0),
+]
+
+
+def leg(d, top, foot, col, knee_back):
+    """Two-segment leg from the body to the foot, knee pushed sideways (front legs bend back,
+    hind legs forward at the hock), white paw."""
+    mx, my = (top[0] + foot[0]) / 2, (top[1] + foot[1]) / 2
+    knee = (mx + knee_back, my)
+    line(d, [top, knee, foot], col, 1.6)
+    e(d, foot[0] + (0.4 if knee_back < 0 else -0.4), foot[1] - 0.4, 1.0, 0.65, WHITE)
+
+
 def running(i):
     im, d = blank()
-    p = i / 6.0 * 2.0 * math.pi
-    stretch = 0.5 + 0.5 * math.cos(p)                 # 1 = stretched out, 0 = legs gathered
-    bob = -1.2 * math.sin(p)
-    body_y = 15.0 + bob
+    by, length, arch, fn, ff, hn, hf, tail = GALLOP[i]
+    cx = 14.6
+    shoulder = (cx + length * 0.62, by + 0.8)
+    hip = (cx - length * 0.62, by + 0.6)
+    # far legs first (darker, behind)
+    leg(d, (shoulder[0] - 0.8, shoulder[1]), ff, FUR_DARK, -0.9)
+    leg(d, (hip[0] + 0.8, hip[1]), hf, FUR_DARK, 1.0)
     # tail streams up behind
-    line(d, [(8.0, body_y - 0.5), (5.0, body_y - 3.0 - stretch), (3.4, body_y - 6.0 + bob * 0.5)], FUR_DARK, 1.9)
-    back = (9.0 - 2.2 * stretch, 9.0 + 2.0 * (1 - stretch))       # hind feet x (stretched / gathered)
-    front = (22.5 + 2.4 * stretch, 18.5 - 2.4 * (1 - stretch))
-    foot_y = 22.0
-    for hx, ox in ((back[0], 0.0), (back[1], 1.4)):
-        line(d, [(10.5 + ox * 0.5, body_y + 1.0), (hx + ox, foot_y - 1.5), (hx + ox - 0.8, foot_y)], FUR_DARK, 1.7)
-    e(d, 14.5, body_y, 7.4 + stretch * 0.8, 3.6, FUR)                                 # body
-    e(d, 14.5, body_y + 1.9, 6.6, 1.6, FUR_DARK)
-    for x in (11.0, 13.6, 16.2):
-        line(d, [(x, body_y - 3.2), (x - 0.8, body_y - 1.0)], STRIPE, 0.9)
-    e(d, 19.6, body_y + 1.2, 2.0, 1.8, WHITE)                                         # chest
-    for fx, ox in ((front[0], 0.0), (front[1], -1.3)):
-        line(d, [(19.5 + ox * 0.3, body_y + 1.0), (fx + ox, foot_y - 1.0)], FUR, 1.6)
-        e(d, fx + ox, foot_y - 0.6, 1.0, 0.7, WHITE)
-    head(d, 23.4, body_y - 4.2 + bob * 0.3)
+    line(d, [(hip[0] - 0.4, by - 0.8), (hip[0] - 3.0, by - 2.6 - tail), (hip[0] - 4.2, by - 5.4 - tail * 0.6)], FUR_DARK, 1.8)
+    # body (arched back = taller middle), shade underneath, stripes
+    e(d, cx, by - arch * 0.5, length, 3.4 + arch * 0.4, FUR)
+    e(d, cx, by + 1.8, length - 0.8, 1.5, FUR_DARK)
+    for k in (-0.45, -0.1, 0.25):
+        x = cx + k * length
+        line(d, [(x, by - 3.0 - arch * 0.7), (x - 0.8, by - 0.9)], STRIPE, 0.9)
+    e(d, shoulder[0] + 0.6, by + 1.0, 1.9, 1.7, WHITE)                                  # chest
+    leg(d, shoulder, fn, FUR, -0.9)
+    leg(d, hip, hn, FUR, 1.0)
+    head(d, cx + length * 0.95 + 0.6, by - 3.8 - arch * 0.3)
     return im
 
 

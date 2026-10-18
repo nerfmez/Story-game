@@ -33,6 +33,7 @@ var _lines := {}
 var _car: CrossingCar
 var _kitten: Kitten
 var _kitten_noticed := false
+var _walk_holds := 0                            # หยุดเดินชั่วคราว (รถผ่าน / ทักลูกแมว) นับซ้อนกันได้
 var _camera_before = null                     # ตำแหน่ง/ซูมกล้องก่อนตัดเข้าแคบที่ไฟสัญญาณ (null = ไม่ได้แคบอยู่)
 var _closeup: PhoneCloseup
 var _bubble: Node2D
@@ -130,12 +131,15 @@ func _on_line(line: Dictionary) -> void:
 		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
 			hero.put_away_phone()
 			_flinch()
-		"car":                                  # รถวิ่งผ่านเลนใกล้กล้อง น้ำกระเด็น ซันสะดุ้งตอนรถผ่าน (บรรทัดนี้มี pause)
+		"car":                                  # ซันหยุดเดิน รถวิ่งผ่านเลนใกล้กล้อง น้ำกระเด็น ซันสะดุ้งตอนรถผ่าน (บรรทัดนี้มี pause)
 			if _car:
+				_hold_walk(true)
+				dialogue_box.finished.connect(_hold_walk.bind(false), CONNECT_ONE_SHOT)   # คิดจบแล้วเดินต่อ
 				_car.drive_by(hero.position.x)
-		"kitten":                               # ซันพูดกับลูกแมว แล้วมันร้องวิ่งหนีไป
+		"kitten":                               # ซันพูดกับลูกแมว แล้วมันร้องวิ่งหนีไป คิดจบแล้วเดินต่อ
 			if _kitten:
 				get_tree().create_timer(1.2).timeout.connect(_kitten.run_away)
+				dialogue_box.finished.connect(_hold_walk.bind(false), CONNECT_ONE_SHOT)
 		"green":
 			crossing_signal.go_green()
 		"signal_closeup":                       # ตัดเข้าแคบที่ไฟสัญญาณ ไฟเปลี่ยนเป็นเขียว (บรรทัดนี้มี pause ให้เห็นไฟเปลี่ยนก่อนข้อความ)
@@ -161,8 +165,29 @@ func _add_walk_props() -> void:
 	_kitten = Kitten.new()
 	_kitten.hero = hero
 	_kitten.position = KITTEN_AT
-	_kitten.noticed.connect(func(): _kitten_noticed = true)
+	_kitten.noticed.connect(_greet_kitten)
 	get_parent().add_child(_kitten)
+
+
+## เดินมาถึงลูกแมว: หยุดเดิน ขึ้นปุ่ม "ทักลูกแมว" (หรือแตะที่ลูกแมว) กดแล้วบรรทัด "when": "kitten" จึงขึ้น
+func _greet_kitten() -> void:
+	_hold_walk(true)
+	var button := PromptButton.open(dialogue_box.get_parent(), "ทักลูกแมว  ▶")
+	_kitten.tapped.connect(button.choose, CONNECT_ONE_SHOT)
+	await button.chosen
+	if _kitten.tapped.is_connected(button.choose):
+		_kitten.tapped.disconnect(button.choose)
+	_kitten_noticed = true
+
+
+## หยุด/ให้เดินต่อ (นับซ้อน: เดินได้เมื่อไม่มีอะไรให้หยุดแล้ว) ระหว่างเดินไปทางม้าลาย
+func _hold_walk(on: bool) -> void:
+	_walk_holds = maxi(_walk_holds + (1 if on else -1), 0)
+	var free := _walk_holds == 0
+	hero.controllable = free
+	if not free:
+		hero.touch_dir = 0.0
+	_set_touch(free)
 
 
 ## ตัดฉับเข้าแคบที่ดวงไฟสัญญาณ (ไฟรถบน ไฟคนข้ามล่าง) หรือกลับมุมเดิม
