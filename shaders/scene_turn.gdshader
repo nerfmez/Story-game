@@ -10,6 +10,9 @@ uniform float yaw = 0.0;
 uniform float dist = 1.8;
 uniform float zoom = 1.0;
 uniform float pivot_y = 0.667;
+// เส้นขอบฟ้าของการมองแบบเปอร์สเปกทีฟ (แถวที่เส้นแนวนอนไม่เอียง) ไว้สูงใกล้แถบดำบน:
+// เส้นราว ถนน พื้นข้างล่างจึงเอียงลู่เข้าหาฝั่งที่ไกลออกชัดๆ (ถ้าไว้กลางจอ เส้นกลางจอแทบไม่เอียง ดูไม่ออกว่าหมุน)
+uniform float horizon = -0.75;
 
 void fragment() {
 	vec2 p = SCREEN_UV * 2.0 - 1.0;
@@ -17,7 +20,7 @@ void fragment() {
 	float c = cos(yaw);
 	float s = sin(yaw);
 	float u = p.x * dist / (dist * c - p.x * s);
-	float v = p.y * (dist + u * s) / dist;
+	float v = (p.y - horizon) * (dist + u * s) / dist + horizon;
 	vec2 src = vec2(u, v) * 0.5 + 0.5;
 	if (src.x < 0.0 || src.x > 1.0 || src.y < 0.0 || src.y > 1.0) {
 		COLOR = vec4(0.0, 0.0, 0.0, 1.0);
