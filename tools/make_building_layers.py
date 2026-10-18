@@ -9,7 +9,8 @@ Each depth needs the picture without the parts that stand in front of it (what i
 slide aside):
   front.png  the picture as is: entrance canopy, its pillars, the steps and the roof (frontmost)
   mid.png    canopy group filled in: pillars, parapets, the plinth (the corridor's front edge, z 0)
-  back.png   pillars and parapets filled in too: classroom walls, ceilings, the stair hall (z -2.5 / -7)
+  back.png   pillars, parapets and the bench filled in too: classroom walls, ceilings, the stair hall
+  props.png  only the bench (alpha), stood a little in front of the stair passage
 
 Fill: wall behind a pillar is continued from the bay beside it (not the stair-hall side); behind a
 parapet the wall above is carried down and smoothed; small leftovers use OpenCV inpainting.
@@ -35,6 +36,7 @@ EAVE_BOTTOM = 157                        # soffit row; pillars and walls start b
 CANOPY = (884, 1284, 463, 497)           # slab incl. its soffit (x0, x1, y0, y1)
 CANOPY_PILLARS = [(912, 942), (1225, 1252)]
 STEPS = (898, 1266, 645, 668)
+BENCH = (948, 1028, 602, 647)            # bench in front of the stair passage: its own card (props.png)
 
 
 def fill_from_side(img, x0, x1, y0, y1, side):
@@ -97,7 +99,21 @@ def main():
     for a, b in PILLARS:
         # take the bay on the left, except the outer corner and the hall's right pillar (bay on the right)
         side = 1 if a < 120 or a == HALL[1] else -1
-        fill_from_side(back, a, b, EAVE_BOTTOM, PLINTH[0], side)
+        hall = b == HALL[0] or a == HALL[1]      # the hall pair stops on the canopy (canopy pillars below)
+        fill_from_side(back, a, b, EAVE_BOTTOM, CANOPY[2] if hall else PLINTH[0], side)
+    # bench: cut out to its own card, the passage floor and wall behind it inpainted
+    bx0, bx1, by0, by1 = BENCH
+    box = src[by0:by1, bx0:bx1, :3].astype(int)
+    wood = box[..., 0] > box[..., 2] + 15
+    legs = (box.mean(2) < 60) & (np.arange(by1 - by0)[:, None] > 26)
+    bench = cv2.dilate((wood | legs).astype(np.uint8) * 255, np.ones((3, 3), np.uint8))
+    props = np.zeros_like(src)
+    props[by0:by1, bx0:bx1] = src[by0:by1, bx0:bx1]
+    props[by0:by1, bx0:bx1, 3] = bench
+    Image.fromarray(props).save(os.path.join(out, "props.png"))
+    mask = np.zeros(src.shape[:2], np.uint8)
+    mask[by0:by1, bx0:bx1] = cv2.dilate(bench, np.ones((5, 5), np.uint8))
+    inpaint(back, mask)
     for y0, y1 in PARAPETS + [PLINTH]:
         fill_rows(back, y0, y1, wall_colour(src, y0))
     Image.fromarray(back).save(os.path.join(out, "back.png"))

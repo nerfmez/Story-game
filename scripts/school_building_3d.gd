@@ -2,7 +2,7 @@
 class_name SchoolBuilding3D
 extends Node3D
 ## อาคารเรียน 3 ชั้นแบบ 2.5D จากภาพหน้าอาคารของผู้เขียน (art_source/school_building.png)
-## ขึ้นรูปเป็นกล่องที่ความลึกจริง: เสา/ระเบียง (z 0) ผนังห้องเรียน (z -2.5) โถงบันได (z -7)
+## ขึ้นรูปเป็นกล่องที่ความลึกจริง: เสา/ระเบียง (z 0) ผนังห้องเรียนและผนังบันได (z -2.5) ทางเดินในโถง (z -6)
 ## กันสาด เสากันสาด บันไดหน้า (ยื่นออกมา) หลังคาลาดไปถึงสันที่ z -5
 ## ทุกหน้าระบายด้วยภาพเดิมฉายจากกล้องออกแบบ (shaders/projected_paint.gdshader):
 ## มองจากจุด DESIGN_CAMERA ได้ภาพเหมือนต้นฉบับ ขยับ/หมุนกล้องเล็กน้อยแล้วชั้นต่างๆ เลื่อนซ้อนกันแบบ 3D
@@ -13,6 +13,7 @@ const PAINT := {
 	"front": preload("res://assets/bg/school/building/front.png"),
 	"mid": preload("res://assets/bg/school/building/mid.png"),
 	"back": preload("res://assets/bg/school/building/back.png"),
+	"props": preload("res://assets/bg/school/building/props.png"),
 }
 const SHADER := preload("res://shaders/projected_paint.gdshader")
 const PX_PER_M := 50.0
@@ -26,6 +27,8 @@ const END_WALL := Color(0.36, 0.39, 0.47)       # ผนังหัวท้า
 const PILLARS := [[73, 109], [372, 398], [650, 675], [921, 945], [1220, 1245], [1490, 1515],
 		[1769, 1794], [2057, 2094]]
 const HALL := [945, 1220]
+const PASSAGE_END := 1122                        # โถง: ซ้ายเป็นทางเดินลึก ขวาเป็นผนังบันไดหันออกมา
+const BENCH := [948, 1028, 602, 647]
 const PARAPETS := [[271, 329], [435, 496]]
 const CEILINGS := [157, 329, 496]
 const LEFT := 73
@@ -40,7 +43,9 @@ const GROUND := 668
 
 const Z_PILLAR := [0.15, -0.45]
 const Z_WALL := -2.5
-const Z_HALL := -7.0
+const Z_PASSAGE := -6.0
+const Z_FLOOR_END := -0.6
+const Z_BENCH := -1.2
 const Z_EAVE := 1.0
 const Z_RIDGE := -5.0
 const Z_BACK := -10.0
@@ -59,18 +64,21 @@ func _build() -> void:
 	for child in get_children():
 		child.queue_free()
 	_tools.clear()
-	# ผนังห้องเรียนหลังระเบียง เว้นช่องโถงบันได
+	# ผนังห้องเรียนหลังระเบียง ต่อไปถึงผนังบันไดฝั่งขวาของโถง (ช่องลม นาฬิกา บอร์ด ถังขยะ อยู่ระนาบเดียวกัน)
+	# เว้นช่องทางเดินลึกฝั่งซ้ายของโถง
 	_face_z("back", LEFT, HALL[0], CEILINGS[0], FLOOR, Z_WALL)
-	_face_z("back", HALL[1], RIGHT, CEILINGS[0], FLOOR, Z_WALL)
-	# โถงบันได: ผนังหลัง ผนังข้าง เพดาน
-	_face_z("back", HALL[0], HALL[1], CEILINGS[0], FLOOR, Z_HALL)
-	for x in HALL:
-		_face_x("back", x, CEILINGS[0], FLOOR, Z_WALL, Z_HALL)
+	_face_z("back", PASSAGE_END, RIGHT, CEILINGS[0], FLOOR, Z_WALL)
+	# ทางเดินลึกเข้าไปในโถง (ภาพวาดเป็นมุมมองลึกอยู่แล้ว: ผนังหลังแผ่นเดียว) ผนังข้าง เพดาน
+	_face_z("back", HALL[0], PASSAGE_END, CEILINGS[0], FLOOR, Z_PASSAGE)
+	for x in [HALL[0], PASSAGE_END]:
+		_face_x("back", x, CEILINGS[0], FLOOR, Z_WALL, Z_PASSAGE)
 	for y in CEILINGS:
 		_face_y("back", LEFT, RIGHT, y, Z_EAVE if y == CEILINGS[0] else 0.0, Z_WALL)
-		_face_y("back", HALL[0], HALL[1], y, 0.0, Z_HALL)
-	# พื้นทางเดินชั้นล่าง (โถงไม่มีพื้น: ถังขยะ ม้านั่ง วาดอยู่บนผนังหลังโถง ผนังลงต่ำกว่าพื้นจึงไม่เห็นช่อง)
-	_face_y("back", LEFT, RIGHT, FLOOR, 0.0, Z_WALL)
+		_face_y("back", HALL[0], PASSAGE_END, y, Z_WALL, Z_PASSAGE)
+	# พื้นทางเดินชั้นล่าง แค่ช่วงหน้า (ต่อจากนั้นผนังลงต่ำกว่าพื้น ของที่วางชิดผนังจึงไม่ถูกลากยืดบนพื้น)
+	_face_y("back", LEFT, RIGHT, FLOOR, 0.0, Z_FLOOR_END)
+	# ม้านั่งหน้าทางเดินโถง (แผ่นตั้งของมันเอง)
+	_face_z("props", BENCH[0], BENCH[1], BENCH[2], BENCH[3], Z_BENCH)
 	# เสา (คู่กลางหยุดที่หลังคากันสาด) ระเบียง ขอบพื้น
 	for p in PILLARS:
 		var hall_pillar: bool = p[1] == HALL[0] or p[0] == HALL[1]
