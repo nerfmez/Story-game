@@ -26,19 +26,27 @@ const TURN_TIME := 4.0
 ## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55) ตรงกับก้าวในคลิป:
 ## เท้าที่แตะพื้นเลื่อนข้าง ~18 px/วินาที = ด้านข้างของทิศเดินเฉียง 26° → ~0.6-0.7 หน่วย/วินาที พื้นจึงไหลเท่าก้าว ไม่ใช่เดินอยู่กับที่
 const WALK_DEPTH_PER_SECOND := 0.68
-## กล้องถอยตามเท่านี้ของระยะที่ทั้งคู่เดิน (1 = ตามติด ทั้งคู่อยู่ที่เดิมบนจอ) ที่เหลือคือทั้งคู่เดินเข้ามาใกล้กล้อง
-const CAMERA_FOLLOW := 0.94
-## กำแพงและฉากหลังถอยไปกับกล้องเท่านี้ (ไกลมาก: ข้ามถนนแล้วฉากหลังค่อยๆ ไกลออก ไม่หลุดจอ)
-const WALL_FOLLOW := 0.9
+## กล้องถอยตามเท่านี้ของระยะที่ทั้งคู่เดิน (1 = ตามติด ทั้งคู่อยู่ที่เดิมบนจอ) ที่เหลือคือทั้งคู่เดินเข้ามาใกล้กล้อง (ตัวใหญ่ขึ้น)
+const CAMERA_FOLLOW := 0.92
+## กำแพงและฉากหลังถอยไปกับกล้องเท่านี้ (ฉากหลังอยู่ไกลกว่าที่วาด: ไกลออกช้า ซูมเข้าชดเชย ฉากหลังจึงไม่หดเหมือนซูมออก)
+const WALL_FOLLOW := 0.75
+## ช็อตเดินยาวเท่านี้ (วินาทีนับจากตัดเข้า: จนซับไตเติลบรรทัดสุดท้ายเกือบจบ) แล้วจางเป็นจอดำ
+const SHOT_TIME := 19.0
 ## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
 const WALK_START := 0.6
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
-const ZOOM_TO := 1.35
+const ZOOM_TO := 1.25
 const ZOOM_FOCUS := Vector2(0.0, -30.0)
+## หมุนเสร็จแล้วค่อยๆ ซูมเข้าต่อจนจบช็อต (คูณ) ทั้งคู่ใหญ่ขึ้นเรื่อยๆ ร่มไม่ชนแถบบน
+const PUSH_TO := 1.15
+## เสาไฟสัญญาณ: จุดโคนเสาในภาพเสา (signal_pole.png 30x200) วาดแยกเป็นวัตถุตั้งที่ความลึกจริงของมัน (ริมทางเท้า)
+## ไม่ใช่ส่วนของกำแพง: หมุนแล้วจึงยังอยู่ข้างที่ทั้งคู่ยืนตอนแรก แล้วอยู่ข้างหลังเมื่อเดินผ่านไป
+const POLE_FOOT := Vector2(16.0, 200.0)
 ## ค่าเดียวกับใน shader (หาตำแหน่งทั้งคู่บนจอด้วยกล้องเดียวกัน เท้าจึงติดพื้น)
 const FOCAL := 500.0
 const PIVOT_DEPTH := FOCAL / (93.0 - 23.0)    # ความลึกของเท้าทั้งคู่ตอนเริ่ม (focal / (แถวเท้า - ขอบฟ้า))
 const OUT_HORIZON := -17.0
+const WALL_DEPTH := FOCAL / (70.0 - 23.0)     # ความลึกฐานกำแพง (focal / (แถวฐานกำแพง - ขอบฟ้า))
 ## กล้องเกมถอยออกตอนถ่ายฉากให้ shader (เห็นกว้างกว่าจอ ฉากที่หมุนแล้วไม่มีขอบโผล่)
 const SRC_ZOOM := 0.58
 ## และเลื่อนไปทางซ้ายเท่านี้ตอนหมุนสุด (หมุนแล้วฝั่งซ้ายมองเห็นไกลกว่า ต้องมีภาพทางซ้ายมากกว่าขวา)
@@ -50,12 +58,15 @@ var hero: Node2D
 var heroine: Node2D
 var camera: Camera2D
 var ui: Node                                   # CanvasLayer ของกล่องข้อความ (ปุ่มอยู่ชั้นเดียวกัน)
+var crossing_signal: Node2D                    # เสาไฟสัญญาณในฉาก (ย้ายออกจากฉากมาวาดเองตอนหมุน)
 
 var _pair: Sprite2D
 var _turn_mat: ShaderMaterial
 var _turned := 0.0                              # 0 -> 1 หมุนและซูม
 var _walked := 0.0                              # ทั้งคู่เดินไปกี่หน่วยความลึก
 var _feet := Vector2.ZERO
+var _pole_x := 0.0                              # ตำแหน่งโคนเสาไฟบนพื้น (หน่วยแบบ shader: ข้าง, ความลึก)
+var _pole_z := 0.0
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
@@ -178,6 +189,12 @@ func play() -> void:
 		s.position = Vector2(0, -2)
 		s.show_behind_parent = true
 		_pair.add_child(s)
+	if crossing_signal:
+		var foot := crossing_signal.position + POLE_FOOT
+		_pole_z = FOCAL / (foot.y - 180.0 - 23.0)
+		_pole_x = (foot.x - _feet.x) * _pole_z / FOCAL
+		crossing_signal.reparent(pair_layer, false)
+		crossing_signal.modulate = _pair.modulate
 	pair_layer.add_child(_pair)
 	hero.visible = false
 	heroine.visible = false
@@ -194,13 +211,25 @@ func play() -> void:
 	var open := black.create_tween()
 	open.tween_interval(0.25)
 	open.tween_property(black, "modulate:a", 0.0, 0.7)
+	open.tween_interval(SHOT_TIME - 0.95)
+	open.tween_property(black, "modulate:a", 1.0, 1.2)
 
 
-## หมุน ซูม ถอยกล้อง แล้ววางทั้งคู่ที่จุดบนพื้นที่ทั้งคู่เดินถึง (คิดแบบเดียวกับ scene_turn.gdshader)
-## กล้องโคจรรอบจุดเริ่มของทั้งคู่ (หมุน) และถอยตาม CAMERA_FOLLOW ของระยะที่เดิน ทั้งคู่เดินไปทาง -z (เข้าหากล้อง)
+## จุดบนพื้น (x ข้าง, z ความลึก แบบ shader) -> ตำแหน่งบนจอ (นับจากกลางจอ ก่อนซูม) และความลึกจากกล้อง
+## กล้องโคจรรอบจุดเริ่มของทั้งคู่ (หมุน) อยู่ที่ (-zp s, 0, -zp c + zp - cam_walked) พื้นอยู่ต่ำกว่ากล้อง 1 หน่วย
+func _project(x: float, z: float, cam_walked: float, c: float, s: float) -> Vector3:
+	var rx := x + PIVOT_DEPTH * s
+	var rz := z + PIVOT_DEPTH * c - PIVOT_DEPTH + cam_walked
+	var dx := rx * c - rz * s
+	var dz := rx * s + rz * c
+	return Vector3(FOCAL * dx / dz, FOCAL / dz + OUT_HORIZON, dz)
+
+
+## หมุน ซูม ถอยกล้อง แล้ววางทั้งคู่ (เดินไปทาง -z เข้าหากล้อง) และเสาไฟ (อยู่กับที่) ด้วยกล้องเดียวกับ scene_turn.gdshader
 func _place() -> void:
 	var yaw := deg_to_rad(YAW_TO * _turned)
-	var zoom := lerpf(1.0, ZOOM_TO, _turned)
+	var push := smoothstep(0.0, 1.0, (_time - 0.8 - TURN_TIME) / (SHOT_TIME - 0.8 - TURN_TIME))
+	var zoom := lerpf(1.0, ZOOM_TO, _turned) * lerpf(1.0, PUSH_TO, push)
 	var cam_walked := _walked * CAMERA_FOLLOW
 	_turn_mat.set_shader_parameter("yaw", yaw)
 	_turn_mat.set_shader_parameter("advance", cam_walked)
@@ -210,15 +239,22 @@ func _place() -> void:
 	camera.position.x = _feet.x + SRC_SHIFT * _turned
 	var c := cos(yaw)
 	var s := sin(yaw)
-	# ทั้งคู่เทียบกับกล้อง (กล้องอยู่ที่ (-zp s, 0, -zp c + zp - cam_walked) ทั้งคู่อยู่ที่ (0, 1, zp - walked))
-	var rx := PIVOT_DEPTH * s
-	var rz := PIVOT_DEPTH * c - (_walked - cam_walked)
-	var dx := rx * c - rz * s
-	var dz := rx * s + rz * c
-	var on_screen := Vector2(FOCAL * dx / dz, FOCAL / dz + OUT_HORIZON)
-	on_screen = ZOOM_FOCUS + (on_screen - ZOOM_FOCUS) * zoom
-	_pair.position = Vector2(320.0, 180.0) + on_screen
-	_pair.scale = Vector2.ONE * (zoom * PIVOT_DEPTH / dz)
+	var pair := _project(0.0, PIVOT_DEPTH - _walked, cam_walked, c, s)
+	_pair.position = _on_screen(pair, zoom)
+	_pair.scale = Vector2.ONE * (zoom * PIVOT_DEPTH / pair.z)
+	if crossing_signal:
+		var pole := _project(_pole_x, _pole_z, cam_walked, c, s)
+		var k := zoom * _pole_z / pole.z
+		crossing_signal.scale = Vector2.ONE * k
+		crossing_signal.position = _on_screen(pole, zoom) - POLE_FOOT * k
+		crossing_signal.z_index = 1 if pole.z < pair.z else 0   # ใกล้กล้องกว่าทั้งคู่ = วาดทับ
+		# ฉากหลังถอยตามกล้องช้ากว่าที่ทั้งคู่ทิ้งเสาไว้ข้างหลัง: ก่อนเสาจะเลยไปอยู่หลังกำแพง เสาจางหายไปในม่านฝน
+		var gap := (WALL_DEPTH - cam_walked * WALL_FOLLOW) - _pole_z
+		crossing_signal.modulate.a = smoothstep(0.3, 2.0, gap)
+
+
+func _on_screen(p: Vector3, zoom: float) -> Vector2:
+	return Vector2(320.0, 180.0) + ZOOM_FOCUS + (Vector2(p.x, p.y) - ZOOM_FOCUS) * zoom
 
 
 func _process(delta: float) -> void:

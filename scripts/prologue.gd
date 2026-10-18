@@ -85,6 +85,7 @@ func _crossing() -> void:
 	cross.hero = hero
 	cross.heroine = heroine
 	cross.camera = camera
+	cross.crossing_signal = crossing_signal
 	cross.ui = dialogue_box.get_parent()
 	add_child(cross)
 	await cross.ask()
