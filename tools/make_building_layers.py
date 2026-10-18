@@ -11,7 +11,6 @@ slide aside):
   mid.png    canopy group filled in: pillars, parapets, the plinth (the corridor's front edge, z 0)
   back.png   pillars, parapets and the bench filled in too: classroom walls, ceilings, the stair hall
   props.png  only the bench (alpha), stood a little in front of the stair passage
-  hall.png   the ground-floor stair hall of back.png at full size (HALL_CROP), for walking in
 
 Fill: wall behind a pillar is continued from the bay beside it (not the stair-hall side); behind a
 parapet the wall above is carried down and smoothed; small leftovers use OpenCV inpainting.
@@ -41,9 +40,7 @@ EAVE_BOTTOM = 157                        # soffit row; pillars and walls start b
 CANOPY = (884, 1284, 463, 497)           # slab incl. its soffit (x0, x1, y0, y1)
 CANOPY_PILLARS = [(912, 942), (1225, 1252)]
 STEPS = (898, 1266, 645, 668)
-HALL_CROP = (900, 470, 1260, 668)        # stair hall, kept full size in hall.png
 BENCH = (948, 1028, 602, 647)            # bench in front of the stair passage: its own card (props.png)
-BENCH_FLOOR = 632                        # where the passage wall meets the floor behind the bench
 
 
 PIXEL = 0.48
@@ -146,7 +143,7 @@ def main():
         side = 1 if a < 120 or a == HALL[1] else -1
         hall = b == HALL[0] or a == HALL[1]      # the hall pair stops on the canopy (canopy pillars below)
         fill_from_side(back, a, b, EAVE_BOTTOM, CANOPY[2] if hall else PLINTH[0], side)
-    # bench: cut out to its own card
+    # bench: cut out to its own card, the passage floor and wall behind it inpainted
     bx0, bx1, by0, by1 = BENCH
     box = src[by0:by1, bx0:bx1, :3].astype(int)
     wood = box[..., 0] > box[..., 2] + 15
@@ -158,22 +155,11 @@ def main():
     save(props, "props")
     mask = np.zeros(src.shape[:2], np.uint8)
     mask[by0:by1, bx0:bx1] = cv2.dilate(bench, np.ones((5, 5), np.uint8))
-    # behind the bench: the passage's left wall carried down from just above it, and the floor
-    # from the same rows further along the passage (the camera walks in and sees this up close)
-    fill = back.copy()
-    wall = back[by0 - 14:by0, bx0:bx1]
-    for v in range(by0, BENCH_FLOOR):
-        fill[v, bx0:bx1] = wall[(v - by0) % wall.shape[0]]
-    fill[BENCH_FLOOR:by1, bx0:bx1] = back[BENCH_FLOOR:by1, bx0 + 90:bx1 + 90]
-    on = mask > 0
-    back[on] = fill[on]
+    inpaint(back, mask)
     for y0, y1 in PARAPETS + [PLINTH]:
         fill_rows(back, y0, y1, wall_colour(src, y0))
     save(back, "back")
-    # the stair hall at full size (no shrinking): the camera walks into it, so it is seen up close
-    hx0, hy0, hx1, hy1 = HALL_CROP
-    Image.fromarray(back[hy0:hy1, hx0:hx1]).save(os.path.join(out, "hall.png"))
-    print(f"front/mid/back/hall -> {out}")
+    print(f"front/mid/back -> {out}")
 
 
 if __name__ == "__main__":

@@ -5,24 +5,26 @@ extends SubViewportContainer
 ## turn(องศา): มองอาคารเฉียงเล็กน้อย (0 = ภาพเหมือนต้นฉบับ) โดยเลื่อนกล้องไปข้างๆ แล้วเลื่อนเลนส์
 ## ให้หน้าอาคาร (z 0) อยู่ที่เดิมบนจอ ไม่หมุนตัวกล้อง: เส้นแนวนอนจึงตรงเสมอ (หมุนจริงแล้วเส้นเอียงเป็นขั้นบันไดพิกเซล)
 ## เห็นข้างเสาและความลึกของโถงเหมือนหมุน
-## enter(0..1): กล้องเดินเข้าโถงชั้นล่างไปดูบันได: หน้าอาคาร -> จุดที่ผู้เขียนวาดโถง (ENTER_AT, เห็นโถง
-## เหมือนในภาพ) -> เข้าไปในทางเดินจนเห็นบันไดผ่านช่องประตู ไม่หมุนกล้อง เลื่อนเลนส์มองตามเป้า
+## enter(0..1): กล้องเดินเข้าไปดูบันได: หน้าอาคาร -> จุดยืนของภาพทางเข้าระยะใกล้ (ENTER_AT: เห็นเหมือนภาพ
+## ของผู้เขียน, SchoolEntrance3D จางเข้าแทนตัวอาคารกับลานระหว่างทาง) -> เข้าโถงไปหน้าบันได
+## ไม่หมุนกล้อง เลื่อนเลนส์มองตามเป้า
 
 const SIZE := Vector2i(640, 360)
 ## กรอบภาพที่ระยะออกแบบ (เมตร): สูง 15m ศูนย์กลางที่ 5m (เห็นลานหน้าอาคารด้วย)
 @export var frame_height := 15.0
 @export var frame_centre_y := 5.0
-## เป้าที่มองและความสูงภาพต่อระยะ 1 ม. ที่จุดในอาคาร (ภาพโถงเต็มจอ / ใกล้ช่องประตู)
-const ENTER_AT := 0.7
-const HALL_LOOK := Vector2(1040.0, 571.0)       # กลางภาพโถง (px ต้นฉบับ) ที่ระนาบปากทางเดิน
-const HALL_FRAME := 0.66                        # ภาพโถงชั้นล่าง (px 496-645) เต็มจอพอดี
-const INSIDE := Vector3(0.35, 1.1, -3.5)        # ยืนในทางเดิน หน้าช่องประตู
-const INSIDE_FRAME := 1.1
-const FADE := [0.35, 0.55]                      # ช่วงที่ภาพโถงนอกอาคารเปลี่ยนเป็นโถงจริง
+## จุดยืน เป้าที่มอง ความสูงภาพต่อระยะ 1 ม. ของภาพทางเข้า (ทั้งภาพเต็มจอ) และหน้าบันได
+const ENTER_AT := 0.6
+const CLOSE_FRAME := 941.0 / 1160.0
+const INSIDE := Vector3(-1.15, 1.25, -1.7)      # ในโถง หน้าบันได
+const INSIDE_LOOK := Vector3(-1.25, 1.45, -4.4)
+const INSIDE_FRAME := 0.95
+const FADE := [0.3, 0.5]                        # ช่วงที่ตัวอาคาร/ลานเปลี่ยนเป็นภาพทางเข้า
 
 var camera: Camera3D
 var building: SchoolBuilding3D
 var courtyard: SchoolCourtyard3D
+var entrance: SchoolEntrance3D
 var _viewport: SubViewport
 var _yaw := 0.0
 var _inside := 0.0
@@ -42,6 +44,8 @@ func _ready() -> void:
 	_viewport.add_child(building)
 	courtyard = SchoolCourtyard3D.new()
 	_viewport.add_child(courtyard)
+	entrance = SchoolEntrance3D.new()
+	_viewport.add_child(entrance)
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_FRUSTUM
 	camera.near = 0.05
@@ -67,9 +71,8 @@ func _place() -> void:
 	# หน้าอาคาร: เลนส์เลื่อนให้หน้าอาคาร (z 0) อยู่กรอบเดิม ระนาบนั้นนิ่ง ชิ้นใกล้/ไกลเลื่อนออกจากกัน
 	var keys := [
 		[cam + Vector3(dx, 0, 0), Vector3(0, frame_centre_y, 0), frame_height / cam.z],
-		[SchoolBuilding3D.HALL_CAMERA, SchoolBuilding3D.at(HALL_LOOK.x, HALL_LOOK.y, SchoolBuilding3D.HALL_PLANE),
-				HALL_FRAME],
-		[INSIDE, SchoolBuilding3D.at_hall(1071, 594, SchoolBuilding3D.Z_STAIRS), INSIDE_FRAME],
+		[SchoolEntrance3D.CAMERA, SchoolEntrance3D.at(836.0, 470.5, 0.0), CLOSE_FRAME],
+		[INSIDE, INSIDE_LOOK, INSIDE_FRAME],
 	]
 	var a: Array = keys[0]
 	var b: Array = keys[1]
@@ -85,4 +88,7 @@ func _place() -> void:
 	camera.position = pos
 	camera.size = frame * camera.near
 	camera.frustum_offset = Vector2(look.x - pos.x, look.y - pos.y) / (pos.z - look.z) * camera.near
-	building.set_inside(clampf((_inside - FADE[0]) / (FADE[1] - FADE[0]), 0.0, 1.0))
+	var f := clampf((_inside - FADE[0]) / (FADE[1] - FADE[0]), 0.0, 1.0)
+	building.set_fade(1.0 - f)
+	courtyard.set_fade(1.0 - f)
+	entrance.set_fade(f)

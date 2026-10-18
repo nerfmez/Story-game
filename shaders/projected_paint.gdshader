@@ -14,14 +14,12 @@ uniform vec2 origin_px;              // paint pixel of world x = 0, y = 0 (groun
 uniform float px_per_m = 24.0;       // paint pixels per metre
 // side faces of pillars etc. are darkened a little (the picture only has their front light)
 uniform vec3 tint : source_color = vec3(1.0);
-// a part drawn from its own viewpoint (the author drew the stair hall from closer in): the face is
-// first projected from paint_camera onto the plane z = paint_plane, then that plane point is mapped
-// into the picture as the design camera sees it. Default (paint_camera = design camera, plane 0)
-// is the plain projection above.
-uniform vec3 paint_camera;
-uniform float paint_plane = 0.0;
-uniform bool own_view = false;
-// plain colour instead of the picture (parts of the stair hall the picture never shows)
+// a picture with its own camera (the author's close view of the entrance): plain pinhole,
+// paint px = principal + focal * (x, -y) / distance in front of design_camera
+uniform bool pinhole = false;
+uniform vec2 principal;
+uniform float focal = 1.0;
+// plain colour instead of the picture (a face the picture never shows)
 uniform bool solid = false;
 uniform vec3 solid_colour : source_color = vec3(0.3);
 // fade in/out with an ordered-dither cut (pixel art: no half-transparent pixels)
@@ -36,15 +34,15 @@ void vertex() {
 }
 
 vec4 picture(vec3 pos) {
-	vec3 q = pos;
-	float z = pos.z;
-	if (own_view) {
-		q = paint_camera + (pos - paint_camera) * (paint_camera.z - paint_plane) / (paint_camera.z - pos.z);
-		z = paint_plane;
+	vec2 px;
+	if (pinhole) {
+		vec3 d = pos - design_camera;
+		px = principal + focal * vec2(d.x, -d.y) / -d.z;
+	} else {
+		float t = design_camera.z / (design_camera.z - pos.z);
+		vec2 p = design_camera.xy + (pos.xy - design_camera.xy) * t;
+		px = vec2(origin_px.x + p.x * px_per_m, origin_px.y - p.y * px_per_m);
 	}
-	float t = design_camera.z / (design_camera.z - z);
-	vec2 p = design_camera.xy + (q.xy - design_camera.xy) * t;
-	vec2 px = vec2(origin_px.x + p.x * px_per_m, origin_px.y - p.y * px_per_m);
 	vec2 seam = floor(px + 0.5);
 	px = seam + clamp((px - seam) / max(fwidth(px), vec2(1e-4)), -0.5, 0.5);
 	return texture(paint, px / vec2(textureSize(paint, 0)));

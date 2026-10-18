@@ -15,6 +15,15 @@ func _ready() -> void:
 	_build()
 
 
+## จางเข้า/ออกแบบพิกเซล (0 ไม่เห็น, 1 เห็นเต็ม): ตอนกล้องเดินเข้าภาพทางเข้าระยะใกล้
+func set_fade(amount: float) -> void:
+	visible = amount > 0.0
+	for mesh in get_children():
+		var mat := (mesh as MeshInstance3D).material_override as ShaderMaterial
+		if mat:
+			mat.set_shader_parameter("fade", amount)
+
+
 func _build() -> void:
 	for child in get_children():
 		child.queue_free()

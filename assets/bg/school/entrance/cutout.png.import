@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://tdqx0caegr6y"
-path="res://.godot/imported/hall.png-a212cdeaf82d4e6a5e205ea7434fe97d.ctex"
+uid="uid://b0twp636lsahk"
+path="res://.godot/imported/cutout.png-888fa75244e74fb3455d18b6fe3b98cf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/school/building/hall.png"
-dest_files=["res://.godot/imported/hall.png-a212cdeaf82d4e6a5e205ea7434fe97d.ctex"]
+source_file="res://assets/bg/school/entrance/cutout.png"
+dest_files=["res://.godot/imported/cutout.png-888fa75244e74fb3455d18b6fe3b98cf.ctex"]
 
 [params]
 
