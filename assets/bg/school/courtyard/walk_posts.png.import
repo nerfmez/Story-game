@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cl42opej8u7iw"
-path="res://.godot/imported/walk_posts_back.png-752753793f3e88b82e7151a43834e2a3.ctex"
+uid="uid://2gsr6qakhakl"
+path="res://.godot/imported/walk_posts.png-4a4c1c5e69c95ce68577c6015cdfdf13.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/school/courtyard/walk_posts_back.png"
-dest_files=["res://.godot/imported/walk_posts_back.png-752753793f3e88b82e7151a43834e2a3.ctex"]
+source_file="res://assets/bg/school/courtyard/walk_posts.png"
+dest_files=["res://.godot/imported/walk_posts.png-4a4c1c5e69c95ce68577c6015cdfdf13.ctex"]
 
 [params]
 

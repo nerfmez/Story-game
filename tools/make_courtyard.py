@@ -7,12 +7,14 @@ shaders/projected_paint.gdshader just like the building. So at rest the picture 
 drawn here, and a turned view slides the pieces over each other.
 
 In front of the block (world metres: facade z 0, entrance x 0, camera at z 30, eyes 1.6 m):
-  - concrete apron with a drain along the wall (z 0-3.9), polished cement under the walkway
-  - a covered walkway along the block (z 3.9-6.6): steel posts, metal roof with its front flashing
-  - low shrubs in a planter strip before the classrooms (z 3), a trimmed hedge along the lawn (z 7.9)
-  - lawn with a paved path out from the entrance, two shade trees, a bench under each
-Leaves are stamped from the author's bush (art_source/school_trees_rain.png, the small bush in the
-middle) so they match the painted trees; the rest is drawn here.
+  - wet concrete apron with a drain grating along the wall, rain puddles
+  - a covered walkway along the block: one row of steel posts (each in the middle of a classroom bay
+    as seen from the camera, downpipes on every other one), roof cantilevered both ways, blue sheet
+    edge and gutter; polished cement floor under it
+  - low shrubs in a planter strip before the classrooms, a trimmed hedge along the lawn
+  - lawn (mowing stripes, wet) with a paved path out from the entrance, a bench on each side
+Leaves are the author's (art_source/school_trees_rain.png: the small bush and a dense patch of a crown)
+so they match the painted trees; the rest is drawn here.
 
 Usage:
   python3 tools/make_courtyard.py art_source/school_trees_rain.png assets/bg/school/courtyard
@@ -23,13 +25,12 @@ import sys
 
 import numpy as np
 from PIL import Image, ImageDraw
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, map_coordinates
 
 D, EYE, PPM = 30.0, 1.6, 24.0
 OX, OY = 1083.5 * 0.48, 668.0 * 0.48          # picture pixel of world x 0, y 0 on the facade plane
 BUSH = (1150, 150, 1527, 293)                   # the author's bush (source px)
-
-RNG = np.random.default_rng(15)
+LEAFAGE = (400, 0, 570, 95)                     # a dense patch of the author's crown, no branches (source px)
 
 
 def k(z):
@@ -77,12 +78,21 @@ class Layer:
 # ---------------------------------------------------------------- leaves
 
 def load_bush(path):
-    src = Image.open(path).convert("RGBA").crop(BUSH)
-    return src
+    return Image.open(path).convert("RGBA").crop(BUSH)
+
+
+def load_leafage(path, scale):
+    """Dense leaves from the author's crown, scaled, mirror-tiled large (mirrored copies hide seams)."""
+    src = Image.open(path).convert("RGBA").crop(LEAFAGE)
+    src = src.resize((round(src.width * scale), round(src.height * scale)), Image.LANCZOS)
+    a = np.asarray(src)
+    row = np.concatenate([a, a[:, ::-1]], 1)
+    block = np.concatenate([row, row[::-1]], 0)
+    return np.tile(block, (3, 12, 1)).astype(float)
 
 
 def stamp(bush, width, flip, tone):
-    """The author's bush scaled to `width` px, tinted (tone < 1 darker, > 1 lighter, toward teal-green)."""
+    """The author's bush scaled to `width` px and tinted (tone < 1 darker)."""
     h = max(2, round(bush.height * width / bush.width))
     s = bush.convert("RGBa").resize((max(2, round(width)), h), Image.LANCZOS).convert("RGBA")
     if flip:
@@ -93,78 +103,105 @@ def stamp(bush, width, flip, tone):
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
-def foliage(bush, img, cx, cy, rx, ry, n, size, light=(-0.6, -0.8), seed=0, flat_bottom=None):
-    """Crown/shrub: stamps scattered in an ellipse, bottom ones first and darker, top-left lighter."""
+def foliage(bush, img, cx, cy, rx, ry, n, size, seed=0):
+    """Shrub: stamps scattered in an ellipse, bottom ones first and darker, top-left lighter."""
     rng = np.random.default_rng(seed)
     pts = []
-    while len(pts) < n:
+    for _ in range(n):
         a, r = rng.uniform(0, 2 * np.pi), np.sqrt(rng.uniform(0, 1))
-        x, y = cx + np.cos(a) * r * rx, cy + np.sin(a) * r * ry
-        if flat_bottom is not None and y > flat_bottom:
-            continue
-        pts.append((x, y))
-    pts.sort(key=lambda p: -p[1])                      # lower clumps first: upper ones overlap them
+        pts.append((cx + np.cos(a) * r * rx, cy + np.sin(a) * r * ry))
+    pts.sort(key=lambda p: -p[1])
     for x, y in pts:
         nx, ny = (x - cx) / rx, (y - cy) / ry
-        tone = 0.95 + 0.28 * -(nx * light[0] + ny * light[1]) / 1.0
-        tone *= rng.uniform(0.9, 1.05)
-        w = size * rng.uniform(0.75, 1.25)
-        s = stamp(bush, w, rng.random() < 0.5, max(0.45, min(1.3, tone)))
+        tone = (0.95 - 0.28 * (0.6 * nx + 0.8 * ny)) * rng.uniform(0.9, 1.05)
+        s = stamp(bush, size * rng.uniform(0.75, 1.25), rng.random() < 0.5, max(0.45, min(1.3, tone)))
         img.alpha_composite(s, (int(x - s.width / 2), int(y - s.height * 0.6)))
 
 
 # ---------------------------------------------------------------- ground
 
-def grass(x, z):
-    """Lawn colour at world (x, z) (arrays): dark wet teal-green, streaky clumps."""
-    n1 = np.sin(x * 9.1 + np.sin(z * 2.3) * 3) * np.sin(z * 3.7 + x * 1.3)
-    n2 = np.sin(x * 23.0 + z * 5.1) * np.sin(x * 4.0 - z * 9.3)
-    t = 0.5 + 0.3 * n1 + 0.2 * n2
-    dark, mid, light = np.array([34, 58, 58]), np.array([50, 82, 76]), np.array([74, 106, 88])
-    c = np.where(t[..., None] < 0.5, dark + (mid - dark) * (t[..., None] / 0.5),
-                 mid + (light - mid) * ((t[..., None] - 0.5) / 0.5))
-    return c
+class Noise:
+    """Smooth random fields over the ground (world x, z), sampled bilinearly."""
+    X0, X1, Z0, Z1, CELL = -46.0, 46.0, 0.0, 25.0, 0.04
+
+    def __init__(self, seed):
+        rng = np.random.default_rng(seed)
+        nx, nz = int((self.X1 - self.X0) / self.CELL), int((self.Z1 - self.Z0) / self.CELL)
+        self.base = rng.normal(0, 1, (nz, nx))
+        self.cache = {}
+
+    def field(self, sx, sz):
+        key = (sx, sz)
+        if key not in self.cache:
+            f = gaussian_filter(self.base, (sz / self.CELL, sx / self.CELL), mode="wrap")
+            self.cache[key] = f / f.std()
+        return self.cache[key]
+
+    def __call__(self, x, z, sx, sz):
+        f = self.field(sx, sz)
+        coords = [(z - self.Z0) / self.CELL, (x - self.X0) / self.CELL]
+        return map_coordinates(f, coords, order=1, mode="nearest")
 
 
-def ground_colour(x, z):
+def lerp(a, b, t):
+    return a + (np.asarray(b, float) - a) * t[..., None]
+
+
+def ground_colour(x, z, noise):
     c = np.zeros(x.shape + (3,))
-    apron = (z < 3.9)
-    under = (z >= 3.9) & (z < 6.6)
-    curb = (z >= 6.6) & (z < 6.9)
-    path = (z >= 6.9) & (np.abs(x) < 1.6)
-    lawn = (z >= 6.9) & ~path
-    # apron: wet concrete slabs 1 m, joints, darker drain grating along the wall
-    base = np.array([118, 126, 142])
-    joint = ((np.abs(((x + 0.5) % 1.0) - 0.5) < 0.025) | (np.abs(((z - 0.5) % 1.2) - 0.6) < 0.03))
-    sheen = 1.0 + 0.06 * np.sin(x * 0.9 + z * 0.4)
-    c[apron] = (base * sheen[..., None])[apron]
-    c[apron & joint] = [92, 100, 118]
+    coarse = noise(x, z, 0.9, 0.9)
+    fine = noise(x, z, 0.06, 0.12)
+    pud = noise(x, z, 0.5, 0.35)
+    sky = np.array([150, 160, 180])
     drain = z < 0.35
-    c[drain] = [52, 58, 72]
-    c[drain & (np.abs(((x * 8) % 1.0) - 0.5) < 0.18)] = [36, 40, 52]
-    # walkway: polished cement, faint 0.5 m tiles, a little reflection of the roof edge
-    c[under] = [104, 112, 130]
-    tj = (np.abs(((x + 0.25) % 0.5) - 0.25) < 0.012) | (np.abs(((z - 3.9) % 0.5) - 0.25) < 0.015)
-    c[under & tj] = [90, 96, 114]
-    c[curb] = [146, 152, 166]
-    # path: pavers 0.5 x 0.25 m in running bond
-    row = np.floor((z - 6.9) / 0.25)
+    apron = (z >= 0.35) & (z < 3.9)
+    under = (z >= 3.9) & (z < 6.9)
+    curb = (z >= 6.9) & (z < 7.15)
+    path = (z >= 7.15) & (np.abs(x) < 1.6)
+    edging = path & (np.abs(x) > 1.48)
+    lawn = (z >= 7.15) & ~path
+    # drain grating along the wall
+    c[drain] = [50, 56, 70]
+    c[drain & (np.abs(((x * 8) % 1.0) - 0.5) < 0.18)] = [34, 38, 50]
+    # apron: wet concrete slabs, joints, stains
+    slab = np.array([116, 124, 140]) * (1 + 0.05 * coarse + 0.025 * fine)[..., None]
+    c[apron] = slab[apron]
+    joint = (np.abs(((x + 0.5) % 1.0) - 0.5) < 0.022) | (np.abs(((z - 0.35) % 1.2) - 0.6) > 0.575)
+    c[apron & joint] = (slab * 0.8)[apron & joint]
+    # under the walkway: polished cement, darker, faint tiles
+    cement = np.array([100, 108, 126]) * (1 + 0.03 * coarse)[..., None]
+    c[under] = cement[under]
+    tj = (np.abs(((x + 0.25) % 0.5) - 0.25) < 0.012) | (np.abs(((z - 3.9) % 0.5) - 0.25) > 0.235)
+    c[under & tj] = (cement * 0.88)[under & tj]
+    # curb, with a wet dark drip line from the gutter
+    c[curb] = [140, 146, 162]
+    c[curb & (z < 7.0)] = [104, 110, 126]
+    # path: pavers 0.5 x 0.25 m in running bond, kerb edging
+    row = np.floor((z - 7.15) / 0.25)
     off = (row % 2) * 0.25
-    pj = (np.abs(((z - 6.9) % 0.25) - 0.125) > 0.105) | (np.abs(((x + off) % 0.5) - 0.25) > 0.235)
-    c[path] = [116, 120, 136]
-    c[path & pj] = [86, 90, 104]
-    c[path & (np.abs(np.abs(x) - 1.6) < 0.06)] = [140, 146, 160]
-    c[lawn] = grass(x, z)[lawn]
-    # soft shade under the tree crowns and the benches
-    shade = np.ones(x.shape)
-    for t in TREES:
-        r = t["crown"] / 2
-        dist = ((x - t["x"]) / r) ** 2 + ((z - t["z"]) / (r * 0.8)) ** 2
-        shade *= 1 - 0.32 * np.clip(1.2 - dist, 0, 1)
+    pj = (np.abs(((z - 7.15) % 0.25) - 0.125) > 0.108) | (np.abs(((x + off) % 0.5) - 0.25) > 0.238)
+    paver = np.array([114, 118, 134]) * (1 + 0.05 * coarse + 0.04 * fine)[..., None]
+    c[path] = paver[path]
+    c[path & pj] = (paver * 0.76)[path & pj]
+    c[edging] = [138, 144, 158]
+    # lawn: wet, clumpy, mowing stripes along z, damp shadow at the hedge foot
+    t = np.clip(0.5 + 0.22 * coarse + 0.28 * fine, 0, 1)
+    dark, mid, light = np.array([32, 54, 56]), np.array([48, 78, 74]), np.array([72, 102, 86])
+    g = np.where(t[..., None] < 0.5, lerp(dark, mid, t / 0.5), lerp(mid, light, (t - 0.5) / 0.5))
+    g *= np.where((np.floor((x + 0.75) / 1.5) % 2) == 0, 1.05, 0.95)[..., None]
+    g *= np.clip((z - 7.15) / 0.6, 0.75, 1.0)[..., None]
+    c[lawn] = g[lawn]
+    # puddles on hard ground reflect the grey sky, with a darker wet rim
+    hard = apron | path | curb
+    c[hard & (pud > 1.15)] = lerp(c, sky, np.full(x.shape, 0.55))[hard & (pud > 1.15)]
+    rim = hard & (pud > 1.0) & (pud <= 1.15)
+    c[rim] = (c * 0.86)[rim]
+    # bench shadows
+    s = np.ones(x.shape)
     for b in BENCHES:
-        dist = ((x - b["x"]) / 1.1) ** 2 + ((z - b["z"]) / 0.45) ** 2
-        shade *= 1 - 0.3 * np.clip(1.0 - dist, 0, 1)
-    return c * shade[..., None]
+        dist = ((x - b["x"]) / 1.05) ** 2 + ((z - b["z"]) / 0.4) ** 2
+        s *= 1 - 0.35 * np.clip(1.0 - dist, 0, 1)
+    return c * s[..., None]
 
 
 def make_ground(out_layers, out):
@@ -180,7 +217,7 @@ def make_ground(out_layers, out):
     s = (EYE - ys) / EYE
     z = D * (1 - 1 / np.maximum(s, 1e-6))
     x = (uu - OX) / PPM / np.maximum(s, 1e-6)
-    col = ground_colour(x, z)
+    col = ground_colour(x, z, Noise(7))
     col = col.reshape(h, ss, w, ss, 3).mean((1, 3))
     a = np.full((h, w), 255, np.uint8)
     lay.img = Image.fromarray(np.dstack([np.clip(col, 0, 255).astype(np.uint8), a]))
@@ -190,55 +227,76 @@ def make_ground(out_layers, out):
 
 # ---------------------------------------------------------------- covered walkway
 
-POSTS = [2.3, 6.0, 9.7, 13.4, 17.1, 20.8]
-WALK = dict(x0=-24.0, x1=24.0, roof=2.7, top=3.1, front=6.6, back=3.9, post=0.15)
+WALK = dict(x0=-24.0, x1=24.0, under=2.65, top=3.0, front=6.9, back=3.9, posts=6.3, post=0.2)
+BAYS_PX = [240.5, 524.0, 798.0, 1367.5, 1642.0, 1925.5]      # classroom bay centres on the facade (src px)
+SHEET, SHEET_LIT, SHEET_DARK = (62, 88, 140, 255), (104, 130, 180, 255), (44, 62, 102, 255)
+STEEL, STEEL_LIT, STEEL_DARK = (122, 134, 158, 255), (168, 178, 198, 255), (82, 92, 116, 255)
+
+
+def post_xs():
+    """One post per classroom bay, placed so the camera sees it in the middle of the bay."""
+    kk = k(WALK["posts"])
+    xs = [(b - 1083.5) / 50.0 / kk for b in BAYS_PX]
+    step = xs[-1] - xs[-2]
+    while xs[-1] + step < WALK["x1"] - 0.5:
+        xs.append(xs[-1] + step)
+        xs.insert(0, xs[0] - step)
+    return xs
 
 
 def make_walkway(out_layers, out):
     W = WALK
-    # roof: flashing (front face) + underside band, one layer
-    roof = Layer("walk_roof", W["x0"], W["x1"], W["roof"], W["top"], W["front"])
+    roof = Layer("walk_roof", W["x0"], W["x1"], W["under"], W["top"], W["front"])
     d = ImageDraw.Draw(roof.img)
-    u0, v0, u1, v1 = roof.rect(W["x0"], W["x1"], W["roof"], W["top"], W["front"])
-    _, vb, _, _ = roof.rect(W["x0"], W["x1"], W["roof"], W["roof"], W["front"] - 0.15)
-    ub0, vu, ub1, _ = roof.rect(W["x0"], W["x1"], W["roof"], W["roof"], W["back"])
-    # underside (seen from below, ends lower on screen at the back)
-    d.rectangle([u0, v1, u1, max(v1, vu) + 1], fill=(66, 74, 94, 255))
-    d.line([u0, v1 + 1, u1, v1 + 1], fill=(82, 90, 110, 255))
-    # front: blue metal sheet edge on top (corrugation ends), then the gutter, shadow line under it
-    sheet = v0 + (v1 - v0) * 0.35
-    d.rectangle([u0, v0, u1, sheet], fill=(62, 88, 140, 255))
+    u0, v0, u1, v1 = roof.rect(W["x0"], W["x1"], W["under"], W["top"], W["front"])
+    vu = roof.local(*pic(0, W["under"], W["back"]))[1]
+    v0, v1, vu = round(v0), round(v1), round(vu)
+    # underside, seen from below: dark, a purlin over the posts, lamps between them
+    d.rectangle([u0, v1, u1, max(v1 + 1, vu)], fill=(58, 66, 86, 255))
+    vp = round(roof.local(*pic(0, W["under"], W["posts"]))[1])
+    d.line([u0, vp, u1, vp], fill=(76, 84, 104, 255))
+    xs = post_xs()
+    for a_x, b_x in zip(xs, xs[1:]):
+        mid = (a_x + b_x) / 2
+        a = roof.local(*pic(mid - 0.3, W["under"], W["posts"]))[0]
+        b = roof.local(*pic(mid + 0.3, W["under"], W["posts"]))[0]
+        d.line([a, vp, b, vp], fill=(206, 214, 226, 255))
+    # front: corrugated blue sheet ends on top, then the gutter (lit lip, round body, dark underside)
+    sheet = v0 + max(2, round((v1 - v0) * 0.4))
+    d.rectangle([u0, v0, u1, sheet], fill=SHEET)
     for uu in np.arange(u0, u1, 3):
-        d.point([uu, v0 + 1], fill=(92, 120, 172, 255))
-    d.line([u0, v0, u1, v0], fill=(120, 146, 196, 255))
-    d.rectangle([u0, sheet + 1, u1, v1], fill=(132, 144, 166, 255))
-    d.line([u0, sheet + 1, u1, sheet + 1], fill=(176, 186, 204, 255))
-    d.line([u0, v1, u1, v1], fill=(70, 78, 98, 255))
-    # rain streaks on the flashing
-    for x in np.arange(W["x0"], W["x1"], 0.37):
-        if RNG.random() < 0.35:
-            uu = roof.local(*pic(x, 0, W["front"]))[0]
-            d.line([uu, v0 + 2, uu, v1 - 1], fill=(124, 138, 162, 255))
-    roof.face("z", x0=W["x0"], x1=W["x1"], y0=W["roof"], y1=W["top"], z=W["front"])
-    roof.face("y", x0=W["x0"], x1=W["x1"], y=W["roof"], z0=W["front"], z1=W["back"])
+        d.line([uu, v0 + 1, uu, sheet], fill=SHEET_LIT)
+        d.point([uu + 1, sheet], fill=SHEET_DARK)
+    d.line([u0, v0, u1, v0], fill=(128, 152, 198, 255))
+    d.rectangle([u0, sheet + 1, u1, v1], fill=(126, 138, 160, 255))
+    d.line([u0, sheet + 1, u1, sheet + 1], fill=(184, 194, 210, 255))
+    d.line([u0, v1 - 1, u1, v1 - 1], fill=(98, 108, 130, 255))
+    d.line([u0, v1, u1, v1], fill=(64, 72, 92, 255))
+    roof.face("z", x0=W["x0"], x1=W["x1"], y0=W["under"], y1=W["top"], z=W["front"])
+    roof.face("y", x0=W["x0"], x1=W["x1"], y=W["under"], z0=W["front"], z1=W["back"])
     out_layers.append(roof.save(out))
-    for row, z in (("front", W["front"] - 0.15), ("back", W["back"] + 0.15)):
-        posts = Layer("walk_posts_" + row, W["x0"], W["x1"], 0.0, W["roof"], z)
-        d = ImageDraw.Draw(posts.img)
-        for side in (-1, 1):
-            for p in POSTS:
-                x = side * p
-                a, b, c, e = posts.rect(x - W["post"] / 2, x + W["post"] / 2, 0.0, W["roof"], z)
-                shade = 1.0 if row == "front" else 0.85
-                d.rectangle([a, b, c, e], fill=tuple(int(v * shade) for v in (104, 116, 142)) + (255,))
-                d.line([a, b, a, e], fill=tuple(int(v * shade) for v in (150, 162, 186)) + (255,))
-                d.rectangle([a - 1, e - 2, c + 1, e], fill=(70, 76, 92, 255))          # footing
-                posts.face("box", x0=x - W["post"] / 2, x1=x + W["post"] / 2, y0=0.0, y1=W["roof"],
-                           zf=z, zb=z - W["post"])
-        out_layers.append(posts.save(out))
+
+    z, half = W["posts"], W["post"] / 2
+    posts = Layer("walk_posts", W["x0"], W["x1"], 0.0, W["under"], z)
+    d = ImageDraw.Draw(posts.img)
+    for i, x in enumerate(xs):
+        a, b, c, e = (round(v) for v in posts.rect(x - half, x + half, 0.0, W["under"], z))
+        d.rectangle([a, b, c, e], fill=STEEL)
+        d.line([a, b, a, e], fill=STEEL_LIT)
+        d.line([c, b, c, e], fill=STEEL_DARK)
+        d.line([a, b, c, b], fill=STEEL_DARK)                     # bracket shadow under the roof
+        if i % 2 == 0:                                             # downpipe from the gutter
+            d.line([c + 1, b, c + 1, e - 1], fill=(150, 160, 180, 255))
+            d.point([c + 1, e - 1], fill=(96, 104, 124, 255))
+        fa, fb, fc, fe = (round(v) for v in posts.rect(x - 0.17, x + 0.17, 0.0, 0.25, z + 0.07))
+        d.rectangle([fa, fb, fc, fe], fill=(132, 138, 152, 255))  # concrete footing
+        d.line([fa, fb, fc, fb], fill=(164, 170, 182, 255))
+        posts.face("box", x0=x - half, x1=x + half, y0=0.0, y1=W["under"], zf=z, zb=z - W["post"])
+        posts.face("box", x0=x - 0.17, x1=x + 0.17, y0=0.0, y1=0.25, zf=z + 0.07, zb=z - 0.27)
+    out_layers.append(posts.save(out))
 
 
-# ---------------------------------------------------------------- shrubs, hedge, trees, benches
+# ---------------------------------------------------------------- shrubs, hedge, benches
 
 def make_planters(bush, out_layers, out):
     z = 3.0
@@ -249,161 +307,99 @@ def make_planters(bush, out_layers, out):
         d = ImageDraw.Draw(lay.img)
         d.rectangle([u0, v1 - 4, u1, v1], fill=(96, 104, 122, 255))                   # planter kerb
         d.line([u0, v1 - 4, u1, v1 - 4], fill=(140, 148, 164, 255))
-        for i, cx in enumerate(np.arange(u0 + 6, u1 - 4, 13)):
+        for cx in np.arange(u0 + 6, u1 - 4, 13):
             foliage(bush, lay.img, cx, v1 - 9, 8, 5, 4, 15, seed=int(cx) + side * 7)
         lay.face("z", x0=x0 - 0.3, x1=x1 + 0.3, y0=0.0, y1=0.9, z=z)
         out_layers.append(lay.save(out))
 
 
-HEDGE = dict(front=7.9, back=7.25, h=0.8, gap=1.9, end=24.0)
+def quilt(leaves, w, h, rng, block=30, overlap=10):
+    """Leaf texture for a long hedge: random patches (random flips) cross-faded side by side."""
+    out = np.zeros((h, w, 4))
+    weight = np.zeros((h, w, 1))
+    ramp = np.minimum(1, np.minimum(np.arange(block + overlap) + 1, block + overlap - np.arange(block + overlap)) / overlap)
+    for u in range(-overlap, w, block):
+        oy = int(rng.integers(0, leaves.shape[0] - h))
+        ox = int(rng.integers(0, leaves.shape[1] - block - overlap))
+        p = leaves[oy:oy + h, ox:ox + block + overlap]
+        if rng.random() < 0.5:
+            p = p[:, ::-1]
+        a, b = max(0, u), min(w, u + block + overlap)
+        r = ramp[a - u:b - u][None, :, None]
+        out[:, a:b] += p[:, a - u:b - u] * r
+        weight[:, a:b] += r
+    return out / np.maximum(weight, 1e-6)
 
 
-def make_hedge(bush, out_layers, out):
+HEDGE = dict(front=7.95, back=7.3, h=0.85, gap=1.95, end=24.0)
+
+
+def make_hedge(path, out_layers, out):
+    """Trimmed hedge: dense author leaves, lit from the sky on top, darker toward the foot, soft lumps."""
     H = HEDGE
+    m = k(H["front"]) * PPM
+    leaves = load_leafage(path, 0.3 * m / 33)
+    rng = np.random.default_rng(5)
     for side in (-1, 1):
         x0, x1 = (H["gap"], H["end"]) if side > 0 else (-H["end"], -H["gap"])
-        lay = Layer("hedge_" + ("r" if side > 0 else "l"), x0, x1, 0.0, H["h"] + 0.25, H["front"])
-        u0, v0, u1, v1 = lay.rect(x0, x1, 0.0, H["h"], H["front"])
-        # trimmed body: a dense row of small dark stamps, lit along the top
-        img = lay.img
-        rng = np.random.default_rng(side + 3)
-        for row, (yy, tone) in enumerate(((v1 - 3, 0.62), (v1 - 8, 0.72), (v0 + 7, 0.86), (v0 + 3, 1.0))):
-            for cx in np.arange(u0 + 2, u1 - 2, 7):
-                s = stamp(bush, 14 * rng.uniform(0.85, 1.15), rng.random() < 0.5, tone * rng.uniform(0.92, 1.05))
-                img.alpha_composite(s, (int(cx - s.width / 2), int(yy - s.height * 0.55)))
-        # clip the body to the hedge box (leafy bumps allowed on top), square cut at the path end
-        a = np.asarray(img).copy()
-        vv = np.arange(a.shape[0])[:, None]
-        uu = np.arange(a.shape[1])[None, :]
-        keep = (vv <= v1) & (uu >= u0) & (uu <= u1) & (vv >= v0 - 4)
-        a[..., 3] = np.where(keep, a[..., 3], 0)
-        body = (vv >= v0 + 2) & (vv <= v1) & (uu >= u0) & (uu <= u1)
-        fill = np.array([40, 64, 62, 255])
-        a[body & (a[..., 3] == 0)] = fill
-        lay.img = Image.fromarray(a)
-        lay.face("z", x0=x0, x1=x1, y0=0.0, y1=H["h"] + 0.25, z=H["front"])
+        lay = Layer("hedge_" + ("r" if side > 0 else "l"), x0, x1, 0.0, H["h"] + 0.15, H["front"])
+        u0, v0, u1, v1 = (round(v) for v in lay.rect(x0, x1, 0.0, H["h"], H["front"]))
+        w, h = lay.img.size
+        t = quilt(leaves, w, h, rng)
+        vv, uu = np.mgrid[0:h, 0:w]
+        f = np.clip((vv - v0) / max(1, v1 - v0), 0, 1)
+        lumps = gaussian_filter(rng.normal(0, 1, (h, w)), (6, 10))
+        lumps /= lumps.std()
+        light = (1.08 - 0.55 * f) * (1 + 0.07 * lumps)
+        t[..., :3] *= light[..., None]
+        holes = t[..., 3] < 128
+        t[..., :3] = np.where(holes[..., None], np.array([36, 58, 58]) * light[..., None], t[..., :3])
+        top = v0 + np.round(gaussian_filter(rng.normal(0, 1, w), 3) * 4).astype(int)  # uneven clipped top
+        inside = (vv >= top[None, :]) & (vv <= v1) & (uu >= u0) & (uu <= u1)
+        for cu in (u0, u1):                                        # rounded ends at the path
+            near = np.abs(uu - cu)
+            inside &= ~((near < 4) & ((near - 4) ** 2 + (vv - top[None, :] - 4) ** 2 > 18)
+                        & (vv < top[None, :] + 4))
+        first = inside & ~np.roll(inside, 1, 0)
+        t[..., :3] = np.where(first[..., None], t[..., :3] * 1.18 + 10, t[..., :3])  # sky light on the cut top
+        t[..., 3] = np.where(inside, 255, 0)
+        lay.img = Image.fromarray(np.clip(t, 0, 255).astype(np.uint8))
+        lay.face("box", x0=x0, x1=x1, y0=0.0, y1=H["h"] + 0.15, zf=H["front"], zb=H["back"])
         lay.face("y", x0=x0, x1=x1, y=H["h"], z0=H["front"], z1=H["back"])
         out_layers.append(lay.save(out))
 
 
-TREES = [dict(name="tree_l", x=-8.4, z=12.0, h=6.8, crown=7.2, seed=4),
-         dict(name="tree_r", x=9.6, z=13.5, h=6.4, crown=6.6, seed=9)]
-BARK, BARK_LIT, BARK_DARK = (72, 70, 82), (108, 106, 118), (44, 44, 56)
-LEAFAGE = (600, 0, 880, 120)                     # a dense patch of the author's crown (source px)
-
-
-def load_leafage(path, scale):
-    src = Image.open(path).convert("RGBA").crop(LEAFAGE)
-    src = src.resize((round(src.width * scale), round(src.height * scale)), Image.LANCZOS)
-    # mirror-tile it large enough for any clump (mirrored copies hide the seams)
-    a = np.asarray(src)
-    row = np.concatenate([a, a[:, ::-1]], 1)
-    block = np.concatenate([row, row[::-1]], 0)
-    return Image.fromarray(np.tile(block, (4, 3, 1)))
-
-
-def limb(d, a, b, w0, w1, bend=0.0):
-    """Tapered, slightly bent limb from a to b (picture px): lit left edge, dark right edge."""
-    n = int(np.hypot(b[0] - a[0], b[1] - a[1])) + 2
-    for i in range(n + 1):
-        f = i / n
-        x = a[0] + (b[0] - a[0]) * f + np.sin(f * np.pi) * bend
-        y = a[1] + (b[1] - a[1]) * f
-        w = w0 + (w1 - w0) * f
-        d.line([x - w, y, x + w, y], fill=BARK)
-        d.line([x - w, y, x - w + max(1, w * 0.45), y], fill=BARK_LIT)
-        d.point([x + w, y], fill=BARK_DARK)
-        if (i * 7) % 11 == 0:
-            d.point([x + w * 0.2, y], fill=BARK_DARK)             # bark marks
-
-
-def dome(img, leafage, bush, cx, cy, r, tone, rng):
-    """One leaf clump: dense author leaves in a round mask, lit from the upper left, leafy rim."""
-    size = int(2 * r) + 2
-    ox, oy = rng.integers(0, max(1, leafage.width - size)), rng.integers(0, max(1, leafage.height - size))
-    tex = leafage.crop((ox, oy, ox + size, oy + size)).resize((size, size))
-    t = np.asarray(tex).astype(float)
-    yy, xx = np.mgrid[0:size, 0:size]
-    nx, ny = (xx - r) / r, (yy - r) / r
-    shade = tone * (1.12 - 0.42 * (ny + 1) / 2 - 0.12 * nx)
-    t[..., :3] *= shade[..., None]
-    edge = gaussian_filter(rng.normal(0, 0.5, (size, size)), 2.0)        # soft lumps, not speckles
-    inside = (nx ** 2 + (ny * 1.15) ** 2 + edge) < 1.0
-    t[..., 3] = np.where(inside, 255, 0)
-    img.alpha_composite(Image.fromarray(np.clip(t, 0, 255).astype(np.uint8)), (int(cx - r), int(cy - r)))
-    # leafy rim over the upper half
-    for a in np.linspace(np.pi * 1.05, np.pi * 1.95, 5):
-        s = stamp(bush, r * rng.uniform(0.6, 0.85), rng.random() < 0.5, tone * rng.uniform(1.0, 1.12))
-        px, py = cx + np.cos(a) * r * 0.82, cy + np.sin(a) * r * 0.72
-        img.alpha_composite(s, (int(px - s.width / 2), int(py - s.height * 0.6)))
-
-
-def make_tree(bush, t, out_layers, out):
-    """Rain tree: short trunk splitting into spreading limbs under a wide umbrella of leaf clumps."""
-    x, z, h, cw = t["x"], t["z"], t["h"], t["crown"]
-    rng = np.random.default_rng(t["seed"])
-    lay = Layer(t["name"], x - cw / 2 - 0.8, x + cw / 2 + 0.8, 0.0, h + 0.6, z)
-    img = lay.img
-    d = ImageDraw.Draw(img)
-    m = k(z) * PPM                                          # picture px per metre at this depth
-    leafage = load_leafage(sys.argv[1], 0.42 * m / 40)
-    bu, bv = lay.local(*pic(x, 0.0, z))
-    fork = (bu + rng.uniform(-0.1, 0.1) * m, bv - 2.2 * m)
-    # flared foot and trunk
-    d.polygon([(bu - 0.5 * m, bv), (bu - 0.22 * m, bv - 0.45 * m), (bu + 0.22 * m, bv - 0.45 * m),
-               (bu + 0.52 * m, bv)], fill=BARK)
-    d.line([bu - 0.5 * m, bv, bu - 0.22 * m, bv - 0.45 * m], fill=BARK_LIT)
-    limb(d, (bu, bv - 1), fork, 0.24 * m, 0.19 * m, bend=0.08 * m)
-    ends = []
-    for side, up, bend in ((-1, 1.9, -0.3), (-0.25, 2.6, 0.15), (0.35, 2.5, -0.1), (1, 1.8, 0.3)):
-        e = (fork[0] + side * cw * 0.33 * m, fork[1] - up * m)
-        limb(d, fork, e, 0.14 * m, 0.06 * m, bend=bend * m)
-        ends.append(e)
-    # crown: back row of domes high and darker, front row lower and lit; umbrella outline
-    base_v = lay.local(*pic(x, h - 2.7, z))[1]
-    domes = []
-    for row, (n, lift, rad, tone) in enumerate(((6, 1.5, 1.15, 0.8), (7, 0.9, 1.0, 0.95), (5, 0.35, 0.85, 1.05))):
-        for i in range(n):
-            f = (i + 0.5) / n
-            spread = (0.98 - row * 0.12)
-            cx = bu + (f - 0.5) * cw * m * spread + rng.uniform(-0.2, 0.2) * m
-            bulge = 1 - (2 * f - 1) ** 2
-            cy = base_v - (lift + 0.8 * bulge) * m + rng.uniform(-0.15, 0.15) * m
-            domes.append((cx, cy, rad * m * (0.85 + 0.3 * bulge) * rng.uniform(0.9, 1.1), tone))
-    for cx, cy, r, tone in domes:
-        dome(img, leafage, bush, cx, cy, r, tone * rng.uniform(0.95, 1.04), rng)
-    # limbs through the gaps under the crown
-    d = ImageDraw.Draw(img)
-    for e in (ends[0], ends[3]):
-        a = (fork[0] + (e[0] - fork[0]) * 0.5, fork[1] + (e[1] - fork[1]) * 0.5)
-        limb(d, a, (fork[0] + (e[0] - fork[0]) * 0.75, fork[1] + (e[1] - fork[1]) * 0.72), 0.09 * m, 0.06 * m)
-    lay.face("z", x0=x - cw / 2 - 0.8, x1=x + cw / 2 + 0.8, y0=0.0, y1=h + 0.6, z=z)
-    out_layers.append(lay.save(out))
-
-
 BENCHES = [dict(name="bench_l", x=-5.6, z=10.6), dict(name="bench_r", x=6.2, z=11.4)]
+WOOD, WOOD_LIT, WOOD_DARK = (134, 90, 60, 255), (170, 122, 84, 255), (92, 60, 44, 255)
+IRON, IRON_LIT = (40, 46, 62, 255), (76, 84, 104, 255)
 
 
 def make_bench(b, out_layers, out):
+    """Park bench, slatted wood on cast-iron ends, a little seen from above."""
     x, z, w = b["x"], b["z"], 1.8
     lay = Layer(b["name"], x - w / 2 - 0.1, x + w / 2 + 0.1, 0.0, 0.95, z)
     d = ImageDraw.Draw(lay.img)
-    u0, v0, u1, v1 = lay.rect(x - w / 2, x + w / 2, 0.0, 0.9, z)
-    m = k(z) * PPM                                          # px per metre here
-    seat = v1 - 0.45 * m
-    wood, wood_d, wood_l, iron = (132, 88, 60, 255), (98, 64, 46, 255), (164, 116, 80, 255), (40, 46, 60, 255)
-    # backrest: three slats
+    u0, v0, u1, v1 = (round(v) for v in lay.rect(x - w / 2, x + w / 2, 0.0, 0.88, z))
+    m = k(z) * PPM
+    seat = round(v1 - 0.45 * m)
+    # backrest: three slats with gaps
+    slat = max(2, round(0.09 * m))
     for i in range(3):
-        y = v0 + 2 + i * 0.13 * m
-        d.rectangle([u0, y, u1, y + 0.08 * m], fill=wood)
-        d.line([u0, y, u1, y], fill=wood_l)
-    # seat seen a little from above, front edge darker
-    d.rectangle([u0 - 1, seat - 0.07 * m, u1 + 1, seat], fill=wood_l)
-    d.rectangle([u0 - 1, seat, u1 + 1, seat + 0.06 * m], fill=wood_d)
-    # iron legs/ends
-    for uu in (u0 + 2, u1 - 3):
-        d.rectangle([uu, v0 + 1, uu + 1, v1], fill=iron)
-        d.line([uu - 2, v1, uu + 3, v1], fill=iron)
+        y = v0 + 1 + i * (slat + max(1, round(0.04 * m)))
+        d.rectangle([u0 + 1, y, u1 - 1, y + slat - 1], fill=WOOD)
+        d.line([u0 + 1, y, u1 - 1, y], fill=WOOD_LIT)
+        d.line([u0 + 1, y + slat - 1, u1 - 1, y + slat - 1], fill=WOOD_DARK)
+    # seat: lit top, front edge, shadow under it
+    d.rectangle([u0, seat - 2, u1, seat - 1], fill=WOOD_LIT)
+    d.rectangle([u0, seat, u1, seat + 1], fill=WOOD)
+    d.line([u0, seat + 2, u1, seat + 2], fill=WOOD_DARK)
+    # cast-iron ends: back post, arm rest, front leg, feet
+    for e in (u0 + 2, u1 - 3):
+        d.rectangle([e, v0, e + 1, v1], fill=IRON)
+        d.point([e, v0], fill=IRON_LIT)
+        d.line([e - 2, seat - 3, e + 3, seat - 3], fill=IRON)
+        d.line([e - 1, seat + 3, e - 1, v1], fill=IRON)
+        d.line([e - 1, v1, e + 2, v1], fill=IRON)
     lay.face("z", x0=x - w / 2 - 0.1, x1=x + w / 2 + 0.1, y0=0.0, y1=0.95, z=z)
     out_layers.append(lay.save(out))
 
@@ -416,11 +412,9 @@ def main():
     make_ground(layers, out)
     make_planters(bush, layers, out)
     make_walkway(layers, out)
-    make_hedge(bush, layers, out)
+    make_hedge(sys.argv[1], layers, out)
     for b in BENCHES:
         make_bench(b, layers, out)
-    for t in TREES:
-        make_tree(bush, t, layers, out)
     with open(os.path.join(out, "courtyard.json"), "w") as f:
         json.dump({"px_per_m": PPM, "layers": layers}, f, indent=1)
     print(f"{len(layers)} layers -> {out}")
