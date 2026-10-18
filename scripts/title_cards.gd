@@ -40,7 +40,7 @@ const RAIN := preload("res://shaders/rain.gdshader")
 ]
 @export var title := "ถ้าหากโลกนี้ไม่มีฤดูฝน"
 ## ชื่อภาษาอังกฤษ ตัวเล็กใต้เส้นใต้ชื่อไทย
-@export var title_en := "If the Rain Never Falls"
+@export var title_en := "IF THE RAIN NEVER FALLS"
 @export var chapter_label := "ตอนที่1"
 @export var chapter_title := "15 เซนติเมตร"
 
