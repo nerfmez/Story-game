@@ -7,6 +7,7 @@ shader_type canvas_item;
 // advance = ทั้งคู่ (และกล้องที่ตามหลัง) เดินไปข้างหน้ากี่หน่วยความลึก: พื้นไหลเข้าหากล้อง กำแพงไกลออก
 // พื้นที่ใกล้กว่าแถวล่างสุดของภาพ (ไม่มีภาพ) ใช้ถนนซ้ำตามระยะแถบทางม้าลาย
 // zoom = กล้องซูมเข้าหาจุด focus บนจอ (นับจากกลางจอ) ตอนหมุน
+// close_* = ช็อตแคบหน้า: ภาพที่ซูมแล้ว ขยายอีก close_k เท่า ให้จุด close_from (หน้าทั้งคู่) มาอยู่ที่ close_to บนจอ
 // wall_follow = กำแพงและทุกอย่างข้างบนถอยไปกับกล้องเท่านี้ของ advance (ฉากหลังไกล: เดินข้ามถนนไกลแค่ไหนก็ยังอยู่ในจอ ค่อยๆ ไกลออก)
 //
 // ภาพต้นทาง = จอที่กล้องเกมถ่ายไว้ที่ซูม src_zoom (ถอยออกให้เห็นกว้างกว่าจอ) กลางจอ = เท้าแนวนอน, แถว 180 ของโลก
@@ -27,9 +28,13 @@ uniform float out_horizon = -17.0;  // ขอบฟ้าบนจอผลล�
 uniform float zoom = 1.0;
 uniform vec2 focus = vec2(0.0);
 uniform float wall_follow = 0.0;
+uniform float close_k = 1.0;
+uniform vec2 close_from = vec2(0.0);
+uniform vec2 close_to = vec2(0.0);
 
 void fragment() {
 	vec2 q = (SCREEN_UV - 0.5) * vec2(640.0, 360.0);
+	q = close_from + (q - close_to) / close_k;
 	q = focus + (q - focus) / zoom;
 	float zp = focal / (feet_row - horizon);
 	float zw = focal / (wall_row - horizon);

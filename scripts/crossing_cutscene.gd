@@ -42,6 +42,13 @@ const PUSH_TO := 1.15
 ## เสาไฟสัญญาณ: จุดโคนเสาในภาพเสา (signal_pole.png 30x200) วาดแยกเป็นวัตถุตั้งที่ความลึกจริงของมัน (ริมทางเท้า)
 ## ไม่ใช่ส่วนของกำแพง: หมุนแล้วจึงยังอยู่ข้างที่ทั้งคู่ยืนตอนแรก แล้วอยู่ข้างหลังเมื่อเดินผ่านไป
 const POLE_FOOT := Vector2(16.0, 200.0)
+## ระหว่างเดินตัดเข้าช็อตแคบหน้า (ตัดฉับแบบหนัง) ช่วงวินาทีนี้ กล้องตามหน้าทั้งคู่ไปขณะเดิน แล้วตัดกลับช็อตกว้าง
+const CLOSE_FROM := 8.5
+const CLOSE_UNTIL := 13.0
+## ขยายเพิ่มจากช็อตกว้างเท่านี้ หน้าทั้งคู่ (จุดกลางระหว่างสองหน้าในภาพเดินคู่ เทียบจุดเท้า) อยู่ที่จุดนี้บนจอ (นับจากกลางจอ)
+const CLOSE_K := 2.4
+const FACES := Vector2(-8.0, -100.0)
+const CLOSE_AT := Vector2(0.0, -15.0)
 ## ค่าเดียวกับใน shader (หาตำแหน่งทั้งคู่บนจอด้วยกล้องเดียวกัน เท้าจึงติดพื้น)
 const FOCAL := 500.0
 const PIVOT_DEPTH := FOCAL / (93.0 - 23.0)    # ความลึกของเท้าทั้งคู่ตอนเริ่ม (focal / (แถวเท้า - ขอบฟ้า))
@@ -67,6 +74,8 @@ var _walked := 0.0                              # ทั้งคู่เดิ
 var _feet := Vector2.ZERO
 var _pole_x := 0.0                              # ตำแหน่งโคนเสาไฟบนพื้น (หน่วยแบบ shader: ข้าง, ความลึก)
 var _pole_z := 0.0
+var _close_k := 1.0                             # ช็อตแคบหน้า: ขยายเพิ่ม (1 = ช็อตกว้าง)
+var _close_from := Vector2.ZERO
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
@@ -231,6 +240,7 @@ func _place() -> void:
 	var push := smoothstep(0.0, 1.0, (_time - 0.8 - TURN_TIME) / (SHOT_TIME - 0.8 - TURN_TIME))
 	var zoom := lerpf(1.0, ZOOM_TO, _turned) * lerpf(1.0, PUSH_TO, push)
 	var cam_walked := _walked * CAMERA_FOLLOW
+	var close := _time >= CLOSE_FROM and _time < CLOSE_UNTIL
 	_turn_mat.set_shader_parameter("yaw", yaw)
 	_turn_mat.set_shader_parameter("advance", cam_walked)
 	_turn_mat.set_shader_parameter("zoom", zoom)
@@ -240,17 +250,32 @@ func _place() -> void:
 	var c := cos(yaw)
 	var s := sin(yaw)
 	var pair := _project(0.0, PIVOT_DEPTH - _walked, cam_walked, c, s)
-	_pair.position = _on_screen(pair, zoom)
-	_pair.scale = Vector2.ONE * (zoom * PIVOT_DEPTH / pair.z)
+	var pair_scale := zoom * PIVOT_DEPTH / pair.z
+	var pair_at := _on_screen(pair, zoom)
+	# ช็อตแคบหน้า: ขยายทั้งภาพ (ฉากใน shader + ทั้งคู่ + เสา) อีก CLOSE_K เท่ารอบหน้าทั้งคู่ ให้หน้าอยู่ที่ CLOSE_AT
+	_close_k = CLOSE_K if close else 1.0
+	_close_from = pair_at + FACES * pair_scale - Vector2(320.0, 180.0)
+	_turn_mat.set_shader_parameter("close_k", _close_k)
+	_turn_mat.set_shader_parameter("close_from", _close_from if close else CLOSE_AT)
+	_turn_mat.set_shader_parameter("close_to", CLOSE_AT)
+	_pair.position = _closer(pair_at)
+	_pair.scale = Vector2.ONE * pair_scale * _close_k
 	if crossing_signal:
 		var pole := _project(_pole_x, _pole_z, cam_walked, c, s)
-		var k := zoom * _pole_z / pole.z
+		var k := zoom * _pole_z / pole.z * _close_k
 		crossing_signal.scale = Vector2.ONE * k
-		crossing_signal.position = _on_screen(pole, zoom) - POLE_FOOT * k
+		crossing_signal.position = _closer(_on_screen(pole, zoom)) - POLE_FOOT * k
 		crossing_signal.z_index = 1 if pole.z < pair.z else 0   # ใกล้กล้องกว่าทั้งคู่ = วาดทับ
 		# ฉากหลังถอยตามกล้องช้ากว่าที่ทั้งคู่ทิ้งเสาไว้ข้างหลัง: ก่อนเสาจะเลยไปอยู่หลังกำแพง เสาจางหายไปในม่านฝน
 		var gap := (WALL_DEPTH - cam_walked * WALL_FOLLOW) - _pole_z
 		crossing_signal.modulate.a = smoothstep(0.3, 2.0, gap)
+
+
+## จุดบนจอช็อตกว้าง -> บนจอจริง (ช็อตแคบหน้า: ขยายรอบหน้าทั้งคู่ ไม่งั้นเหมือนเดิม)
+func _closer(at: Vector2) -> Vector2:
+	if _close_k == 1.0:
+		return at
+	return Vector2(320.0, 180.0) + CLOSE_AT + (at - Vector2(320.0, 180.0) - _close_from) * _close_k
 
 
 func _on_screen(p: Vector3, zoom: float) -> Vector2:
