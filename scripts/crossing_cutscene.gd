@@ -48,6 +48,11 @@ const SHOT_TIME := 16.0
 const FADE_OUT := 1.2
 ## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
 const WALK_START := 0.6
+## ฉากเริ่มหมุนที่ TURN_AT วินาที ทั้งคู่ยืนนิ่ง (ภาพเดินคู่เฟรม STAND_FRAME: เท้าแตะพื้นทั้งสองข้าง) แล้วเริ่มเดินหลังจากนั้น WALK_DELAY วินาที
+## ท่าเดินเริ่มจากเฟรมยืนนั้น ไม่กระโดด
+const TURN_AT := 0.8
+const WALK_DELAY := 2.0
+const STAND_FRAME := 0
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
 const ZOOM_TO := 1.25
 const ZOOM_FOCUS := Vector2(0.0, -30.0)
@@ -226,7 +231,7 @@ func play() -> void:
 	camera.position = Vector2(_feet.x, 180.0)
 	camera.zoom = Vector2(SRC_ZOOM, SRC_ZOOM)
 	var turn_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	turn_tween.tween_interval(0.8)
+	turn_tween.tween_interval(TURN_AT)
 	turn_tween.tween_property(self, "_turned", 1.0, TURN_TIME)
 	_place()
 
@@ -250,7 +255,7 @@ func _project(x: float, z: float, cam_walked: float, c: float, s: float) -> Vect
 ## หมุน ซูม ถอยกล้อง แล้ววางทั้งคู่ (เดินไปทาง -z เข้าหากล้อง) และเสาไฟ (อยู่กับที่) ด้วยกล้องเดียวกับ scene_turn.gdshader
 func _place() -> void:
 	var yaw := deg_to_rad(YAW_TO * _turned)
-	var push := smoothstep(0.0, 1.0, (_time - 0.8 - TURN_TIME) / (SHOT_TIME - 0.8 - TURN_TIME))
+	var push := smoothstep(0.0, 1.0, (_time - TURN_AT - TURN_TIME) / (SHOT_TIME - TURN_AT - TURN_TIME))
 	var zoom := lerpf(1.0, ZOOM_TO, _turned) * lerpf(1.0, PUSH_TO, push)
 	var cam_walked := _walked * CAMERA_FOLLOW
 	var close := _time >= CLOSE_FROM
@@ -299,9 +304,12 @@ func _process(delta: float) -> void:
 	if _pair == null:
 		return
 	_time += delta
-	# เร่งจากยืนเป็นเดินใน WALK_START วินาทีแรก แล้วเดินเท่าก้าวไปตลอด
-	_walked += WALK_DEPTH_PER_SECOND * minf(_time / WALK_START, 1.0) * delta
-	var frame := int(_time * FPS) % FRAMES
+	# ยืนนิ่งจนฉากหมุนไปแล้ว WALK_DELAY วินาที แล้วเร่งจากยืนเป็นเดินใน WALK_START วินาที จากนั้นเดินเท่าก้าวไปตลอด
+	var walking := _time - TURN_AT - WALK_DELAY
+	var frame := STAND_FRAME
+	if walking > 0.0:
+		_walked += WALK_DEPTH_PER_SECOND * minf(walking / WALK_START, 1.0) * delta
+		frame = (STAND_FRAME + int(walking * FPS)) % FRAMES
 	_pair.frame = frame
 	_pair.offset = Vector2(-46.0 + SWAY_FIX[frame], -140.0 + BOB_FIX[frame])
 	_place()
