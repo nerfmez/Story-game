@@ -39,6 +39,8 @@ const RAIN := preload("res://shaders/rain.gdshader")
 	[{"voice": "opening_10", "lines": [["ก็นะ...ชีวิตวัยรุ่นของผมมันก็ควรจะเป็นอย่างที่ว่ามา.....", 0.0], ["ถ้าในวันนั้นผมไม่ได้เจอกับ 'เธอคนนั้น' ในวันธรรมดาที่ฝนตก", 4.2]]}],
 ]
 @export var title := "ถ้าหากโลกนี้ไม่มีฤดูฝน"
+## ชื่อภาษาอังกฤษ ตัวเล็กใต้เส้นใต้ชื่อไทย
+@export var title_en := "IF THE RAIN NEVER FALL"
 @export var chapter_label := "ตอนที่1"
 @export var chapter_title := "15 เซนติเมตร"
 
@@ -161,6 +163,27 @@ func _title(text: String, size: int, y: float, seconds: float) -> void:
 	tween.tween_property(line, "scale:x", 1.0, seconds * 1.1).set_delay(seconds * 0.4)
 
 
+## บรรทัดเล็กใต้ชื่อเรื่อง: ตัวอักษรห่างๆ จางเข้าพร้อมลอยขึ้นนิดหน่อย
+func _subtitle(text: String, y: float, seconds: float) -> void:
+	var font := FontVariation.new()
+	font.base_font = FONT
+	font.spacing_glyph = 4
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color(0.72, 0.78, 0.9))
+	label.position = Vector2(0, y)
+	label.size = Vector2(640, 20)
+	label.modulate.a = 0.0
+	add_child(label)
+	_items.append(label)
+	var tween := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "modulate:a", 0.85, seconds)
+	tween.tween_property(label, "position:y", y, seconds).from(y + 5.0)
+
+
 func _prompt(text: String) -> void:
 	var label := Label.new()
 	label.text = text
@@ -231,7 +254,9 @@ func play_opening() -> void:
 	_skip = false
 	_waiting = ""
 	_title(title, 30, 130.0, 2.4)
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(1.2).timeout
+	_subtitle(title_en, 186.0, 1.6)
+	await get_tree().create_timer(0.8).timeout
 	_prompt("แตะเพื่อไปต่อ")
 	_waiting = "start"
 	start_ready.emit()
