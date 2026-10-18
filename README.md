@@ -54,6 +54,9 @@
 
 ## เล่นบนเว็บ/มือถือ
 
+**เล่นได้ที่ https://nerfmez.github.io/Story-game/** (`.github/workflows/pages.yml` build ใหม่และขึ้นเว็บเองทุกครั้งที่ push เข้า `main`
+ครั้งแรกต้องเปิดใน Settings → Pages → Source: **GitHub Actions**) ทดสอบฉากข้ามทางม้าลายอย่างเดียว: https://nerfmez.github.io/Story-game/#cross
+
 - บนจอสัมผัสจะมีปุ่ม ◀ ▶ (กดค้าง = เดิน) และแตะที่อื่นเพื่อไปข้อความถัดไป (`scripts/touch_controls.gd`)
 - บนเว็บ/มือถือ ภาพขยายเต็มจอแบบไม่ต้องเป็นจำนวนเท่าเต็ม (ตั้งใน `main.gd`)
 - export: `godot --headless --export-release "Web" build/web/index.html`
