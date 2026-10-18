@@ -23,10 +23,15 @@ const FEET_ON_SCREEN := 233.0
 ## หมุนฉากถึงมุมนี้ (ลบ = ทางม้าลายเฉียงลงซ้าย ทางเดียวกับท่าเดินของทั้งคู่) ใช้เวลา TURN_TIME วินาที
 const YAW_TO := -26.0
 const TURN_TIME := 4.0
-## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55)
-const WALK_DEPTH_PER_SECOND := 0.12
+## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55) ตรงกับก้าวในคลิป:
+## เท้าที่แตะพื้นเลื่อนข้าง ~18 px/วินาที = ด้านข้างของทิศเดินเฉียง 26° → ~0.6-0.7 หน่วย/วินาที พื้นจึงไหลเท่าก้าว ไม่ใช่เดินอยู่กับที่
+const WALK_DEPTH_PER_SECOND := 0.68
 ## กล้องถอยตามเท่านี้ของระยะที่ทั้งคู่เดิน (1 = ตามติด ทั้งคู่อยู่ที่เดิมบนจอ) ที่เหลือคือทั้งคู่เดินเข้ามาใกล้กล้อง
-const CAMERA_FOLLOW := 0.5
+const CAMERA_FOLLOW := 0.94
+## กำแพงและฉากหลังถอยไปกับกล้องเท่านี้ (ไกลมาก: ข้ามถนนแล้วฉากหลังค่อยๆ ไกลออก ไม่หลุดจอ)
+const WALL_FOLLOW := 0.9
+## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
+const WALK_START := 0.6
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
 const ZOOM_TO := 1.35
 const ZOOM_FOCUS := Vector2(0.0, -30.0)
@@ -135,6 +140,7 @@ func play(seconds: float) -> void:
 	turn_mat.set_shader_parameter("src_zoom", SRC_ZOOM)
 	turn_mat.set_shader_parameter("src_shift", 0.0)
 	turn_mat.set_shader_parameter("focus", ZOOM_FOCUS)
+	turn_mat.set_shader_parameter("wall_follow", WALL_FOLLOW)
 	turn.material = turn_mat
 	_turn_mat = turn_mat
 	turn_layer.add_child(turn)
@@ -177,7 +183,9 @@ func play(seconds: float) -> void:
 	turn_tween.tween_interval(0.8)
 	turn_tween.tween_property(self, "_turned", 1.0, TURN_TIME)
 	var walk := create_tween()
-	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * (seconds + 6.0), seconds + 6.0)
+	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * WALK_START * 0.5, WALK_START) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * (seconds + 6.0), seconds + 6.0 - WALK_START * 0.5)
 	_place()
 
 	var open := black.create_tween()
