@@ -15,10 +15,10 @@ const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"
 		^"SunLight", ^"SkyReflection", ^"CityReflection", ^"RailReflection", ^"TrainReflectionLayer", ^"Road",
 		^"Crosswalk", ^"Signal", ^"Foreground", ^"Dust"]
 ## ภาพกว้าง 2516: เริ่มทางขวา (จอยังไม่เลยขอบภาพ) หยุดเมื่อเธอ (ข้างหน้าซัน 18px) อยู่ข้างประตู
-## ประตูเปิดอยู่ที่ x 593-829 (กลาง 711: compose_school.py) เดิน 1360px ~28 วินาที
+## ประตูเปิดอยู่ที่ x 593-774 (กลาง 684: compose_school.py) เดิน 1370px ~28 วินาที
 const START_X := 2150.0
-const STOP_X := 790.0
-const GATE_X := 711.0
+const STOP_X := 780.0
+const GATE_X := 684.0
 const UNDER := -18.0                            # สายฝนเดินข้างหน้าซันนิดเดียว ใต้ร่มเดียวกัน (เท่าตอนยืนรอไฟ)
 ## เดินช้ากว่าเดินคนเดียว (54) ให้ใกล้ความเร็วก้าวของเธอ (44): ท่าเดินซันเล่นช้าลงตามสัดส่วน เท้าไม่ไถล
 const SPEED := 48.0
