@@ -219,10 +219,61 @@ def make_ground(out_layers, out):
     x = (uu - OX) / PPM / np.maximum(s, 1e-6)
     col = ground_colour(x, z, Noise(7))
     col = col.reshape(h, ss, w, ss, 3).mean((1, 3))
+    lawn = (((z >= 7.15) & (np.abs(x) >= 1.6)).reshape(h, ss, w, ss).mean((1, 3)) > 0.5)
+    zc = z.reshape(h, ss, w, ss).mean((1, 3))
+    xc = x.reshape(h, ss, w, ss).mean((1, 3))
+    col = pixel_lawn(col, lawn, xc, zc)
     a = np.full((h, w), 255, np.uint8)
     lay.img = Image.fromarray(np.dstack([np.clip(col, 0, 255).astype(np.uint8), a]))
     lay.face("y", x0=-45.0, x1=45.0, y=0.0, z0=0.0, z1=24.0)
     out_layers.append(lay.save(out))
+
+
+GREENS = np.array([[28, 48, 50], [38, 64, 62], [50, 80, 74], [64, 96, 82], [86, 118, 94], [110, 140, 106]])
+BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
+
+
+def pixel_lawn(col, lawn, x, z):
+    """Lawn as pixel art: broad patches of a few greens (dither only where they meet), then grass
+    tufts (a few blades fanning out, lit tips, dark roots), thicker in the lighter patches and longer
+    toward the camera; tufts at the path lean over the kerb."""
+    h, w = lawn.shape
+    rng = np.random.default_rng(21)
+    near = np.clip((z - 7.0) / 11.0, 0, 1)                      # 0 at the hedge .. 1 near the camera
+    noise = Noise(31)
+    patch = noise(x, z, 1.4, 2.2)
+    level = 2.45 - 0.7 * near + 0.45 * patch                   # far: lighter, hazier; near: darker
+    level -= 0.9 * np.clip(1 - (z - 7.15) / 0.5, 0, 1)         # damp shade at the hedge foot
+    vv, uu = np.mgrid[0:h, 0:w]
+    idx = np.floor(level + (BAYER[vv % 4, uu % 4] - 0.5) * 0.5).astype(int)   # dither only near edges
+    out = col.copy()
+    out[lawn] = GREENS[np.clip(idx, 1, 3)][lawn]
+    ys, xs = np.nonzero(lawn)
+    lush = np.clip(0.5 + 0.5 * patch, 0, 1)
+    keep = rng.random(len(ys)) < 0.07 * (0.3 + lush[ys, xs])
+    ys, xs = ys[keep], xs[keep]
+    for i in np.argsort(ys):                                    # far rows first, near tufts overlap
+        v, u = ys[i], xs[i]
+        nr = near[v, u]
+        length = int(np.clip(round(1.5 + 3.5 * nr * rng.uniform(0.7, 1.2)), 2, 5))
+        tip = GREENS[4] if (lush[v, u] > 0.5 and nr > 0.2) else GREENS[3]
+        lean = (-1 if x[v, u] > 0 else 1) if abs(x[v, u]) < 1.85 else 0
+        blades = [(0, length, lean)]
+        if length >= 3:
+            blades += [(-1, length - 1, -1 + lean), (1, length - 1, 1 + lean)]
+        for du, ln, bend in blades:
+            for j in range(ln):
+                vy = v - j
+                ux = u + du + (bend if j >= ln - 1 and ln > 2 else 0)
+                if not (0 <= vy < h and 0 <= ux < w):
+                    continue
+                if j == 0:
+                    out[vy, ux] = GREENS[1]
+                elif j == ln - 1:
+                    out[vy, ux] = tip
+                else:
+                    out[vy, ux] = GREENS[2] if ln > 3 else tip
+    return out
 
 
 # ---------------------------------------------------------------- covered walkway
@@ -331,41 +382,63 @@ def quilt(leaves, w, h, rng, block=30, overlap=10):
     return out / np.maximum(weight, 1e-6)
 
 
-HEDGE = dict(front=7.95, back=7.3, h=0.85, gap=1.95, end=24.0)
+HEDGE = dict(front=7.95, h=0.9, gap=1.95, end=24.0)
 
 
 def make_hedge(path, out_layers, out):
-    """Trimmed hedge: dense author leaves, lit from the sky on top, darker toward the foot, soft lumps."""
+    """Row of rounded clipped shrubs: dense author leaves on each shrub, shaded as a ball (lit from the
+    upper left by the grey sky, core shadow lower right), leafy rims, dark gaps and a dark foot."""
     H = HEDGE
     m = k(H["front"]) * PPM
     leaves = load_leafage(path, 0.3 * m / 33)
+    bush = load_bush(path)
     rng = np.random.default_rng(5)
+    light = np.array([-0.45, -0.75, 0.5])
+    light /= np.linalg.norm(light)
     for side in (-1, 1):
         x0, x1 = (H["gap"], H["end"]) if side > 0 else (-H["end"], -H["gap"])
-        lay = Layer("hedge_" + ("r" if side > 0 else "l"), x0, x1, 0.0, H["h"] + 0.15, H["front"])
-        u0, v0, u1, v1 = (round(v) for v in lay.rect(x0, x1, 0.0, H["h"], H["front"]))
+        lay = Layer("hedge_" + ("r" if side > 0 else "l"), x0 - 0.2, x1 + 0.2, 0.0, H["h"] + 0.25, H["front"])
         w, h = lay.img.size
-        t = quilt(leaves, w, h, rng)
+        acc = np.zeros((h, w, 4))
+        foot = round(lay.local(*pic(0, 0.0, H["front"]))[1])
+        # shrub centres along the row, sizes varied, overlapping
+        shrubs, xx = [], x0 + 0.5
+        while xx < x1 - 0.4:
+            r = rng.uniform(0.5, 0.72)
+            shrubs.append((min(xx, x1 - r * 0.8), r, rng.uniform(0.82, 1.0) * H["h"]))
+            xx += r * rng.uniform(1.25, 1.55)
+        tex = quilt(leaves, w, h, rng)
         vv, uu = np.mgrid[0:h, 0:w]
-        f = np.clip((vv - v0) / max(1, v1 - v0), 0, 1)
-        lumps = gaussian_filter(rng.normal(0, 1, (h, w)), (6, 10))
-        lumps /= lumps.std()
-        light = (1.08 - 0.55 * f) * (1 + 0.07 * lumps)
-        t[..., :3] *= light[..., None]
-        holes = t[..., 3] < 128
-        t[..., :3] = np.where(holes[..., None], np.array([36, 58, 58]) * light[..., None], t[..., :3])
-        top = v0 + np.round(gaussian_filter(rng.normal(0, 1, w), 3) * 4).astype(int)  # uneven clipped top
-        inside = (vv >= top[None, :]) & (vv <= v1) & (uu >= u0) & (uu <= u1)
-        for cu in (u0, u1):                                        # rounded ends at the path
-            near = np.abs(uu - cu)
-            inside &= ~((near < 4) & ((near - 4) ** 2 + (vv - top[None, :] - 4) ** 2 > 18)
-                        & (vv < top[None, :] + 4))
-        first = inside & ~np.roll(inside, 1, 0)
-        t[..., :3] = np.where(first[..., None], t[..., :3] * 1.18 + 10, t[..., :3])  # sky light on the cut top
-        t[..., 3] = np.where(inside, 255, 0)
-        lay.img = Image.fromarray(np.clip(t, 0, 255).astype(np.uint8))
-        lay.face("box", x0=x0, x1=x1, y0=0.0, y1=H["h"] + 0.15, zf=H["front"], zb=H["back"])
-        lay.face("y", x0=x0, x1=x1, y=H["h"], z0=H["front"], z1=H["back"])
+        for cx_m, r, top in shrubs:
+            cu = lay.local(*pic(cx_m, 0, H["front"]))[0]
+            rx = r * m
+            ry = top * m * 0.62
+            cv = foot - ry * 0.95
+            edge = gaussian_filter(rng.normal(0, 1, (h, w)), 1.6) * 0.18
+            nx, ny = (uu - cu) / rx, (vv - cv) / ry
+            d2 = nx ** 2 + ny ** 2 + edge
+            inside = (d2 < 1.0) & (vv <= foot)
+            nz = np.sqrt(np.clip(1 - nx ** 2 - ny ** 2, 0, 1))
+            lam = np.clip(nx * light[0] + ny * light[1] + nz * light[2], 0, 1)
+            shade = 0.42 + 0.78 * lam
+            shade *= np.where(d2 > 0.82, 0.8, 1.0)                 # darker rim: reads round
+            shade *= 1 - 0.35 * np.clip((vv - (foot - ry * 0.35)) / (ry * 0.4), 0, 1)   # dark foot
+            colr = tex[..., :3] * shade[..., None]
+            holes = tex[..., 3] < 128
+            colr = np.where(holes[..., None], np.array([30, 50, 52]) * shade[..., None], colr)
+            acc[inside, :3] = colr[inside]
+            acc[inside, 3] = 255
+            # leafy bumps on the lit upper rim
+            img = Image.fromarray(np.clip(acc, 0, 255).astype(np.uint8))
+            for a in np.linspace(np.pi * 1.1, np.pi * 1.9, 4):
+                st = stamp(bush, rx * rng.uniform(0.55, 0.75), rng.random() < 0.5,
+                           0.95 + 0.25 * max(0, -np.cos(a)) * 0.6)
+                px, py = cu + np.cos(a) * rx * 0.8, cv + np.sin(a) * ry * 0.82
+                img.alpha_composite(st, (int(px - st.width / 2), int(py - st.height * 0.55)))
+            acc = np.asarray(img).astype(float)
+        # contact shadow line on the ground at the foot
+        lay.img = Image.fromarray(np.clip(acc, 0, 255).astype(np.uint8))
+        lay.face("z", x0=x0 - 0.2, x1=x1 + 0.2, y0=0.0, y1=H["h"] + 0.25, z=H["front"])
         out_layers.append(lay.save(out))
 
 
