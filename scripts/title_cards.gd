@@ -16,12 +16,9 @@ signal restart_pressed
 
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
 const RAIN := preload("res://shaders/rain.gdshader")
-## เพลง (tools/prepare_music.py): เริ่มตอนแตะครั้งแรก คลอเบาๆ ใต้เสียงพากย์ ดังขึ้นตอนชื่อเรื่อง
-## เล่นจากต้นเพลงครั้งเดียว แล้ววนท่อนหลัก 75.3-127.8 วินาที อยู่บนบัส "Music" (default_bus_layout.tres)
+## เพลงตอนชื่อเรื่อง (tools/prepare_music.py): เล่นจากต้นเพลงครั้งเดียว แล้ววนท่อนหลัก 75.3-127.8 วินาที อยู่บนบัส "Music" (default_bus_layout.tres)
 ## ปรับความดังที่บัส: บนเว็บเสียงเล่นแบบ sample ซึ่งปรับที่บัสได้แน่นอน
 const TITLE_MUSIC := preload("res://assets/audio/music/title_theme.ogg")
-## ความดังเพลงระหว่างเสียงพากย์ (dB ที่บัส): เพลง -20 LUFS ลงเหลือราว -35 ต่ำกว่าเสียงพูด ~15 dB
-const MUSIC_UNDER_VOICE := -15.0
 
 ## คำโปรย: ประโยคจากบทนำของต้นฉบับ (ตรงตามต้นฉบับ ผู้เขียนเลือกช่วง) ทีละหน้า หน้าละไม่เกิน 3 บรรทัด
 ## แบ่งบรรทัดตรงช่องว่าง/จุดไข่ปลาเดิม แต่ละหน้าเป็นเสียงพากย์ของผู้เขียนทีละไฟล์ (assets/audio/voice/,
@@ -222,8 +219,6 @@ func play_opening() -> void:
 	_waiting = "begin"
 	await begin_pressed
 	clear_now()
-	_set_music_db(MUSIC_UNDER_VOICE)
-	_music.play()
 	await _wait(1.0)
 	for page in tagline:
 		var count := 0
@@ -252,7 +247,8 @@ func play_opening() -> void:
 		await get_tree().create_timer(0.7).timeout
 	_voice.stop()
 	_waiting = ""
-	create_tween().tween_method(_set_music_db, MUSIC_UNDER_VOICE, 0.0, 3.0).set_trans(Tween.TRANS_SINE)
+	_set_music_db(0.0)
+	_music.play()                            # ต้นเพลงเปียโนเบาๆ อยู่แล้ว (ค่อยๆ ดังขึ้นเอง) ไม่ต้องเฟดเข้า
 	_title(title, 30, 130.0, 2.4)
 	await get_tree().create_timer(1.2).timeout
 	_subtitle(title_en, 186.0, 1.6)
