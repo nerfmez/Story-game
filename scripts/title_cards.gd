@@ -223,10 +223,10 @@ func play_opening() -> void:
 				var label := _text("[reveal speed=%.1f span=10]%s[/reveal]" % [speed, line], 17, y, Color(0.86, 0.89, 0.96))
 				create_tween().tween_property(label, "position:y", y - 4.0, 4.0).from(y + 6.0).set_trans(Tween.TRANS_SINE)
 				y += 34.0
-			await _wait(stream.get_length() - t + 0.35)
-		await _wait(1.6)
-		_fade_out_items(0.4 if _skip else 0.9)
-		await get_tree().create_timer(0.4 if _skip else 1.1).timeout
+			await _wait(stream.get_length() - t + 0.2)
+		await _wait(0.6)
+		_fade_out_items(0.4 if _skip else 0.6)
+		await get_tree().create_timer(0.4 if _skip else 0.7).timeout
 	_voice.stop()
 	_skip = false
 	_waiting = ""
