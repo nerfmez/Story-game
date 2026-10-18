@@ -76,7 +76,11 @@ func begin() -> void:
 	await _heroine_arrives()
 	camera.pan_to(296.0)                       # ทั้งคู่อยู่กลางจอ
 	await _say("meet")
-	# ไฟเขียว: ปุ่มข้ามทางม้าลาย แล้วตัดเป็นคัทซีนแบบหนัง ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ
+	await _crossing()
+
+
+## ไฟเขียว: ปุ่มข้ามทางม้าลาย แล้วตัดเป็นคัทซีนแบบหนัง ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ
+func _crossing() -> void:
 	var cross := CrossingCutscene.new()
 	cross.hero = hero
 	cross.heroine = heroine
@@ -91,6 +95,18 @@ func begin() -> void:
 	await get_tree().create_timer(1.2).timeout
 	await cards.fade_to_black()
 	await cards.wait_restart()
+
+
+## ทางลัดสำหรับทดสอบ (เปิดเกมด้วย #cross ท้ายลิงก์): ข้ามไปที่ทั้งคู่ยืนใต้ร่มตอนไฟเขียว แล้วเล่นช่วงข้ามทางม้าลาย
+func debug_crossing() -> void:
+	dialogue_box.line_started.connect(_on_line)
+	hero.position.x = wait_x
+	heroine.enter(hero.position.x + heroine_under, hero.position.x + heroine_under)
+	crossing_signal.go_green()
+	camera.pan_to(296.0)
+	cards.reveal_scene()
+	await get_tree().create_timer(1.5).timeout
+	await _crossing()
 
 
 ## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา

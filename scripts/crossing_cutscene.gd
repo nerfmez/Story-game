@@ -1,8 +1,8 @@
 class_name CrossingCutscene
 extends Node
 ## ข้ามทางม้าลาย: ปุ่ม "ข้ามทางม้าลาย" แล้วตัดเป็นคัทซีนแบบหนัง
-## ตัดผ่านจอดำ แล้วเป็นจอกว้างแบบหนัง: ฉากค่อยๆ หมุนเป็นมุมเฉียง (shaders/scene_turn.gdshader) ทั้งคู่เดินใต้ร่มเดียวกัน
-## เข้าหากล้อง กล้องถอยตาม บทเป็นซับไตเติลในแถบล่าง
+## ตัดผ่านจอดำ แล้วเป็นจอกว้างแบบหนัง: ฉากค่อยๆ หมุน (shaders/scene_turn.gdshader) จนทางม้าลายเฉียงไปทางเดียวกับ
+## ที่ทั้งคู่เดิน (เข้าหากล้องเยื้องซ้าย) แล้วทั้งคู่เดินข้ามไปตามทางม้าลาย กล้องตามหลัง บทเป็นซับไตเติลในแถบล่าง
 ## (คลิปเดินคู่เดินเฉียงเข้าหากล้อง: assets/characters/pair_umbrella_walk.png 45 เฟรม 2 แถว 12 เฟรม/วินาที วนได้)
 ## ระหว่างนั้นบทขึ้นตามปกติ (prologue.gd เรียก play() แล้วเล่นบทเอง)
 
@@ -16,14 +16,17 @@ const FPS := 12.0
 const STEPS := [2, 9, 17, 24, 32, 39]
 ## แถบดำบน-ล่าง (จอกว้างแบบหนัง) บทพูดขึ้นเป็นซับไตเติลในแถบล่าง
 const BAR := 50.0
-## กล้องเริ่มที่ซูมนี้แล้วค่อยๆ ถอยออกเป็น 1 (ฉากหลังไกลออก = ทั้งคู่เดินเข้าหากล้อง)
-const ZOOM_FROM := 1.25
-## แถวบนจอ (640x360) ที่เท้าของทั้งคู่อยู่ตลอดช็อต
-const FEET_ON_SCREEN := 300.0
-## หมุนฉากเป็นมุมเฉียงทีละน้อยจนถึงมุมนี้ (ฝั่งขวาไกลออก) ให้เข้ากับท่าเดินเฉียงเข้าหากล้องของทั้งคู่
-const YAW_TO := 24.0
-## ขยายภาพฉากตอนหมุนสุด (กันขอบภาพโผล่ด้านที่ไกลออก: คำนวณแล้ว 24° ต้อง 1.5 ช่วงภาพระหว่างแถบดำถึงไม่มีขอบดำ)
-const TURN_ZOOM := 1.5
+## แถวบนจอ (640x360) ที่เท้าของทั้งคู่อยู่ตลอดช็อต (= ขอบฟ้าบนจอ 163 + ระยะเท้าถึงขอบฟ้า 70 แบบในฉาก)
+const FEET_ON_SCREEN := 233.0
+## หมุนฉากถึงมุมนี้ (ลบ = ทางม้าลายเฉียงลงซ้าย ทางเดียวกับท่าเดินของทั้งคู่) ใช้เวลา TURN_TIME วินาที
+const YAW_TO := -26.0
+const TURN_TIME := 4.0
+## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55)
+const WALK_DEPTH_PER_SECOND := 0.12
+## กล้องเกมถอยออกตอนถ่ายฉากให้ shader (เห็นกว้างกว่าจอ ฉากที่หมุนแล้วไม่มีขอบโผล่)
+const SRC_ZOOM := 0.58
+## และเลื่อนไปทางซ้ายเท่านี้ตอนหมุนสุด (หมุนแล้วฝั่งซ้ายมองเห็นไกลกว่า ต้องมีภาพทางซ้ายมากกว่าขวา)
+const SRC_SHIFT := -270.0
 
 signal pressed
 
@@ -34,7 +37,6 @@ var ui: Node                                   # CanvasLayer ของกล่�
 
 var _pair: Sprite2D
 var _feet := Vector2.ZERO
-var _cam_x := 0.0
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
@@ -76,10 +78,9 @@ func ask() -> void:
 
 
 ## เริ่มคัทซีน: ตัดผ่านจอดำสั้นๆ (ซ่อนการสลับตัวละคร) แล้วเปิดเป็นจอกว้างแบบหนัง
-## ช็อตถอยกล้อง (dolly back): ทั้งคู่เดินเข้าหากล้อง กล้องถอยไปพร้อมกัน ตัวละครจึงอยู่ที่เดิมบนจอ ขนาดคงที่
-## (1 พิกเซลภาพ = 1 พิกเซลเกมตลอด ตัวละครไม่ถูกบิด) ส่วนฉากหลังค่อยๆ หมุนเป็นมุมเฉียง ไกลออก (ซูมออก) และเลื่อนข้างเล็กน้อย
-## พื้นใต้เท้าจึงไหลถอยห่างตามทิศที่เดิน เท้าไม่ไถล
-## seconds = ความยาวของการเคลื่อนกล้อง
+## ฉากหมุนรอบแกนตั้งที่เท้าทั้งคู่ (พื้นและทางม้าลายเฉียงตามทิศเดิน เสายังตั้งตรง) แล้วทั้งคู่เดินไปตามทางม้าลาย
+## กล้องตามหลัง ทั้งคู่จึงอยู่กลางจอที่เดิม (1 พิกเซลภาพ = 1 พิกเซลเกม ไม่ถูกบิด) พื้นไหลเข้าหากล้อง ฉากหลังไกลออก
+## seconds = ความยาวโดยประมาณของคัทซีน
 func play(seconds: float) -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 22                           # เหนือฉากและจอดำ (20) ใต้ภาพโทรศัพท์ (25) และกล่องข้อความ (30)
@@ -108,12 +109,17 @@ func play(seconds: float) -> void:
 	var turn_layer := CanvasLayer.new()
 	turn_layer.layer = 2
 	add_child(turn_layer)
+	# ก๊อปจอใหม่ตรงนี้: ไม่งั้น shader ได้ภาพที่ก๊อปไว้ตั้งแต่ชั้นเงาสะท้อน (ก่อนวาดถนน) พื้นเลยดำ
+	var copy := BackBufferCopy.new()
+	copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	turn_layer.add_child(copy)
 	var turn := ColorRect.new()
 	turn.size = Vector2(640, 360)
 	turn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var turn_mat := ShaderMaterial.new()
 	turn_mat.shader = TURN
-	turn_mat.set_shader_parameter("pivot_y", FEET_ON_SCREEN / 180.0 - 1.0)
+	turn_mat.set_shader_parameter("src_zoom", SRC_ZOOM)
+	turn_mat.set_shader_parameter("src_shift", 0.0)
 	turn.material = turn_mat
 	turn_layer.add_child(turn)
 	# ทั้งคู่อยู่เหนือภาพที่หมุนแล้ว (ไม่ถูกบิด) คม 1 พิกเซลภาพ = 1 พิกเซลเกม ตรงกลางจอที่แถวเท้า
@@ -143,38 +149,30 @@ func play(seconds: float) -> void:
 	hero.visible = false
 	heroine.visible = false
 
-	# กล้องเลิกตามพระเอก: ขยับเองด้วย tween (ปิดสคริปต์กล้องชั่วคราว)
+	# กล้องเลิกตามพระเอก: ตั้งกลางที่เท้าทั้งคู่ แถว 180 เท่าตอนเล่น ถอยออก (SRC_ZOOM) ให้ shader มีภาพพอหมุน
 	camera.set_process(false)
-	camera.zoom = Vector2(ZOOM_FROM, ZOOM_FROM)
-	_cam_x = _feet.x + 18.0
-	camera.position = _camera_for(_cam_x, ZOOM_FROM)
-	var move := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	move.tween_method(func(z: float): camera.zoom = Vector2(z, z), ZOOM_FROM, 1.0, seconds)
-	move.tween_property(self, "_cam_x", _feet.x - 22.0, seconds)
-	move.tween_method(func(t: float):
-		turn_mat.set_shader_parameter("yaw", deg_to_rad(YAW_TO) * t)
-		turn_mat.set_shader_parameter("zoom", lerpf(1.0, TURN_ZOOM, t)), 0.0, 1.0, seconds)
-	_update_shot()
+	camera.position = Vector2(_feet.x, 180.0)
+	camera.zoom = Vector2(SRC_ZOOM, SRC_ZOOM)
+	var turn_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	turn_tween.tween_interval(0.8)
+	turn_tween.tween_method(func(k: float):
+		turn_mat.set_shader_parameter("yaw", deg_to_rad(YAW_TO * k))
+		# กล้องเกมเลื่อนซ้ายไปพร้อมการหมุน: ภาพต้นทางครอบทั้งด้านที่มองเห็นตลอด (ตอนตรงต้องครอบขวา ตอนหมุนต้องครอบซ้าย)
+		turn_mat.set_shader_parameter("src_shift", SRC_SHIFT * k)
+		camera.position.x = _feet.x + SRC_SHIFT * k, 0.0, 1.0, TURN_TIME)
+	var walk := create_tween()
+	walk.tween_method(func(d: float): turn_mat.set_shader_parameter("advance", d), 0.0,
+			WALK_DEPTH_PER_SECOND * (seconds + 6.0), seconds + 6.0)
 
 	var open := black.create_tween()
 	open.tween_interval(0.25)
 	open.tween_property(black, "modulate:a", 0.0, 0.7)
 
 
-## จุดกลางกล้องที่ทำให้พื้นใต้เท้า (_feet) อยู่ที่แถว FEET_ON_SCREEN ตอนซูมเริ่ม แล้วค่อยๆ ไกลออกตามการซูมออก
-func _camera_for(x: float, z: float) -> Vector2:
-	return Vector2(x, _feet.y - (FEET_ON_SCREEN - 180.0) / ZOOM_FROM)
-
-
-func _update_shot() -> void:
-	camera.position = _camera_for(_cam_x, camera.zoom.x)
-
-
 func _process(delta: float) -> void:
 	if _pair == null:
 		return
 	_time += delta
-	_update_shot()
 	var frame := int(_time * FPS) % FRAMES
 	_pair.frame = frame
 	if frame != _last_frame and frame in STEPS and hero.step_sound:

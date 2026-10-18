@@ -64,6 +64,11 @@ func _ready() -> void:
 	if ambience:
 		ambience.stop()
 	cards.restart_pressed.connect(func(): get_tree().reload_current_scene())
+	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hash")) == "#cross":
+		if ambience:
+			ambience.play()
+		prologue.debug_crossing()              # ทดสอบช่วงข้ามทางม้าลายอย่างเดียว
+		return
 	# วิดีโอเปิดเรื่องเล่นทันทีที่แตะเพื่อเริ่ม (scripts/intro_video.gd) จบแล้วค่อยเปิดเสียงฝนของเกม
 	var intro := IntroVideo.new()
 	add_child(intro)
