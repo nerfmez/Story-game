@@ -1,27 +1,23 @@
-"""Split the author's school-building elevation into depth layers for the 2.5D model.
+"""Paint layers for the school model, cut from the author's facade painting.
 
-art_source/school_building.png (2168x725, RGBA) is a flat front view of the 3-storey school block.
-scripts/school_building_3d.gd builds the block from boxes at real depths and paints every face by
-projecting this picture onto it from the design camera, so from that camera the render is the picture
-itself; move the camera a little and the parts slide over each other like a real building.
+art_source/school_building.png (2168x725, RGBA) is a flat front view of the 3-storey school block,
+50 px per metre. scripts/school_model_3d.gd builds the whole school as one solid model and lays these
+layers straight onto its front faces at that size (no viewpoint projection: they are the faces'
+own paint, so the model looks right from anywhere a scene walks to):
+  front.png  the picture as is: canopy, its pillars, steps, eaves and roof
+  mid.png    canopy group filled in: corridor pillars, parapets, the plinth
+  back.png   pillars, parapets and the bench filled in too: the classroom walls behind the corridors
+  props.png  only the bench (alpha), a standing card in the stair hall
 
-Each depth needs the picture without the parts that stand in front of it (what is revealed when they
-slide aside):
-  front.png  the picture as is: entrance canopy, its pillars, the steps and the roof (frontmost)
-  mid.png    canopy group filled in: pillars, parapets, the plinth (the corridor's front edge, z 0)
-  back.png   pillars, parapets and the bench filled in too: classroom walls, ceilings, the stair hall
-  props.png  only the bench (alpha), stood a little in front of the stair passage
+The entrance is the author's close view (art_source/school_entrance_close.png) scaled in, so the
+canopy, stair hall, board and bins are the same wherever they are seen from.
 
 Fill: wall behind a pillar is continued from the bay beside it (not the stair-hall side); behind a
-parapet the wall above is carried down and smoothed; small leftovers use OpenCV inpainting.
-Pixel boxes here are the same ones school_building_3d.gd uses for the geometry.
-
-Pixel art: every layer is shrunk to the game's pixel size (PIXEL = 0.48: 24 px per metre, so with the
-view's 15 m frame one texel is one game pixel at rest), alpha cut hard, and all layers mapped to one
-shared palette without dithering, then read with nearest filtering like the other backgrounds.
+parapet a plain lower wall; small leftovers use OpenCV inpainting.
+Pixel art: one shared palette without dithering, read with sharp-bilinear filtering.
 
 Usage:
-  python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building \
+  python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/model \
           art_source/school_entrance_close.png
 """
 import os
@@ -55,7 +51,7 @@ ENTRANCE_PARTS = [(252, 128, 1398, 202),  # canopy (close-view px)
                   (290, 642, 1340, 692)]  # entrance steps
 
 
-PIXEL = 0.48
+PIXEL = 1.0                              # full size: 50 px per metre on the model
 COLOURS = 96                             # shared palette: the bluish building
 ACCENTS = 32                             # + colours kept for the few saturated things (plants, bins, bench)
 
