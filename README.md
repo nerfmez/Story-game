@@ -45,7 +45,7 @@
      ภาพ `tools/make_car.py` -> `assets/props/car_silhouette.png` เสียง `car_pass.ogg` (`tools/make_audio.py car_pass.ogg`)
    - ลูกแมวตัวเปียกนั่งบนทางเท้าก่อนทางม้าลาย (`scripts/kitten.gd`, `KITTEN_AT`): เดินเข้าไปใกล้แล้วซันหยุด ขึ้นปุ่ม
      "ทักลูกแมว ▶" (`scripts/prompt_button.gd` แบบเดียวกับปุ่มข้ามทางม้าลาย หรือแตะที่ลูกแมว) กดแล้ว (`"when": "kitten"`)
-     "มาทำอะไรตรงนี้นะ" แล้วมันร้อง (`meow.ogg`) วิ่งหนีไปทางซ้าย คิดจบแล้วเดินต่อ
+     "มาทำอะไรตรงนี้นะ" แล้วมันร้อง (`meow.ogg`) วิ่งหนีไปทางซ้าย (ผ่านหลังเสาไฟ: วาดก่อนโหนด `Signal`) คิดจบแล้วเดินต่อ
      ภาพ `tools/make_kitten.py` -> `assets/characters/kitten.png` (นั่ง 4 เฟรม, วิ่งควบหนึ่งก้าว 6 เฟรม: เหยียด ขาหน้าลง
      รวบขา หลังโก่ง ขาหลังถีบ พุ่ง วางขาทีละเฟรม; 12 เฟรม/วินาที 110 px/วินาที เท้าไม่ไถล)
 4. **ทางม้าลาย**: หยุดเอง ไฟคนข้ามแดง "....เหมือนจะยังทันนะ" ระหว่างนั้นสายฝน (ตัวเปียก แว่นฝ้า) เดินมาจากทางซ้ายเงียบๆ
@@ -468,7 +468,7 @@ python3 tools/clean_heroine.py art_source/heroine_greenscreen.png assets/charact
 python3 tools/import_char_video.py art_source/heroine_idle.mp4 idle_raw.png --start 19 --end 119 --count 50 \
     --palette assets/characters/heroine.png --height 112 --align feet --keep-colours --threshold 70
 python3 tools/import_char_video.py art_source/heroine_walk.mp4 walk_raw.png --start 15 --end 50 --count 18 \
-    --palette assets/characters/heroine.png --height 112 --align torso --keep-colours --threshold 70
+    --palette assets/characters/heroine.png --height 112 --align torso --keep-colours --threshold 70 --keep-warm
 python3 tools/finish_heroine.py idle_raw.png 50 walk_raw.png 18 \
     --out-idle assets/characters/heroine_idle.png --out-walk assets/characters/heroine_walk.png
 python3 tools/steady_walk_head.py assets/characters/heroine_walk.png --frames 18 --measure 8 50 --cut 62 80 \
@@ -479,6 +479,8 @@ python3 tools/wet_heroine.py assets/characters/heroine_walk.png 18 assets/charac
     --lens 19 21 19 20 --lens 25 27 19 20
 ```
 
+- ท่าเดิน `--keep-warm`: ผิวในเงา (ข้อเท้าขาหลัง ใต้คาง มือ) เป็นสีส้มอมชมพูใกล้พื้นหลังม่วงชมพู ถูกตัดทิ้งไปกับพื้นหลัง
+  (ข้อเท้าขาหลังหายจนรองเท้าดูลอยแยกจากขา) ตัวเลือกนี้เก็บพิกเซลที่ฟ้าน้อยกว่าเขียวชัดเจนไว้ (พื้นหลังฟ้ามากกว่าเขียว ~70)
 - ท่ายืน: เฟรมวิดีโอ 19 กับ 119 แทบเหมือนกัน วนได้เนียน (100 เฟรม → 50 เฟรม 12fps)
 - ท่าเดิน: รอบก้าว (2 ก้าว) 35 เฟรมวิดีโอ (15 → 50) → 18 เฟรมระยะเท่ากัน (`--count`) ขากางสุดเฟรม 1, 10 / ขาสวนเฟรม 5-6, 16
 - `--height 112`: นางเอกไม่มีปกเสื้อขาวแบบพระเอก จึงย่อตามความสูงทั้งตัว (หัวถึงเท้า) ให้เท่ารูปนิ่ง

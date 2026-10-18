@@ -187,6 +187,8 @@ func _add_walk_props() -> void:
 	_kitten.position = KITTEN_AT
 	_kitten.noticed.connect(_greet_kitten)
 	get_parent().add_child(_kitten)
+	# วาดก่อนเสาไฟ (ตีนเสาอยู่ขอบล่างจอ ใกล้กล้องกว่าทางเท้า) ลูกแมววิ่งผ่านหลังเสาไม่ทะลุ
+	get_parent().move_child(_kitten, crossing_signal.get_index())
 
 
 ## เดินมาถึงลูกแมว: หยุดเดิน ขึ้นปุ่ม "ทักลูกแมว" (หรือแตะที่ลูกแมว) กดแล้วบรรทัด "when": "kitten" จึงขึ้น
