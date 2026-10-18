@@ -30,6 +30,9 @@ var _walking := false
 var _right := false
 var _target := 0.0
 var _time := 0.0
+var _follow: Node2D                              # เดินข้างๆ ตัวละครนี้ (follow())
+var _follow_offset := 0.0
+var _stride := 0.0                               # ระยะที่เดินตามมาแล้ว: นับเฟรมเดินตามระยะ เท้าจึงไม่ไถลไม่ว่าจะเดินเร็วแค่ไหน
 
 @onready var _body: Sprite2D = $Body
 
@@ -55,6 +58,23 @@ func walk_to(x: float) -> void:
 	_apply()
 
 
+## เดินข้างๆ target ห่าง offset (ใต้ร่มเดียวกัน): ขยับตาม target ทุกเฟรม เดินเมื่อมันเดิน ยืนเมื่อมันหยุด
+## ท่าเดินเล่นตามระยะที่ขยับ (ก้าวละ speed / walk_fps พิกเซล) จึงเข้ากับความเร็วของ target เสมอ
+func follow(target: Node2D, offset: float) -> void:
+	_follow = target
+	_follow_offset = offset
+	position.x = target.position.x + offset
+	visible = true
+	_walking = false
+	_apply()
+
+
+func stop_following() -> void:
+	_follow = null
+	_walking = false
+	_apply()
+
+
 func set_wet(on: bool) -> void:
 	_wet = on
 	_apply()
@@ -76,6 +96,21 @@ func _apply() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if _follow:
+		var moved := _follow.position.x + _follow_offset - position.x
+		position.x += moved
+		var walking := absf(moved) > 0.01
+		if walking != _walking or (walking and (moved > 0.0) != _right):
+			_walking = walking
+			_right = moved > 0.0 if walking else _right
+			_time = 0.0
+			_apply()
+		if _walking:
+			_stride += absf(moved)
+			_body.frame = int(_stride / (speed / walk_fps)) % walk_frames
+		else:
+			_body.frame = int(_time * idle_fps) % idle_frames
+		return
 	if _walking:
 		var step := speed * delta
 		if absf(_target - position.x) <= step:
