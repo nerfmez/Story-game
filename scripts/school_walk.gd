@@ -19,8 +19,9 @@ const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"
 const START_X := 2150.0
 const STOP_X := 780.0
 const GATE_X := 684.0
-const UNDER := -18.0                            # สายฝนเดินข้างหน้าซันนิดเดียว ใต้ร่มเดียวกัน (เท่าตอนยืนรอไฟ)
-const ROAD_SIDE := 4.0                          # เธออยู่ฝั่งถนน: เท้าต่ำกว่าซันเท่านี้ (ใกล้กล้องกว่า)
+const UNDER := -5.0                             # สายฝนเดินเคียงข้างซัน (ไม่นำหน้า) ใต้ร่มเดียวกัน
+## เธออยู่ฝั่งถนน: เท้าต่ำกว่าตำแหน่งเดิม (161 ใน main.tscn) 4px ใกล้กล้องกว่า (ใช้ตั้งแต่ยืนรอไฟด้วย: prologue.gd)
+const ROAD_Y := 165.0
 ## เดินช้ากว่าเดินคนเดียว (54) ให้ใกล้ความเร็วก้าวของเธอ (44): ท่าเดินซันเล่นช้าลงตามสัดส่วน เท้าไม่ไถล
 const SPEED := 48.0
 ## แอบมอง: ภาพใกล้หน้าเธอจากผู้เขียน (art_source/heroine_glance_rain.png ย่อเป็น 640x400) จางเข้าทับฉาก
@@ -67,7 +68,7 @@ func setup() -> void:
 	heroine.follow(hero, UNDER)
 	# เธอเดินข้างขวาของซัน (ต้นฉบับ: เสียงดังมา "จากด้านขวา") = ฝั่งถนน ใกล้กล้องกว่า: วาดทับซัน ต่ำลงนิดหน่อย
 	heroine.z_index = 1
-	heroine.position.y += ROAD_SIDE
+	heroine.position.y = ROAD_Y
 	camera.pan_to(320.0)
 	dialogue_box.set_subtitles(false)
 	dialogue_box.line_started.connect(_on_line)

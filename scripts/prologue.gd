@@ -20,8 +20,9 @@ extends Node
 @export var wait_x := -170.0
 @export var start_limit := 1850.0
 ## สายฝนเริ่มเดินจากซ้ายนอกจอ เดินเข้ามาจนชิดใต้ร่มข้างซันเลย แล้วค่อยพูด (เทียบตำแหน่งซัน)
+## ยืนเคียงข้างทางขวาของซัน (ต้นฉบับ: เสียงดังมา "จากด้านขวา") = ฝั่งถนน: วาดทับซัน เท้าต่ำลงนิดหน่อย (_road_side)
 @export var heroine_from := -330.0
-@export var heroine_under := -18.0
+@export var heroine_under := -5.0
 
 ## ช็อตแคบที่ไฟสัญญาณตอนไฟเขียว: ซูมเท่านี้ กลางจอ = จุดนี้เทียบเสา (ดวงไฟรถ + ไฟคนข้ามอยู่เหนือกล่องข้อความ)
 const SIGNAL_ZOOM := 3.0
@@ -157,12 +158,18 @@ func _leave_fullscreen() -> void:
 func debug_crossing() -> void:
 	dialogue_box.line_started.connect(_on_line)
 	hero.position.x = wait_x
+	_road_side()
 	heroine.enter(hero.position.x + heroine_under, hero.position.x + heroine_under)
 	crossing_signal.go_green()
 	camera.pan_to(296.0)
 	cards.reveal_scene()
 	await get_tree().create_timer(1.5).timeout
 	await _crossing()
+
+
+func _road_side() -> void:
+	heroine.z_index = 1
+	heroine.position.y = SchoolWalk.ROAD_Y
 
 
 ## ทางลัดสำหรับทดสอบ (เปิดเกมด้วย #school ท้ายลิงก์): เริ่มที่ช่วงเดินไปโรงเรียนเลย
@@ -301,6 +308,7 @@ func _heroine_arrives() -> void:
 	await _closeup.show_phone()
 	await _say("arrive")
 	await _closeup.hide_phone()
+	_road_side()
 	heroine.enter(hero.position.x + heroine_from, hero.position.x + heroine_under)
 	await heroine.arrived
 	await get_tree().create_timer(0.8).timeout
