@@ -13,6 +13,10 @@ extends Node
 @onready var dialogue_box: DialogueBox = $UI/DialogueBox
 
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
+## เสียงฝนระหว่างคำโปรย (dB): เบากว่าในฉาก (-5) ให้เสียงพากย์ชัด
+const AMBIENCE_UNDER_VOICE := -20.0
+
+var _ambience_db := 0.0
 
 ## ช่วงเวลาของฉาก: ภาพเย็นอยู่ใน assets/bg/sunset/ ช่วงเวลาอื่นมีภาพชื่อเดียวกันในโฟลเดอร์ของตัวเอง
 ## (morning: tools/compose_morning_scene.py, rain: tools/compose_rain_scene.py) แต่ละช่วงเปลี่ยนภาพ
@@ -59,10 +63,11 @@ func _ready() -> void:
 	dialogue_box.hide()
 	if OS.has_feature("web"):
 		_prepare_sounds(self)
-	# เบราว์เซอร์ไม่ให้เล่นเสียงจนกว่าผู้เล่นจะแตะ: แตะครั้งแรกแล้วคำโปรยเล่นพร้อมเสียงพากย์ เสียงฝนเริ่มหลังวิดีโอ
+	# เบราว์เซอร์ไม่ให้เล่นเสียงจนกว่าผู้เล่นจะแตะ: แตะครั้งแรกแล้วคำโปรยเล่นพร้อมเสียงพากย์และเสียงฝนเบาๆ
 	var ambience := get_node_or_null("Ambience") as AudioStreamPlayer
 	if ambience:
 		ambience.stop()
+		_ambience_db = ambience.volume_db
 	cards.restart_pressed.connect(func(): get_tree().reload_current_scene())
 	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hash")) == "#cross":
 		if ambience:
@@ -73,13 +78,23 @@ func _ready() -> void:
 	var intro := IntroVideo.new()
 	add_child(intro)
 	cards.start_ready.connect(intro.arm)
+	# ระหว่างคำโปรย/ชื่อเรื่อง (จอดำ) ไม่มีรถไฟวิ่งผ่านในฉากข้างหลัง (เสียงรถไฟทับเสียงพากย์) มีแค่เสียงฝนเบาๆ
+	if train:
+		train.process_mode = Node.PROCESS_MODE_DISABLED
+	if ambience:
+		cards.begin_pressed.connect(func():
+			ambience.volume_db = AMBIENCE_UNDER_VOICE
+			ambience.play())
 	await cards.play_opening()
 	cards.clear_now()
 	await cards.fade_music(0.8)                # เพลงชื่อเรื่องจางออกขณะวิดีโอเริ่ม (วิดีโอเล่นจาก JavaScript ตั้งแต่ตอนแตะ)
 	AudioServer.set_bus_mute(0, true)          # ระหว่างวิดีโอมีแต่เสียงของวิดีโอ
 	await intro.play()
 	AudioServer.set_bus_mute(0, false)
+	if train:
+		train.process_mode = Node.PROCESS_MODE_INHERIT
 	if ambience:
+		ambience.volume_db = _ambience_db
 		ambience.play()
 	prologue.begin()                           # การ์ดชื่อตอน บทบนจอดำ แล้วค่อยเผยฉาก (prologue.gd)
 
