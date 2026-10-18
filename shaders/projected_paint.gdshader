@@ -6,10 +6,10 @@ render_mode unshaded, cull_disabled;
 // picture; from anywhere else the faces sit at their own depths and slide over each other.
 // (scripts/school_building_3d.gd sets the uniforms.)
 
-uniform sampler2D paint : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D paint : source_color, filter_nearest, repeat_disable;   // pixel art: one texel = one game pixel at rest
 uniform vec3 design_camera;          // world position the picture is "seen" from (metres)
-uniform vec2 origin_px;              // picture pixel of world x = 0, y = 0 (ground, building centre)
-uniform float px_per_m = 50.0;
+uniform vec2 origin_px;              // paint pixel of world x = 0, y = 0 (ground, building centre)
+uniform float px_per_m = 24.0;       // paint pixels per metre
 // side faces of pillars etc. are darkened a little (the picture only has their front light)
 uniform vec3 tint : source_color = vec3(1.0);
 

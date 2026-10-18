@@ -16,6 +16,10 @@ Fill: wall behind a pillar is continued from the bay beside it (not the stair-ha
 parapet the wall above is carried down and smoothed; small leftovers use OpenCV inpainting.
 Pixel boxes here are the same ones school_building_3d.gd uses for the geometry.
 
+Pixel art: every layer is shrunk to the game's pixel size (PIXEL = 0.48: 24 px per metre, so with the
+view's 15 m frame one texel is one game pixel at rest), alpha cut hard, and all layers mapped to one
+shared palette without dithering, then read with nearest filtering like the other backgrounds.
+
 Usage:
   python3 tools/make_building_layers.py art_source/school_building.png assets/bg/school/building
 """
@@ -37,6 +41,39 @@ CANOPY = (884, 1284, 463, 497)           # slab incl. its soffit (x0, x1, y0, y1
 CANOPY_PILLARS = [(912, 942), (1225, 1252)]
 STEPS = (898, 1266, 645, 668)
 BENCH = (948, 1028, 602, 647)            # bench in front of the stair passage: its own card (props.png)
+
+
+PIXEL = 0.48
+COLOURS = 96                             # shared palette: the bluish building
+ACCENTS = 32                             # + colours kept for the few saturated things (plants, bins, bench)
+
+
+def pixelate(img, palette):
+    """Shrink to game pixels (premultiplied, no dark fringes), hard alpha, shared palette."""
+    pic = Image.fromarray(img)
+    size = (round(pic.width * PIXEL), round(pic.height * PIXEL))
+    small = pic.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+    alpha = small.getchannel("A").point(lambda a: 255 if a >= 128 else 0)
+    rgb = small.convert("RGB").quantize(palette=palette, dither=Image.Dither.NONE).convert("RGB")
+    rgb.putalpha(alpha)
+    return rgb
+
+
+def make_palette(img):
+    pic = Image.fromarray(img)
+    small = pic.convert("RGBa").resize((round(pic.width * PIXEL), round(pic.height * PIXEL)), Image.LANCZOS)
+    opaque = np.asarray(small.convert("RGBA"))
+    px = opaque[opaque[..., 3] >= 128][:, :3]
+    sat = px.max(1).astype(int) - px.min(1)
+    warm = (px[:, 1] > px[:, 2]) | (px[:, 0] > px[:, 2])           # not blue-dominant: greens, ambers, wood
+    colours = []
+    for sel, n in ((px, COLOURS), (px[(sat > 30) & warm], ACCENTS)):
+        q = Image.fromarray(sel.reshape(1, -1, 3)).quantize(n, method=Image.Quantize.MEDIANCUT,
+                                                              dither=Image.Dither.NONE)
+        colours += q.getpalette()[:n * 3]
+    pal = Image.new("P", (1, 1))
+    pal.putpalette(colours + [0] * (768 - len(colours)))
+    return pal
 
 
 def fill_from_side(img, x0, x1, y0, y1, side):
@@ -74,7 +111,12 @@ def main():
     src = np.asarray(Image.open(sys.argv[1]).convert("RGBA")).copy()
     out = sys.argv[2]
     os.makedirs(out, exist_ok=True)
-    Image.fromarray(src).save(os.path.join(out, "front.png"))
+    palette = make_palette(src)
+
+    def save(img, name):
+        pixelate(img, palette).save(os.path.join(out, name + ".png"))
+
+    save(src, "front")
 
     # mid: what the corridor front (pillars, parapets) shows once the canopy group slides aside
     mid = src.copy()
@@ -92,7 +134,7 @@ def main():
     # under the canopy: ground-floor wall of the bays either side; hall interior stays (it is deeper)
     inpaint(mid, mask)
     mid[..., 3] = np.where(mask > 0, 255, mid[..., 3])
-    Image.fromarray(mid).save(os.path.join(out, "mid.png"))
+    save(mid, "mid")
 
     # back: also without pillars, parapets and plinth
     back = mid.copy()
@@ -110,13 +152,13 @@ def main():
     props = np.zeros_like(src)
     props[by0:by1, bx0:bx1] = src[by0:by1, bx0:bx1]
     props[by0:by1, bx0:bx1, 3] = bench
-    Image.fromarray(props).save(os.path.join(out, "props.png"))
+    save(props, "props")
     mask = np.zeros(src.shape[:2], np.uint8)
     mask[by0:by1, bx0:bx1] = cv2.dilate(bench, np.ones((5, 5), np.uint8))
     inpaint(back, mask)
     for y0, y1 in PARAPETS + [PLINTH]:
         fill_rows(back, y0, y1, wall_colour(src, y0))
-    Image.fromarray(back).save(os.path.join(out, "back.png"))
+    save(back, "back")
     print(f"front/mid/back -> {out}")
 
 

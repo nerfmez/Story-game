@@ -7,7 +7,7 @@ extends Node3D
 ## ทุกหน้าระบายด้วยภาพเดิมฉายจากกล้องออกแบบ (shaders/projected_paint.gdshader):
 ## มองจากจุด DESIGN_CAMERA ได้ภาพเหมือนต้นฉบับ ขยับ/หมุนกล้องเล็กน้อยแล้วชั้นต่างๆ เลื่อนซ้อนกันแบบ 3D
 ## ภาพแต่ละชั้นที่เติมส่วนที่ถูกบังไว้: tools/make_building_layers.py
-## หน่วย: เมตร 50px = 1m, x 0 = กลางอาคาร (px 1083.5), y 0 = พื้น (px 668)
+## หน่วย: เมตร 50px ของภาพต้นฉบับ = 1m (ตำแหน่งชิ้นส่วนวัดจากภาพต้นฉบับ), x 0 = กลางอาคาร (px 1083.5), y 0 = พื้น (px 668)
 
 const PAINT := {
 	"front": preload("res://assets/bg/school/building/front.png"),
@@ -18,6 +18,8 @@ const PAINT := {
 const SHADER := preload("res://shaders/projected_paint.gdshader")
 const PX_PER_M := 50.0
 const ORIGIN_PX := Vector2(1083.5, 668.0)
+## ภาพที่ใช้ระบายเป็นพิกเซลอาร์ต ย่อ 0.48 (24px = 1m = 1 พิกเซลเกมเมื่อกรอบภาพสูง 15m)
+const PAINT_SCALE := 0.48
 ## จุดที่ภาพต้นฉบับ "ถูกมอง": ระดับสายตา 1.6m ห่างหน้าอาคาร 30m
 const DESIGN_CAMERA := Vector3(0.0, 1.6, 30.0)
 const SIDE_SHADE := Color(0.72, 0.74, 0.8)
@@ -194,7 +196,7 @@ func _material(key: String) -> Material:
 	mat.shader = SHADER
 	mat.set_shader_parameter("paint", PAINT[parts[0]])
 	mat.set_shader_parameter("design_camera", DESIGN_CAMERA)
-	mat.set_shader_parameter("origin_px", ORIGIN_PX)
-	mat.set_shader_parameter("px_per_m", PX_PER_M)
+	mat.set_shader_parameter("origin_px", ORIGIN_PX * PAINT_SCALE)
+	mat.set_shader_parameter("px_per_m", PX_PER_M * PAINT_SCALE)
 	mat.set_shader_parameter("tint", SIDE_SHADE if parts.size() > 1 else Color.WHITE)
 	return mat
