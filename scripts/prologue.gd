@@ -157,7 +157,12 @@ func _walk_to_crossing() -> void:
 	_set_touch(true)
 	_show_hint()
 	var start := hero.position.x
+	# ความคิดระหว่างเดิน (บท "walk"): แต่ละบรรทัดขึ้นเองเมื่อเดินมาถึงสัดส่วน "at" ของทาง ไม่ต้องหยุดมาแตะ
+	var thoughts: Array = _lines.get("walk", []).duplicate()
 	while hero.position.x > wait_x + 0.5:
+		var walked := (start - hero.position.x) / maxf(start - wait_x, 1.0)
+		if not thoughts.is_empty() and walked >= float(thoughts[0].get("at", 0.0)) and not dialogue_box.visible:
+			dialogue_box.start([thoughts.pop_front()])
 		if _hint and absf(hero.position.x - start) > 40.0:
 			_hide_hint()
 		await get_tree().process_frame
@@ -165,6 +170,8 @@ func _walk_to_crossing() -> void:
 	hero.controllable = false
 	hero.touch_dir = 0.0
 	_set_touch(false)
+	if dialogue_box.visible:                   # ความคิดบรรทัดสุดท้ายยังขึ้นอยู่: ให้จบก่อนควักโทรศัพท์
+		await dialogue_box.finished
 	await get_tree().create_timer(0.6).timeout
 
 
