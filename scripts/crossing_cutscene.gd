@@ -48,11 +48,14 @@ const SHOT_TIME := 16.0
 const FADE_OUT := 1.2
 ## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
 const WALK_START := 0.6
-## ฉากเริ่มหมุนที่ TURN_AT วินาที ทั้งคู่ยืนนิ่ง (ภาพเดินคู่เฟรม STAND_FRAME: เท้าแตะพื้นทั้งสองข้าง) แล้วเริ่มเดินหลังจากนั้น WALK_DELAY วินาที
-## ท่าเดินเริ่มจากเฟรมยืนนั้น ไม่กระโดด
+## ฉากเริ่มหมุนที่ TURN_AT วินาที ทั้งคู่ยังยืนท่าเดิมในเกม (ตัวละครจริง ท่ายืนถือร่ม) แล้วเริ่มเดินหลังจากนั้น WALK_DELAY วินาที:
+## ค่อยๆ เปลี่ยน (BLEND วินาที) เป็นภาพเดินเฉียงคู่ ซึ่งเริ่มที่เฟรม STAND_FRAME (เท้าแตะพื้นทั้งสองข้าง ใกล้ท่ายืนที่สุด)
 const TURN_AT := 0.8
 const WALK_DELAY := 2.0
+const BLEND := 0.35
 const STAND_FRAME := 0
+## ท่ายืนเดิมเลื่อนเท่านี้ (พิกเซลโลก: + = ซ้าย/ขึ้น) ให้ตรงกับภาพเดินคู่ตอนเปลี่ยน (วัดจากภาพทั้งสองบนพื้นสีเรียบ: ตัวและเท้าเหลื่อมกัน ~3 px)
+const STAND_ALIGN := Vector2(3.1, 2.7)
 ## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
 const ZOOM_TO := 1.25
 const ZOOM_FOCUS := Vector2(0.0, -30.0)
@@ -86,6 +89,8 @@ var ui: Node                                   # CanvasLayer ของกล่�
 var crossing_signal: Node2D                    # เสาไฟสัญญาณในฉาก (ย้ายออกจากฉากมาวาดเองตอนหมุน)
 
 var _pair: Sprite2D
+var _characters: Node2D                         # พระเอก + นางเอกในฉาก (ท่ายืน) วาดเองตอนหมุนจนเริ่มเดิน
+var _pair_alpha := 1.0
 var _turn_mat: ShaderMaterial
 var _turned := 0.0                              # 0 -> 1 หมุนและซูม
 var _walked := 0.0                              # ทั้งคู่เดินไปกี่หน่วยความลึก
@@ -223,8 +228,12 @@ func play() -> void:
 		crossing_signal.reparent(pair_layer, false)
 		crossing_signal.modulate = _pair.modulate
 	pair_layer.add_child(_pair)
-	hero.visible = false
-	heroine.visible = false
+	# ท่ายืนเดิม: ย้ายตัวละครจริงออกจากฉากที่ถูกหมุน (ไม่ถูกบิด) มาวาดตั้งตรงด้วยกล้องเดียวกับภาพเดินคู่ ใต้ภาพเดินคู่
+	_characters = hero.get_parent() as Node2D
+	_characters.reparent(pair_layer, false)
+	pair_layer.move_child(_characters, 0)
+	_pair_alpha = _pair.modulate.a
+	_pair.modulate.a = 0.0
 
 	# กล้องเลิกตามพระเอก: ตั้งกลางที่เท้าทั้งคู่ แถว 180 เท่าตอนเล่น ถอยออก (SRC_ZOOM) ให้ shader มีภาพพอหมุน
 	camera.set_process(false)
@@ -277,6 +286,10 @@ func _place() -> void:
 	_turn_mat.set_shader_parameter("close_from", _close_from if close else CLOSE_AT)
 	_turn_mat.set_shader_parameter("close_to", CLOSE_AT)
 	_pair.position = _closer(pair_at)
+	if _characters.visible:
+		var k := pair_scale * _close_k
+		_characters.scale = Vector2.ONE * k
+		_characters.position = _closer(pair_at) - (_feet + STAND_ALIGN) * k
 	_pair.scale = Vector2.ONE * pair_scale * _close_k * SIZE_FIX[_pair.frame]
 	if crossing_signal:
 		var pole := _project(_pole_x, _pole_z, cam_walked, c, s)
@@ -310,6 +323,11 @@ func _process(delta: float) -> void:
 	if walking > 0.0:
 		_walked += WALK_DEPTH_PER_SECOND * minf(walking / WALK_START, 1.0) * delta
 		frame = (STAND_FRAME + int(walking * FPS)) % FRAMES
+		# ท่ายืนเดิม -> ภาพเดินเฉียงคู่ ค่อยๆ จางเข้าหากัน
+		var blend := clampf(walking / BLEND, 0.0, 1.0)
+		_pair.modulate.a = _pair_alpha * blend
+		_characters.modulate.a = 1.0 - blend
+		_characters.visible = blend < 1.0
 	_pair.frame = frame
 	_pair.offset = Vector2(-46.0 + SWAY_FIX[frame], -140.0 + BOB_FIX[frame])
 	_place()
