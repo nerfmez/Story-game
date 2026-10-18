@@ -75,6 +75,7 @@ func _ready() -> void:
 	cards.start_ready.connect(intro.arm)
 	await cards.play_opening()
 	cards.clear_now()
+	await cards.fade_music(0.8)                # เพลงชื่อเรื่องจางออกขณะวิดีโอเริ่ม (วิดีโอเล่นจาก JavaScript ตั้งแต่ตอนแตะ)
 	AudioServer.set_bus_mute(0, true)          # ระหว่างวิดีโอมีแต่เสียงของวิดีโอ
 	await intro.play()
 	AudioServer.set_bus_mute(0, false)
