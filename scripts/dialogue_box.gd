@@ -2,6 +2,8 @@ class_name DialogueBox
 extends Control
 ## กล่องข้อความแบบ visual novel: ป้ายชื่อ + ข้อความพิมพ์ทีละตัว
 ## คลิกซ้าย / Space / Enter: ถ้ายังพิมพ์อยู่จะแสดงทั้งบรรทัด ถ้าพิมพ์จบแล้วจะไปบรรทัดถัดไป
+## บรรทัดที่มี "pause" (วินาที): เงียบก่อน (กล่องข้อความหายไป แตะไม่ได้) แล้วค่อยพิมพ์ ("event" ของบรรทัดเกิดตั้งแต่เริ่มเงียบ)
+## ซับไตเติล (คัทซีน) ขึ้นเองไม่ต้องกด: พิมพ์จบแล้วค้างไว้ให้อ่านทัน (subtitle_hold + ตามความยาว) แล้วไปบรรทัดถัดไปเอง
 ## ข้อความไม่ตัดขอบ (clip_contents = false ใน dialogue_box.tscn): วรรณยุกต์ที่ซ้อนบนสระบน (นี้ ที่) สูงเกินบรรทัดแรก เดิมโดนตัดหาย
 
 signal line_started(line: Dictionary)
@@ -9,6 +11,9 @@ signal finished
 
 ## จำนวนตัวอักษรที่แสดงต่อวินาที
 @export var chars_per_second := 30.0
+## ซับไตเติล: ค้างไว้หลังพิมพ์จบ subtitle_hold วินาที บวกเวลาอ่าน (ตัวอักษรต่อวินาที)
+@export var subtitle_hold := 1.0
+@export var subtitle_read_chars_per_second := 36.0
 
 @onready var _name_tag: PanelContainer = %NameTag
 @onready var _name_label: Label = %NameLabel
@@ -22,6 +27,8 @@ var _shown := 0.0
 var _time := 0.0
 ## ซับไตเติล (คัทซีน): ไม่มีกล่อง ตัวหนังสือกลางแถบดำล่าง ไม่มีป้ายชื่อ
 var _subtitles := false
+var _hold := 0.0
+var _pause := 0.0
 var _box_style: StyleBox
 
 
@@ -70,7 +77,9 @@ func _next() -> void:
 	_text.text = words
 	_text.visible_characters = 0
 	_shown = 0.0
-	_typing = true
+	_pause = float(line.get("pause", 0.0))
+	_typing = _pause <= 0.0
+	modulate.a = 0.0 if _pause > 0.0 else 1.0
 	_next_icon.hide()
 	line_started.emit(line)
 
@@ -79,21 +88,31 @@ func _finish_typing() -> void:
 	_typing = false
 	_text.visible_characters = -1
 	_next_icon.visible = not _subtitles
+	_hold = subtitle_hold + _text.get_total_character_count() / subtitle_read_chars_per_second
 
 
 func _process(delta: float) -> void:
-	if _typing:
+	if _pause > 0.0:
+		_pause -= delta
+		if _pause <= 0.0:
+			modulate.a = 1.0
+			_typing = true
+	elif _typing:
 		_shown += chars_per_second * delta
 		_text.visible_characters = int(_shown)
 		if _text.visible_characters >= _text.get_total_character_count():
 			_finish_typing()
+	elif _subtitles:
+		_hold -= delta
+		if _hold <= 0.0:
+			_next()
 	else:
 		_time += delta
 		_next_icon.modulate.a = 0.55 + 0.45 * sin(_time * 5.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or _subtitles or _pause > 0.0:   # ซับไตเติลขึ้นเอง / ช่วงเงียบ: แตะแล้วไม่ข้าม
 		return
 	var pressed: bool = event.is_action_pressed("ui_accept") or (
 		event is InputEventMouseButton

@@ -7,6 +7,8 @@ shader_type canvas_item;
 // advance = ทั้งคู่ (และกล้องที่ตามหลัง) เดินไปข้างหน้ากี่หน่วยความลึก: พื้นไหลเข้าหากล้อง กำแพงไกลออก
 // พื้นที่ใกล้กว่าแถวล่างสุดของภาพ (ไม่มีภาพ) ใช้ถนนซ้ำตามระยะแถบทางม้าลาย
 // zoom = กล้องซูมเข้าหาจุด focus บนจอ (นับจากกลางจอ) ตอนหมุน
+// close_* = ช็อตแคบหน้า: ภาพที่ซูมแล้ว ขยายอีก close_k เท่า ให้จุด close_from (หน้าทั้งคู่) มาอยู่ที่ close_to บนจอ
+// wall_follow = กำแพงและทุกอย่างข้างบนถอยไปกับกล้องเท่านี้ของ advance (ฉากหลังไกล: เดินข้ามถนนไกลแค่ไหนก็ยังอยู่ในจอ ค่อยๆ ไกลออก)
 //
 // ภาพต้นทาง = จอที่กล้องเกมถ่ายไว้ที่ซูม src_zoom (ถอยออกให้เห็นกว้างกว่าจอ) กลางจอ = เท้าแนวนอน, แถว 180 ของโลก
 // หน่วย: พิกเซลโลก นับจากกลางกล้อง (x ขวา, y ลง)
@@ -25,9 +27,14 @@ uniform float stripe_depth = 0.55;  // ระยะแถบทางม้า�
 uniform float out_horizon = -17.0;  // ขอบฟ้าบนจอผลลัพธ์ (นับจากกลางจอ)
 uniform float zoom = 1.0;
 uniform vec2 focus = vec2(0.0);
+uniform float wall_follow = 0.0;
+uniform float close_k = 1.0;
+uniform vec2 close_from = vec2(0.0);
+uniform vec2 close_to = vec2(0.0);
 
 void fragment() {
 	vec2 q = (SCREEN_UV - 0.5) * vec2(640.0, 360.0);
+	q = close_from + (q - close_to) / close_k;
 	q = focus + (q - focus) / zoom;
 	float zp = focal / (feet_row - horizon);
 	float zw = focal / (wall_row - horizon);
@@ -38,10 +45,10 @@ void fragment() {
 	vec3 w = vec3(d.x * c + d.z * s, d.y, -d.x * s + d.z * c);
 	vec3 cam = vec3(-zp * s, 0.0, -zp * c + zp - advance);
 	float tf = w.y > 0.0 ? 1.0 / w.y : 1e9;            // พื้นอยู่ต่ำกว่ากล้อง 1 หน่วย
-	float tw = (zw - cam.z) / w.z;
+	vec3 wall_cam = cam + vec3(0.0, 0.0, advance * wall_follow);
+	float tw = (zw - wall_cam.z) / w.z;
 	bool floor_hit = tf > 0.0 && (tf < tw || tw <= 0.0);
-	float t = floor_hit ? tf : tw;
-	vec3 p = cam + t * w;
+	vec3 p = floor_hit ? cam + tf * w : wall_cam + tw * w;
 	float z = p.z;
 	if (floor_hit && z < zb) {
 		z += ceil((zb - z) / stripe_depth) * stripe_depth;
@@ -51,10 +58,14 @@ void fragment() {
 	}
 	vec2 src = vec2(focal * p.x / z, focal * p.y / z + horizon);
 	src.y = clamp(src.y, -180.0, bottom_row);
-	// พื้นด้านขวาเกินภาพต้นทาง: ถนนในภาพซ้ำทุก 720 พิกเซล ใช้ช่วงเดียวกันที่อยู่ทางซ้าย
+	// พื้นเกินภาพต้นทาง (ขวา หรือซ้ายไกลๆ ตอนหมุนแล้วเดินไปไกล): ถนนในภาพซ้ำทุก 720 พิกเซล ใช้ช่วงเดียวกันที่อยู่ในภาพ
 	float right_edge = src_shift + 320.0 / src_zoom - 2.0;
+	float left_edge = src_shift - 320.0 / src_zoom + 2.0;
 	if (floor_hit && src.x > right_edge) {
 		src.x -= ceil((src.x - right_edge) / 720.0) * 720.0;
+	}
+	if (floor_hit && src.x < left_edge) {
+		src.x += ceil((left_edge - src.x) / 720.0) * 720.0;
 	}
 	vec2 uv = 0.5 + (src - vec2(src_shift, 0.0)) * src_zoom / vec2(640.0, 360.0);
 	uv = clamp(uv, vec2(0.001), vec2(0.999));

@@ -16,6 +16,19 @@ const COLUMNS := 23
 const FPS := 12.0
 ## เฟรมที่เท้าแตะพื้น (เสียงเท้า) 3 รอบก้าว รอบละ 15 เฟรม
 const STEPS := [2, 9, 17, 24, 32, 39]
+## ภาพเดินคู่: คลิปจัดเฟรมด้วยเท้า ช่วงบน (ร่ม ผม) เลยกระโดดขึ้นลง 4-5 px ไม่สม่ำเสมอ และพุ่งไปข้างหน้าแล้วถูกดึงกลับทุกก้าว
+## (เลื่อนข้าง ~6 px ใหญ่/เล็กลง ~5%) ขยายในคัทซีนแล้วเห็นเป็นกระเด้ง/ขยับหน้าหลัง แต่ละเฟรมจึงขยาย SIZE_FIX เท่ารอบเท้า
+## เลื่อนข้าง SWAY_FIX และเลื่อนลง BOB_FIX (พิกเซลภาพ): ช่วงบนอยู่นิ่งที่เดิม ขึ้นลงเรียบๆ ทีละก้าวนิดเดียว
+## จาก tools/measure_bob.py (--steps 6 --keep 0.3)
+const SIZE_FIX := [0.986, 0.996, 1.014, 1.021, 1.003, 1.003, 0.993, 0.996, 0.999, 1.003, 1.006, 1.006, 1.014, 0.986,
+		0.976, 0.982, 1.010, 1.025, 1.014, 1.021, 1.010, 1.003, 0.999, 0.993, 0.986, 0.999, 0.993, 1.003, 0.982, 0.972,
+		0.982, 0.993, 1.025, 1.014, 1.021, 1.007, 1.010, 0.999, 0.999, 1.003, 0.993, 0.996, 1.014, 0.986, 0.972]
+const SWAY_FIX := [2.3, 1.5, -0.1, -2.9, -2.5, -2.4, -1.2, 1.9, 3.1, 0.5, -1.2, -1.3, -1.2, 0.9, 2.2, 2.3, 1.0, -0.4,
+		-1.7, -2.3, -2.6, 0.1, 2.3, 3.1, 2.0, -0.5, -1.3, -1.1, 1.3, 1.9, 2.5, 1.5, 0.1, -2.6, -2.9, -3.1, -2.3, 1.2, 2.6,
+		0.9, -1.2, -1.5, -1.0, 0.0, 1.9]
+const BOB_FIX := [-0.1, 0.2, -0.3, 1.4, -0.5, -1.2, -1.2, 0.1, 1.0, -1.8, -0.1, 1.0, 1.0, 0.5, -1.1, -0.2, 0.5, 2.0,
+		0.2, 0.6, 0.6, 0.8, -0.2, 0.2, -0.9, -0.9, -1.3, 0.7, -0.6, -1.9, 0.1, -0.3, 2.0, 0.6, 0.9, -0.1, 0.3, 0.2, 0.7,
+		-0.1, -1.1, -0.2, 1.0, -0.8, -1.5]
 ## แถบดำบน-ล่าง (จอกว้างแบบหนัง) บทพูดขึ้นเป็นซับไตเติลในแถบล่าง
 const BAR := 50.0
 ## แถวบนจอ (640x360) ที่เท้าของทั้งคู่อยู่ตลอดช็อต (= ขอบฟ้าบนจอ 163 + ระยะเท้าถึงขอบฟ้า 70 แบบในฉาก)
@@ -23,17 +36,42 @@ const FEET_ON_SCREEN := 233.0
 ## หมุนฉากถึงมุมนี้ (ลบ = ทางม้าลายเฉียงลงซ้าย ทางเดียวกับท่าเดินของทั้งคู่) ใช้เวลา TURN_TIME วินาที
 const YAW_TO := -26.0
 const TURN_TIME := 4.0
-## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55)
-const WALK_DEPTH_PER_SECOND := 0.12
-## กล้องถอยตามเท่านี้ของระยะที่ทั้งคู่เดิน (1 = ตามติด ทั้งคู่อยู่ที่เดิมบนจอ) ที่เหลือคือทั้งคู่เดินเข้ามาใกล้กล้อง
-const CAMERA_FOLLOW := 0.5
-## ซูมเข้าตอนหมุน (พร้อมการหมุน) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
-const ZOOM_TO := 1.35
+## ทั้งคู่เดินไปข้างหน้ากี่หน่วยความลึกต่อวินาที (ระยะแถบทางม้าลาย 1 รอบ = 0.55) ตรงกับก้าวในคลิป:
+## เท้าที่แตะพื้นเลื่อนข้าง ~18 px/วินาที = ด้านข้างของทิศเดินเฉียง 26° → ~0.6-0.7 หน่วย/วินาที พื้นจึงไหลเท่าก้าว ไม่ใช่เดินอยู่กับที่
+const WALK_DEPTH_PER_SECOND := 0.68
+## กล้องถอยตามเท่านี้ของระยะที่ทั้งคู่เดิน (1 = ตามติด: ระยะทั้งคู่ถึงกล้องคงที่ ตัวไม่ใหญ่ขึ้นระหว่างเดิน)
+const CAMERA_FOLLOW := 1.0
+## กำแพงและฉากหลังถอยไปกับกล้องเท่านี้ (ฉากหลังอยู่ไกลกว่าที่วาด: ไกลออกช้ามาก ไม่หดเหมือนซูมออก)
+const WALL_FOLLOW := 0.9
+## คัทซีนยาวเท่านี้ (วินาทีนับจากตัดเข้า) รวมช่วงจางเป็นจอดำ FADE_OUT วินาทีสุดท้าย
+const SHOT_TIME := 16.0
+const FADE_OUT := 1.2
+## ช่วงแรกเร่งจากยืนเป็นเดิน (วินาที)
+const WALK_START := 0.6
+## ฉากเริ่มหมุนที่ TURN_AT วินาที ทั้งคู่ยังยืนท่าเดิมในเกม (ตัวละครจริง ท่ายืนถือร่ม) แล้วเริ่มเดินหลังจากนั้น WALK_DELAY วินาที:
+## สลับทันทีเป็นภาพเดินเฉียงคู่ (สีเดียวกับท่ายืน: tools/match_material_colours.py) เริ่มที่เฟรม STAND_FRAME (เท้าแตะพื้นทั้งสองข้าง)
+const TURN_AT := 0.8
+const WALK_DELAY := 2.0
+const STAND_FRAME := 0
+## ท่ายืนเดิมเลื่อนเท่านี้ (พิกเซลโลก: + = ซ้าย/ขึ้น) ให้ตรงกับภาพเดินคู่ตอนสลับ (วัดจากภาพทั้งสองบนพื้นสีเรียบ: ตัวและเท้าเหลื่อมกัน ~3 px)
+const STAND_ALIGN := Vector2(3.1, 2.7)
+## ซูมเข้าตอนเริ่มหมุน (ช่วงที่ยังยืน TURN_AT ถึงเริ่มเดิน: เดินแล้วขนาดคงที่) เข้าหาจุดนี้บนจอ (นับจากกลางจอ: กลางตัวทั้งคู่ เผื่อที่ให้ร่มใต้แถบบน)
+const ZOOM_TO := 1.25
 const ZOOM_FOCUS := Vector2(0.0, -30.0)
+## เสาไฟสัญญาณ: จุดโคนเสาในภาพเสา (signal_pole.png 30x200) วาดแยกเป็นวัตถุตั้งที่ความลึกจริงของมัน (ริมทางเท้า)
+## ไม่ใช่ส่วนของกำแพง: หมุนแล้วจึงยังอยู่ข้างที่ทั้งคู่ยืนตอนแรก แล้วอยู่ข้างหลังเมื่อเดินผ่านไป
+const POLE_FOOT := Vector2(16.0, 200.0)
+## ระหว่างเดินตัดเข้าช็อตแคบหน้า (ตัดฉับแบบหนัง) ที่วินาทีนี้ กล้องตามหน้าทั้งคู่ไปขณะเดิน แช่ไว้จนจอดำ
+const CLOSE_FROM := 8.5
+## ขยายเพิ่มจากช็อตกว้างเท่านี้ หน้าทั้งคู่ (จุดกลางระหว่างสองหน้าในภาพเดินคู่ เทียบจุดเท้า) อยู่ที่จุดนี้บนจอ (นับจากกลางจอ)
+const CLOSE_K := 2.4
+const FACES := Vector2(-8.0, -100.0)
+const CLOSE_AT := Vector2(0.0, -15.0)
 ## ค่าเดียวกับใน shader (หาตำแหน่งทั้งคู่บนจอด้วยกล้องเดียวกัน เท้าจึงติดพื้น)
 const FOCAL := 500.0
 const PIVOT_DEPTH := FOCAL / (93.0 - 23.0)    # ความลึกของเท้าทั้งคู่ตอนเริ่ม (focal / (แถวเท้า - ขอบฟ้า))
 const OUT_HORIZON := -17.0
+const WALL_DEPTH := FOCAL / (70.0 - 23.0)     # ความลึกฐานกำแพง (focal / (แถวฐานกำแพง - ขอบฟ้า))
 ## กล้องเกมถอยออกตอนถ่ายฉากให้ shader (เห็นกว้างกว่าจอ ฉากที่หมุนแล้วไม่มีขอบโผล่)
 const SRC_ZOOM := 0.58
 ## และเลื่อนไปทางซ้ายเท่านี้ตอนหมุนสุด (หมุนแล้วฝั่งซ้ายมองเห็นไกลกว่า ต้องมีภาพทางซ้ายมากกว่าขวา)
@@ -45,12 +83,19 @@ var hero: Node2D
 var heroine: Node2D
 var camera: Camera2D
 var ui: Node                                   # CanvasLayer ของกล่องข้อความ (ปุ่มอยู่ชั้นเดียวกัน)
+var crossing_signal: Node2D                    # เสาไฟสัญญาณในฉาก (ย้ายออกจากฉากมาวาดเองตอนหมุน)
 
 var _pair: Sprite2D
+var _characters: Node2D                         # พระเอก + นางเอกในฉาก (ท่ายืน) วาดเองตอนหมุนจนเริ่มเดิน
+var _pair_alpha := 1.0
 var _turn_mat: ShaderMaterial
 var _turned := 0.0                              # 0 -> 1 หมุนและซูม
 var _walked := 0.0                              # ทั้งคู่เดินไปกี่หน่วยความลึก
 var _feet := Vector2.ZERO
+var _pole_x := 0.0                              # ตำแหน่งโคนเสาไฟบนพื้น (หน่วยแบบ shader: ข้าง, ความลึก)
+var _pole_z := 0.0
+var _close_k := 1.0                             # ช็อตแคบหน้า: ขยายเพิ่ม (1 = ช็อตกว้าง)
+var _close_from := Vector2.ZERO
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
@@ -94,8 +139,8 @@ func ask() -> void:
 ## เริ่มคัทซีน: ตัดผ่านจอดำสั้นๆ (ซ่อนการสลับตัวละคร) แล้วเปิดเป็นจอกว้างแบบหนัง
 ## ฉากหมุนรอบแกนตั้งที่เท้าทั้งคู่ (พื้นและทางม้าลายเฉียงตามทิศเดิน เสายังตั้งตรง) แล้วทั้งคู่เดินไปตามทางม้าลาย
 ## กล้องตามหลัง ทั้งคู่จึงอยู่กลางจอที่เดิม (1 พิกเซลภาพ = 1 พิกเซลเกม ไม่ถูกบิด) พื้นไหลเข้าหากล้อง ฉากหลังไกลออก
-## seconds = ความยาวโดยประมาณของคัทซีน
-func play(seconds: float) -> void:
+## ทั้งคู่เดินไปเรื่อยๆ จนจบคัทซีน (ซับไตเติลขึ้นเองตามเวลา prologue.gd จางจอดำเอง) ไม่มีช่วงหยุดเดินอยู่กับที่
+func play() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 22                           # เหนือฉากและจอดำ (20) ใต้ภาพโทรศัพท์ (25) และกล่องข้อความ (30)
 	add_child(layer)
@@ -135,6 +180,7 @@ func play(seconds: float) -> void:
 	turn_mat.set_shader_parameter("src_zoom", SRC_ZOOM)
 	turn_mat.set_shader_parameter("src_shift", 0.0)
 	turn_mat.set_shader_parameter("focus", ZOOM_FOCUS)
+	turn_mat.set_shader_parameter("wall_follow", WALL_FOLLOW)
 	turn.material = turn_mat
 	_turn_mat = turn_mat
 	turn_layer.add_child(turn)
@@ -142,6 +188,13 @@ func play(seconds: float) -> void:
 	var pair_layer := CanvasLayer.new()
 	pair_layer.layer = 3
 	add_child(pair_layer)
+	# ฝน (ทั้งจอ) ย้ายขึ้นเหนือภาพที่หมุนแล้วและทั้งคู่: ไม่งั้นถูกถ่ายลงภาพต้นทางแล้วยืดไปบนพื้นเป็นรอยขีด
+	var rain := get_tree().current_scene.get_node_or_null("Grade/Rain") as CanvasItem
+	if rain and rain.visible:
+		var rain_layer := CanvasLayer.new()
+		rain_layer.layer = 4
+		add_child(rain_layer)
+		rain.reparent(rain_layer, false)
 
 	_feet = Vector2(hero.position.x + 10.0, hero.position.y + 121.0)
 	_pair = Sprite2D.new()
@@ -165,32 +218,52 @@ func play(seconds: float) -> void:
 		s.position = Vector2(0, -2)
 		s.show_behind_parent = true
 		_pair.add_child(s)
+	if crossing_signal:
+		var foot := crossing_signal.position + POLE_FOOT
+		_pole_z = FOCAL / (foot.y - 180.0 - 23.0)
+		_pole_x = (foot.x - _feet.x) * _pole_z / FOCAL
+		crossing_signal.reparent(pair_layer, false)
+		crossing_signal.modulate = _pair.modulate
 	pair_layer.add_child(_pair)
-	hero.visible = false
-	heroine.visible = false
+	# ท่ายืนเดิม: ย้ายตัวละครจริงออกจากฉากที่ถูกหมุน (ไม่ถูกบิด) มาวาดตั้งตรงด้วยกล้องเดียวกับภาพเดินคู่ ใต้ภาพเดินคู่
+	_characters = hero.get_parent() as Node2D
+	_characters.reparent(pair_layer, false)
+	pair_layer.move_child(_characters, 0)
+	_pair_alpha = _pair.modulate.a
+	_pair.modulate.a = 0.0
 
 	# กล้องเลิกตามพระเอก: ตั้งกลางที่เท้าทั้งคู่ แถว 180 เท่าตอนเล่น ถอยออก (SRC_ZOOM) ให้ shader มีภาพพอหมุน
 	camera.set_process(false)
 	camera.position = Vector2(_feet.x, 180.0)
 	camera.zoom = Vector2(SRC_ZOOM, SRC_ZOOM)
 	var turn_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	turn_tween.tween_interval(0.8)
+	turn_tween.tween_interval(TURN_AT)
 	turn_tween.tween_property(self, "_turned", 1.0, TURN_TIME)
-	var walk := create_tween()
-	walk.tween_property(self, "_walked", WALK_DEPTH_PER_SECOND * (seconds + 6.0), seconds + 6.0)
 	_place()
 
 	var open := black.create_tween()
 	open.tween_interval(0.25)
 	open.tween_property(black, "modulate:a", 0.0, 0.7)
+	open.tween_interval(SHOT_TIME - 0.95 - FADE_OUT)
+	open.tween_property(black, "modulate:a", 1.0, FADE_OUT)
 
 
-## หมุน ซูม ถอยกล้อง แล้ววางทั้งคู่ที่จุดบนพื้นที่ทั้งคู่เดินถึง (คิดแบบเดียวกับ scene_turn.gdshader)
-## กล้องโคจรรอบจุดเริ่มของทั้งคู่ (หมุน) และถอยตาม CAMERA_FOLLOW ของระยะที่เดิน ทั้งคู่เดินไปทาง -z (เข้าหากล้อง)
+## จุดบนพื้น (x ข้าง, z ความลึก แบบ shader) -> ตำแหน่งบนจอ (นับจากกลางจอ ก่อนซูม) และความลึกจากกล้อง
+## กล้องโคจรรอบจุดเริ่มของทั้งคู่ (หมุน) อยู่ที่ (-zp s, 0, -zp c + zp - cam_walked) พื้นอยู่ต่ำกว่ากล้อง 1 หน่วย
+func _project(x: float, z: float, cam_walked: float, c: float, s: float) -> Vector3:
+	var rx := x + PIVOT_DEPTH * s
+	var rz := z + PIVOT_DEPTH * c - PIVOT_DEPTH + cam_walked
+	var dx := rx * c - rz * s
+	var dz := rx * s + rz * c
+	return Vector3(FOCAL * dx / dz, FOCAL / dz + OUT_HORIZON, dz)
+
+
+## หมุน ซูม ถอยกล้อง แล้ววางทั้งคู่ (เดินไปทาง -z เข้าหากล้อง) และเสาไฟ (อยู่กับที่) ด้วยกล้องเดียวกับ scene_turn.gdshader
 func _place() -> void:
 	var yaw := deg_to_rad(YAW_TO * _turned)
-	var zoom := lerpf(1.0, ZOOM_TO, _turned)
+	var zoom := lerpf(1.0, ZOOM_TO, smoothstep(0.0, 1.0, (_time - TURN_AT) / WALK_DELAY))
 	var cam_walked := _walked * CAMERA_FOLLOW
+	var close := _time >= CLOSE_FROM
 	_turn_mat.set_shader_parameter("yaw", yaw)
 	_turn_mat.set_shader_parameter("advance", cam_walked)
 	_turn_mat.set_shader_parameter("zoom", zoom)
@@ -199,24 +272,60 @@ func _place() -> void:
 	camera.position.x = _feet.x + SRC_SHIFT * _turned
 	var c := cos(yaw)
 	var s := sin(yaw)
-	# ทั้งคู่เทียบกับกล้อง (กล้องอยู่ที่ (-zp s, 0, -zp c + zp - cam_walked) ทั้งคู่อยู่ที่ (0, 1, zp - walked))
-	var rx := PIVOT_DEPTH * s
-	var rz := PIVOT_DEPTH * c - (_walked - cam_walked)
-	var dx := rx * c - rz * s
-	var dz := rx * s + rz * c
-	var on_screen := Vector2(FOCAL * dx / dz, FOCAL / dz + OUT_HORIZON)
-	on_screen = ZOOM_FOCUS + (on_screen - ZOOM_FOCUS) * zoom
-	_pair.position = Vector2(320.0, 180.0) + on_screen
-	_pair.scale = Vector2.ONE * (zoom * PIVOT_DEPTH / dz)
+	var pair := _project(0.0, PIVOT_DEPTH - _walked, cam_walked, c, s)
+	var pair_scale := zoom * PIVOT_DEPTH / pair.z
+	var pair_at := _on_screen(pair, zoom)
+	# ช็อตแคบหน้า: ขยายทั้งภาพ (ฉากใน shader + ทั้งคู่ + เสา) อีก CLOSE_K เท่ารอบหน้าทั้งคู่ ให้หน้าอยู่ที่ CLOSE_AT
+	_close_k = CLOSE_K if close else 1.0
+	_close_from = pair_at + FACES * pair_scale - Vector2(320.0, 180.0)
+	_turn_mat.set_shader_parameter("close_k", _close_k)
+	_turn_mat.set_shader_parameter("close_from", _close_from if close else CLOSE_AT)
+	_turn_mat.set_shader_parameter("close_to", CLOSE_AT)
+	_pair.position = _closer(pair_at)
+	if _characters.visible:
+		var k := pair_scale * _close_k
+		_characters.scale = Vector2.ONE * k
+		_characters.position = _closer(pair_at) - (_feet + STAND_ALIGN) * k
+	_pair.scale = Vector2.ONE * pair_scale * _close_k * SIZE_FIX[_pair.frame]
+	if crossing_signal:
+		var pole := _project(_pole_x, _pole_z, cam_walked, c, s)
+		var k := zoom * _pole_z / pole.z * _close_k
+		crossing_signal.scale = Vector2.ONE * k
+		crossing_signal.position = _closer(_on_screen(pole, zoom)) - POLE_FOOT * k
+		crossing_signal.z_index = 1 if pole.z < pair.z else 0   # ใกล้กล้องกว่าทั้งคู่ = วาดทับ
+		# ฉากหลังถอยตามกล้องช้ากว่าที่ทั้งคู่ทิ้งเสาไว้ข้างหลัง: ก่อนเสาจะเลยไปอยู่หลังกำแพง เสาจางหายไปในม่านฝน
+		var gap := (WALL_DEPTH - cam_walked * WALL_FOLLOW) - _pole_z
+		crossing_signal.modulate.a = smoothstep(0.3, 2.0, gap)
+
+
+## จุดบนจอช็อตกว้าง -> บนจอจริง (ช็อตแคบหน้า: ขยายรอบหน้าทั้งคู่ ไม่งั้นเหมือนเดิม)
+func _closer(at: Vector2) -> Vector2:
+	if _close_k == 1.0:
+		return at
+	return Vector2(320.0, 180.0) + CLOSE_AT + (at - Vector2(320.0, 180.0) - _close_from) * _close_k
+
+
+func _on_screen(p: Vector3, zoom: float) -> Vector2:
+	return Vector2(320.0, 180.0) + ZOOM_FOCUS + (Vector2(p.x, p.y) - ZOOM_FOCUS) * zoom
 
 
 func _process(delta: float) -> void:
 	if _pair == null:
 		return
-	_place()
 	_time += delta
-	var frame := int(_time * FPS) % FRAMES
+	# ยืนนิ่งจนฉากหมุนไปแล้ว WALK_DELAY วินาที แล้วเร่งจากยืนเป็นเดินใน WALK_START วินาที จากนั้นเดินเท่าก้าวไปตลอด
+	var walking := _time - TURN_AT - WALK_DELAY
+	var frame := STAND_FRAME
+	if walking > 0.0:
+		_walked += WALK_DEPTH_PER_SECOND * minf(walking / WALK_START, 1.0) * delta
+		frame = (STAND_FRAME + int(walking * FPS)) % FRAMES
+		# ท่ายืนเดิม -> ภาพเดินเฉียงคู่ สลับทันที
+		if _characters.visible:
+			_characters.visible = false
+			_pair.modulate.a = _pair_alpha
 	_pair.frame = frame
+	_pair.offset = Vector2(-46.0 + SWAY_FIX[frame], -140.0 + BOB_FIX[frame])
+	_place()
 	if frame != _last_frame and frame in STEPS and hero.step_sound:
 		hero.step_sound.play()
 	_last_frame = frame
