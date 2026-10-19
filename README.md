@@ -2,6 +2,8 @@
 
 เกมเนื้อเรื่องแนว visual novel ภาพ pixel art สร้างด้วย **Godot 4.3** (GDScript, renderer: Compatibility)
 
+ฉากทดลองใหม่: [ห้องเรียนไทย 3D Pixel พร้อมวิธีเปิดและภาพเรนเดอร์](docs/classroom-3d/README.md) — เปิด `scenes/classroom_3d_pixel.tscn` แล้วกด F6 เป็นฉากแยกจากบทและฉากเริ่มเกม
+
 ## เอกสารโครงเรื่องหลัก
 
 [ถ้าหากโลกนี้ไม่มีฤดูฝน — โครงเรื่องที่ปรับร่วมกัน](story/story-bible-th.md)
