@@ -85,10 +85,19 @@ def make_palette(img):
 
 
 def fill_from_side(img, x0, x1, y0, y1, side):
-    """Continue the wall beside a narrow box across it (copy the strip next to it, feathered)."""
-    w, gap = x1 - x0, 14                 # skip the corner shading painted right next to the pillar
-    src = img[y0:y1, x0 - w - gap:x0 - gap] if side < 0 else img[y0:y1, x1 + gap:x1 + w + gap]
-    img[y0:y1, x0:x1] = src
+    """Wall behind a pillar: each row is the median of the wall on both sides of it (skipping the
+    corner shading next to the pillar), so no half door, window edge or seam line is copied in."""
+    x0, x1 = x0 - 4, x1 + 8                 # the pillar's outline, edge highlight and downpipe too
+    gap, reach = 12, 90
+    left = img[y0:y1, max(0, x0 - gap - reach):x0 - gap].astype(float)
+    right = img[y0:y1, x1 + gap:x1 + gap + reach].astype(float)
+    band = np.concatenate([left, right], 1)
+    # the plain wall is the brighter half of each row (doors, windows and frames are darker)
+    lum = band[..., :3].mean(2)
+    keep = lum >= np.median(lum, axis=1, keepdims=True)
+    rows = np.array([np.median(band[r][keep[r]], axis=0) for r in range(band.shape[0])])
+    rows = cv2.medianBlur(rows[None].astype(np.uint8), 9)[0].astype(float)   # no stripes from frames
+    img[y0:y1, x0:x1] = rows[:, None, :].astype(np.uint8)
 
 
 def fill_rows(img, y0, y1, wall):
