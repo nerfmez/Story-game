@@ -18,7 +18,11 @@ func _run() -> void:
 		["corridor", Vector3(4.4, 5.35, -1.25), Vector3(16, 5.05, -1.25), 65.0],
 		["facade", Vector3(1, 5.4, 29), Vector3(0, 5.2, -1), 55.0],
 		["yard", Vector3(11, 5.35, -0.4), Vector3(6, 0.6, 10), 60.0],
-		["roof", Vector3(-25, 17, 23), Vector3(0, 7, -3), 60.0]
+		["roof", Vector3(-25, 17, 23), Vector3(0, 7, -3), 60.0],
+		["wall_ground", Vector3(-6.9, 1.9, -0.8), Vector3(-8.42, 1.9, -2.5), 65.0],
+		["wall_2f", Vector3(-12.3, 5.35, -0.7), Vector3(-14, 5.15, -2.5), 65.0],
+		["wall_3f", Vector3(15.5, 8.64, -0.8), Vector3(13.96, 8.64, -2.5), 65.0],
+		["wall_hall", Vector3(1.4, 1.9, 0.8), Vector3(2.8, 1.9, -2.5), 65.0]
 	]
 	for shot in shots:
 		view.camera.fov = shot[3]

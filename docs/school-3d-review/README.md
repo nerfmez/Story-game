@@ -1,5 +1,7 @@
 # School building visual revision — PR12
 
+Latest follow-up: [repair the artwork behind pillars and parapets](wall-repair.md). The building/grounds review below records the preceding revision `9f81266`.
+
 Revision reviewed on 2026-10-19 against `a15b8c9f7c84cd38d2ccf61ea04735201140216c`.
 Model blob reviewed: `cff51735956edbbfc672193d1a89b0a6ae866181`.
 

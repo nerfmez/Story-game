@@ -77,6 +77,7 @@ const SURFACE := {
 ## ภาพหน้าอาคารของผู้เขียน (ทางเข้าคือภาพทางเข้าระยะใกล้ของผู้เขียนย่อลงวาง: tools/make_building_layers.py)
 ## แปะตรงบนหน้าตรงของโมเดลตามขนาดจริง 50 px/ม. (px 1083.5 = x 0, px 668 = พื้นลาน)
 const PAINT_DIR := "res://assets/bg/school/paint/"
+const WALL_REPAIR_ART := preload("res://assets/bg/school/paint/back_repair.png")
 const PAINT_SIZE := Vector2(2168, 725)
 const PPM := 50.0
 const PAINT_ORIGIN := Vector2(-1083.5 / PPM, 668.0 / PPM)
@@ -562,7 +563,10 @@ func _material(key: String) -> StandardMaterial3D:
 	if key.begins_with("paint_"):
 		# ภาพของผู้เขียนมีแสงฝนของมันอยู่แล้ว: ไม่ลงแสงซ้ำ
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_texture = load(PAINT_DIR + key.substr(6) + ".png")
+		# The rear wall needs complete doors/windows behind the foreground
+		# pillars and parapets. The old generated back.png is kept as source
+		# evidence, but its stretched fills must not be used for this surface.
+		m.albedo_texture = WALL_REPAIR_ART if key == "paint_back" else load(PAINT_DIR + key.substr(6) + ".png")
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		m.alpha_scissor_threshold = 0.5
