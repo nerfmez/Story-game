@@ -174,7 +174,6 @@ func _roof() -> void:
 	var e0 := Vector3(0, EAVE, OVERHANG)
 	var r := Vector3(0, RIDGE[0], RIDGE[1])
 	var e1 := Vector3(0, EAVE, Z_BACK - OVERHANG)
-	var slope := 0
 	for s: Array in [[e0, r], [r, e1]]:
 		var a: Vector3 = s[0]
 		var b: Vector3 = s[1]
@@ -183,25 +182,20 @@ func _roof() -> void:
 			n = -n
 		# Clockwise from above, matching the upward-facing roof normal.
 		_quad("roof", n, Vector3(x0, a.y, a.z), Vector3(x0, b.y, b.z), Vector3(x1, b.y, b.z), Vector3(x1, a.y, a.z))
-		# The front painting already contains ribs; duplicate raised geometry
-		# intersected that painting and caused a checkerboard at a distance.
-		if slope == 1:
-			var x := x0 + 0.3
-			while x < x1:
-				_beam("roof", Vector3(x, a.y + 0.03, a.z), Vector3(x, b.y + 0.03, b.z), 0.05)
-				x += 0.6
-		slope += 1
 	_box("fascia", x0, x1, RIDGE[0] - 0.05, RIDGE[0] + 0.1, RIDGE[1] + 0.15, RIDGE[1] - 0.15)
-	# ลาดหน้าทาด้วยแถบหลังคาในภาพ (px 74 ที่สัน ถึง 141 ที่ชายคา)
+	# ทั้งสองลาดทาด้วยแถบหลังคาในภาพ (px 74 ที่สัน ถึง 141 ที่ชายคา) ลาดหลังลายเดียวกับลาดหน้า
 	var st := _tool("paint_front")
 	var lift := Vector3(0, 0.06, 0)
-	var corners := [[Vector3(x0, EAVE, OVERHANG), 141.0], [Vector3(x1, EAVE, OVERHANG), 141.0],
-			[Vector3(x1, RIDGE[0], RIDGE[1]), 74.0], [Vector3(x0, RIDGE[0], RIDGE[1]), 74.0]]
-	for i: int in [0, 2, 1, 0, 3, 2]:
-		var v: Vector3 = corners[i][0]
-		st.set_normal(Vector3.UP)
-		st.set_uv(Vector2(((v.x - PAINT_ORIGIN.x) * PPM) / PAINT_SIZE.x, float(corners[i][1]) / PAINT_SIZE.y))
-		st.add_vertex(v + lift)
+	for eave_z: float in [OVERHANG, Z_BACK - OVERHANG]:
+		var corners := [[Vector3(x0, EAVE, eave_z), 141.0], [Vector3(x1, EAVE, eave_z), 141.0],
+				[Vector3(x1, RIDGE[0], RIDGE[1]), 74.0], [Vector3(x0, RIDGE[0], RIDGE[1]), 74.0]]
+		# หน้าหันขึ้นทั้งสองลาด: ลาดหลังลำดับจุดกลับด้าน
+		var order := [0, 2, 1, 0, 3, 2] if eave_z > 0 else [0, 1, 2, 0, 2, 3]
+		for i: int in order:
+			var v: Vector3 = corners[i][0]
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(((v.x - PAINT_ORIGIN.x) * PPM) / PAINT_SIZE.x, float(corners[i][1]) / PAINT_SIZE.y))
+			st.add_vertex(v + lift)
 	for x in [x0 + 0.3, x1 - 0.3]:
 		var n := Vector3.LEFT if x < 0 else Vector3.RIGHT
 		_tri("wall", n, Vector3(x, EAVE - 0.1, OVERHANG - 0.6), Vector3(x, RIDGE[0], RIDGE[1]),
