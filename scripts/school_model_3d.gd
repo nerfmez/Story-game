@@ -53,8 +53,20 @@ const COLOURS := {
 }
 const GLOSS := {"glass": 0.12, "floor": 0.35, "tread": 0.45, "concrete": 0.55, "cement": 0.5, "paver": 0.55,
 	"rail": 0.3, "steel": 0.35, "bin_blue": 0.4, "bin_yellow": 0.4, "bin_green": 0.4, "roof": 0.45, "canopy": 0.5}
-## สีเพี้ยนเล็กน้อยเป็นจุดๆ (หญ้า พุ่มไม้ ผนัง พื้น) ไม่ให้เรียบเป็นพลาสติก
-const NOISY := {"grass": 0.18, "hedge": 0.25, "wall": 0.05, "concrete": 0.08, "paver": 0.1, "core": 0.05, "floor": 0.06}
+## เนื้อวัสดุจริง (texture CC0 จาก ambientCG: tools/make_school_textures.py): ความสว่างของผิวคูณสีของอาคาร
+## ชื่อ texture, เมตรต่อหนึ่งรอบลาย, ความสว่างเฉลี่ยของ texture (ชดเชยให้สีเท่าเดิม), แรงนูนของ normal map
+const TEX_DIR := "res://assets/bg/school/tex/"
+const SURFACE := {
+	"wall": ["plaster", 2.0, 0.98, 0.6], "core": ["plaster", 2.0, 0.98, 0.6], "parapet": ["plaster", 2.0, 0.98, 0.6],
+	"ceiling": ["plaster", 2.0, 0.98, 0.3], "pillar": ["smooth", 2.0, 0.96, 0.4], "trim": ["smooth", 2.0, 0.96, 0.3],
+	"floor": ["terrazzo", 0.6, 0.93, 0.2], "tread": ["terrazzo", 0.6, 0.93, 0.2], "riser": ["terrazzo", 0.6, 0.93, 0.2],
+	"nosing": ["smooth", 1.0, 0.96, 0.2], "concrete": ["concrete", 2.0, 0.82, 0.8], "cement": ["concrete", 2.0, 0.82, 0.8],
+	"edging": ["concrete", 1.0, 0.82, 0.6], "paver": ["paving", 1.5, 0.74, 1.0], "grass": ["grass", 1.5, 0.74, 1.0],
+	"hedge": ["grass", 0.8, 0.74, 1.2], "wood": ["wood", 1.0, 0.72, 0.6], "roof": ["corrugated", 1.0, 0.84, 1.0],
+	"sheet": ["corrugated", 1.0, 0.84, 1.0], "canopy": ["smooth", 2.0, 0.96, 0.3], "fascia": ["metal", 1.0, 0.78, 0.4],
+	"door": ["metal", 1.0, 0.78, 0.4], "steel": ["metal", 1.0, 0.78, 0.4], "rail": ["metal", 1.0, 0.78, 0.3],
+	"vent": ["concrete", 1.0, 0.82, 0.5], "pot": ["smooth", 1.0, 0.96, 0.3], "plant": ["grass", 0.5, 0.74, 1.0],
+}
 
 var _tools := {}
 var lamps: Array[Vector3] = []                # ตำแหน่งหลอดนีออน (SchoolBuildingView ใส่ไฟจริง)
@@ -504,7 +516,10 @@ func _commit() -> void:
 	for key: String in _tools:
 		var mesh := MeshInstance3D.new()
 		mesh.name = key
-		mesh.mesh = (_tools[key] as SurfaceTool).commit()
+		var st: SurfaceTool = _tools[key]
+		if SURFACE.has(key):
+			st.generate_tangents()                      # normal map ต้องมี tangent
+		mesh.mesh = st.commit()
 		mesh.material_override = _material(key)
 		if key in ["lamp", "room", "drain", "grass"]:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -521,19 +536,16 @@ func _material(key: String) -> StandardMaterial3D:
 		m.emission_energy_multiplier = 2.5
 	if key == "room":
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	if NOISY.has(key):
-		var noise := FastNoiseLite.new()
-		noise.frequency = 0.06
-		var tex := NoiseTexture2D.new()
-		tex.noise = noise
-		tex.seamless = true
-		tex.width = 64
-		tex.height = 64
-		var amount: float = NOISY[key]
-		var ramp := Gradient.new()
-		ramp.set_color(0, Color(1.0 - amount, 1.0 - amount, 1.0 - amount))
-		ramp.set_color(1, Color(1.0, 1.0, 1.0))
-		tex.color_ramp = ramp
-		m.albedo_texture = tex
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	if SURFACE.has(key):
+		var spec: Array = SURFACE[key]
+		var c: Color = COLOURS[key]
+		var mean: float = spec[2]
+		m.albedo_color = Color(c.r / mean, c.g / mean, c.b / mean)
+		m.albedo_texture = load(TEX_DIR + str(spec[0]) + "_detail.png")
+		m.normal_enabled = true
+		m.normal_texture = load(TEX_DIR + str(spec[0]) + "_normal.png")
+		m.normal_scale = spec[3]
+		var repeat: float = 4.0 / float(spec[1])         # UV = 0.25 ต่อเมตร
+		m.uv1_scale = Vector3(repeat, repeat, 1.0)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	return m
