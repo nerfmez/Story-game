@@ -20,9 +20,12 @@ const PARAPET_H := 0.9
 const EAVE := 10.54
 const RIDGE := [11.9, -4.25]
 const OVERHANG := 1.0
-## เสา (ตำแหน่งจากภาพ) คู่กลางคือเสาโถงบันได
-const PILLAR_X := [-20.03, -14.0, -8.53, -3.25, 2.75, 8.16, 13.75, 19.84]
-const PILLAR_W := 0.55
+## เสา: กึ่งกลางกับความกว้างตามภาพ (px 73-109, 372-398, 650-675, 921-945, 1220-1245, 1490-1515, 1769-1794,
+## 2057-2094) ลายเสาที่แปะจึงตรงกับตัวเสา คู่กลางคือเสาโถงบันได
+const PILLAR_X := [-19.85, -13.97, -8.42, -3.01, 2.98, 8.38, 13.96, 19.84]
+const PILLAR_WS := [0.72, 0.52, 0.5, 0.48, 0.5, 0.5, 0.5, 0.74]
+## เสากันสาด (px 912-943, 1210-1242)
+const CANOPY_PILLARS := [[-3.43, -2.81], [2.53, 3.17]]
 ## ช่องบันได ทางเดินลึกฝั่งซ้ายของโถง
 const CORE := [-2.77, 0.77, Z_WALL, -7.2]
 const HALL_RIGHT := 2.47                      # ผนังบอร์ดในโถง (ถึงเสาโถงขวา)
@@ -120,8 +123,8 @@ func _block() -> void:
 		var y0: float = FLOORS[k]
 		var y1: float = CEILS[k]
 		for i in PILLAR_X.size() - 1:
-			var x0: float = PILLAR_X[i] + PILLAR_W / 2.0
-			var x1: float = PILLAR_X[i + 1] - PILLAR_W / 2.0
+			var x0: float = PILLAR_X[i] + PILLAR_WS[i] / 2.0
+			var x1: float = PILLAR_X[i + 1] - PILLAR_WS[i + 1] / 2.0
 			if i == 3:                                   # โถงบันได: ผนังบอร์ดฝั่งขวาของโถง
 				_box("wall", CORE[1], x1, y0, y1, Z_WALL, Z_WALL - WALL_T)
 				_window_wall(x0, x1, y0, y1, Z_BACK, 0.25, 0.75)
@@ -140,8 +143,9 @@ func _block() -> void:
 	for i in PILLAR_X.size():
 		var x: float = PILLAR_X[i]
 		var y0: float = CANOPY[3] if i in [3, 4] else 0.0
-		_box("pillar", x - PILLAR_W / 2.0, x + PILLAR_W / 2.0, y0, EAVE - 0.32, 0.3, -0.3)
-		_paint("mid", x - PILLAR_W / 2.0, x + PILLAR_W / 2.0, y0, EAVE - 0.32, 0.303)
+		var w: float = PILLAR_WS[i] / 2.0
+		_box("pillar", x - w, x + w, y0, EAVE - 0.32, 0.3, -0.3)
+		_paint("mid", x - w, x + w, y0, EAVE - 0.32, 0.303)
 	# หัวท้ายอาคาร
 	for x in [LEFT, RIGHT]:
 		var a: float = x - WALL_T if x < 0 else x
@@ -354,8 +358,8 @@ func _entrance() -> void:
 	# กันสาด: แผ่นฟ้า ใต้ขาว ไฟใต้กันสาด เสาขาวสองต้น
 	_box("canopy", x0, x1, CANOPY[3] - 0.22, CANOPY[3], CANOPY[4], 0.3)
 	_box("ceiling", x0 + 0.05, x1 - 0.05, CANOPY[2], CANOPY[3] - 0.22, CANOPY[4] - 0.05, 0.3)
-	for x: float in [-3.25, 2.75]:
-		_box("pillar", x - 0.3, x + 0.3, 0.0, CANOPY[2], 1.9, 1.3)
+	for p: Array in CANOPY_PILLARS:
+		_box("pillar", p[0], p[1], 0.0, CANOPY[2], 1.9, 1.3)
 	_tube(0.0, CANOPY[2], 1.5)
 	# บันไดหน้า 3 ขั้น
 	for i in 3:
@@ -365,8 +369,8 @@ func _entrance() -> void:
 		_box("nosing", x0 + 0.25 + inset, x1 - 0.25 - inset, top - 0.02, top + 0.003, 2.62 - 0.3 * i, 2.57 - 0.3 * i)
 	# บอร์ด ถังขยะ ช่องลม กระถาง อยู่ในภาพทางเข้าของผู้เขียนบนผนังโถงแล้ว
 	_paint("front", x0, x1, CANOPY[2], CANOPY[3], CANOPY[4] + 0.003)
-	for x: float in [-3.25, 2.75]:
-		_paint("front", x - 0.3, x + 0.3, 0.0, CANOPY[2], 1.903)
+	for p: Array in CANOPY_PILLARS:
+		_paint("front", p[0], p[1], 0.0, CANOPY[2], 1.903)
 	_bench(Vector3(-2.0, FLOORS[0], -1.9), 1.5)
 
 
