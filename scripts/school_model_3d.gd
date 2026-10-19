@@ -2,9 +2,10 @@
 class_name SchoolModel3D
 extends Node3D
 ## โรงเรียนทั้งหลังเป็นโมเดล 3D เดียว เดินไปมาได้ทุกที่ ปั้นเป็นรูปทรงจริง แสงจริง (ไม่ใช่ภาพแปะ)
-## อาคารเรียน 3 ชั้นตามภาพของผู้เขียน: ทางเดินหน้าห้องทุกชั้น เสา ระเบียงมีคิ้ว ห้องเรียนช่องละหน้าต่างบานใหญ่
-## (กรอบ ลูกฟัก กระจก ม่าน) กับประตู ช่องบันไดเดียวขึ้นลงครบ 3 ชั้น (สองช่วงหักกลับ ผนังกั้นกลาง ราวจับ)
-## ทางเข้า (กันสาดฟ้า ม้านั่ง บอร์ด ถังขยะสามสี ช่องลม) ลาน ทางเดินมีหลังคา พุ่มไม้ สนามหญ้า
+## อาคารเรียน 3 ชั้นตามภาพของผู้เขียน: หน้าตรงของอาคาร (ผนังห้องเรียน เสา ระเบียง ชายคา หลังคา กันสาด
+## โถงทางเข้ากับบอร์ด ถังขยะ) แปะภาพของผู้เขียนตรงตำแหน่งจริง ส่วนอื่นปั้นจริง: ทางเดินทุกชั้น
+## ช่องบันไดเดียวขึ้นลงครบ 3 ชั้น (สองช่วงหักกลับ ผนังกั้นกลาง ราวจับ) ด้านหลังมีหน้าต่างห้องเรียน
+## ม้านั่ง ลาน ทางเดินมีหลังคา พุ่มไม้ สนามหญ้า
 ## สีจากภาพอาคารของผู้เขียน (ผนังครีม เสาขาว หลังคากับกันสาดฟ้า) แสง: SchoolBuildingView
 ## หน่วยเมตร: x ตามแนวอาคาร (0 = กลางโถงบันได), y ขึ้น (0 = พื้นลาน), z ออกมาทางลาน (0 = แนวระเบียง)
 
@@ -41,18 +42,17 @@ const COLOURS := {
 	"trim": Color("c3ccd8"), "groove": Color("9aa4b3"), "skirt": Color("8a93a3"),
 	"roof": Color("4471c2"), "fascia": Color("2f528f"), "canopy": Color("4277d6"),
 	"glass": Color("27405e"), "frame": Color("31476a"), "curtain": Color("c9cdd3"), "room": Color("1b2433"),
-	"door": Color("4e6f9c"), "door_frame": Color("33496c"), "plate": Color("3a78c8"),
+	
 	"ceiling": Color("d2d6dc"), "floor": Color("a9afba"), "tread": Color("b5bbc5"), "nosing": Color("dfe3e8"),
 	"riser": Color("9aa1ad"), "core": Color("d3d1c9"), "rail": Color("c9d1dd"),
-	"lamp": Color("f4f8ff"), "board": Color("2f6b50"), "board_frame": Color("2b3a52"), "paper": Color("e8e4d6"),
-	"bin_blue": Color("1747c4"), "bin_yellow": Color("e2a21f"), "bin_green": Color("12785e"), "bin_lid": Color("20252e"),
+	"lamp": Color("f4f8ff"), 
 	"wood": Color("a9632d"), "iron": Color("2b3240"), "vent": Color("c8c9c4"),
 	"concrete": Color("a8adb6"), "cement": Color("9aa1ad"), "paver": Color("8e94a2"), "edging": Color("b8bdc6"),
 	"grass": Color("4a7a52"), "hedge": Color("3c6c47"), "steel": Color("c4ccd8"), "sheet": Color("3f68b4"),
 	"pot": Color("2f3e5c"), "plant": Color("3f7a44"), "drain": Color("4a505c"),
 }
 const GLOSS := {"glass": 0.12, "floor": 0.35, "tread": 0.45, "concrete": 0.55, "cement": 0.5, "paver": 0.55,
-	"rail": 0.3, "steel": 0.35, "bin_blue": 0.4, "bin_yellow": 0.4, "bin_green": 0.4, "roof": 0.45, "canopy": 0.5}
+	"rail": 0.3, "steel": 0.35, "roof": 0.45, "canopy": 0.5}
 ## เนื้อวัสดุจริง (texture CC0 จาก ambientCG: tools/make_school_textures.py): ความสว่างของผิวคูณสีของอาคาร
 ## ชื่อ texture, เมตรต่อหนึ่งรอบลาย, ความสว่างเฉลี่ยของ texture (ชดเชยให้สีเท่าเดิม), แรงนูนของ normal map
 const TEX_DIR := "res://assets/bg/school/tex/"
@@ -64,9 +64,16 @@ const SURFACE := {
 	"edging": ["concrete", 1.0, 0.82, 0.6], "paver": ["paving", 1.5, 0.74, 1.0], "grass": ["grass", 1.5, 0.74, 1.0],
 	"hedge": ["grass", 0.8, 0.74, 1.2], "wood": ["wood", 1.0, 0.72, 0.6], "roof": ["corrugated", 1.0, 0.84, 1.0],
 	"sheet": ["corrugated", 1.0, 0.84, 1.0], "canopy": ["smooth", 2.0, 0.96, 0.3], "fascia": ["metal", 1.0, 0.78, 0.4],
-	"door": ["metal", 1.0, 0.78, 0.4], "steel": ["metal", 1.0, 0.78, 0.4], "rail": ["metal", 1.0, 0.78, 0.3],
-	"vent": ["concrete", 1.0, 0.82, 0.5], "pot": ["smooth", 1.0, 0.96, 0.3], "plant": ["grass", 0.5, 0.74, 1.0],
+	"steel": ["metal", 1.0, 0.78, 0.4], "rail": ["metal", 1.0, 0.78, 0.3],
+	"vent": ["concrete", 1.0, 0.82, 0.5],
 }
+
+## ภาพหน้าอาคารของผู้เขียน (ทางเข้าคือภาพทางเข้าระยะใกล้ของผู้เขียนย่อลงวาง: tools/make_building_layers.py)
+## แปะตรงบนหน้าตรงของโมเดลตามขนาดจริง 50 px/ม. (px 1083.5 = x 0, px 668 = พื้นลาน)
+const PAINT_DIR := "res://assets/bg/school/paint/"
+const PAINT_SIZE := Vector2(2168, 725)
+const PPM := 50.0
+const PAINT_ORIGIN := Vector2(-1083.5 / PPM, 668.0 / PPM)
 
 var _tools := {}
 var lamps: Array[Vector3] = []                # ตำแหน่งหลอดนีออน (SchoolBuildingView ใส่ไฟจริง)
@@ -119,31 +126,34 @@ func _block() -> void:
 				_box("wall", CORE[1], x1, y0, y1, Z_WALL, Z_WALL - WALL_T)
 				_window_wall(x0, x1, y0, y1, Z_BACK, 0.25, 0.75)
 			else:
-				_classroom_front(x0, x1, y0, y1, i)
+				_box("wall", x0, x1, y0, y1, Z_WALL, Z_WALL - WALL_T)
 				_window_wall(x0, x1, y0, y1, Z_BACK, 0.12, 0.88)
 			_tube((PILLAR_X[i] + PILLAR_X[i + 1]) / 2.0, y1, -1.25)
 	for k in [1, 2]:
 		_box("trim", LEFT, RIGHT, CEILS[k - 1], FLOORS[k], Z_BACK, Z_BACK - 0.05)
+	# ภาพหน้าอาคาร: ผนังห้องเรียน (หน้าต่าง ประตู ป้าย ตามภาพ) ฐาน ชายคา
+	_paint("back", LEFT, CORE[0], 0.0, CEILS[2], Z_WALL + 0.003)
+	_paint("back", CORE[1], RIGHT, 0.0, CEILS[2], Z_WALL + 0.003)
+	_paint("mid", LEFT, RIGHT, 0.0, FLOORS[0], 0.315)
+	_paint("front", LEFT - OVERHANG, RIGHT + OVERHANG, EAVE - 0.32, EAVE, OVERHANG + 0.003)
 	# เสา (คู่กลางเริ่มเหนือกันสาด)
 	for i in PILLAR_X.size():
 		var x: float = PILLAR_X[i]
 		var y0: float = CANOPY[3] if i in [3, 4] else 0.0
 		_box("pillar", x - PILLAR_W / 2.0, x + PILLAR_W / 2.0, y0, EAVE - 0.32, 0.3, -0.3)
+		_paint("mid", x - PILLAR_W / 2.0, x + PILLAR_W / 2.0, y0, EAVE - 0.32, 0.303)
 	# หัวท้ายอาคาร
 	for x in [LEFT, RIGHT]:
 		var a: float = x - WALL_T if x < 0 else x
 		_box("wall", a, a + WALL_T, 0.0, CEILS[2], Z_WALL, Z_BACK)
 		for k in 3:
 			_box("trim", a - 0.01, a + WALL_T + 0.01, CEILS[k] - 0.05, CEILS[k] + (0.3 if k < 2 else 0.0), Z_WALL, Z_BACK)
-	# ท่อน้ำฝนข้างเสาเว้นเสา
-	for i in [1, 3, 5, 7]:
-		var x: float = PILLAR_X[i] + PILLAR_W / 2.0 + 0.06
-		_box("trim", x - 0.04, x + 0.04, 0.0, EAVE - 0.3, 0.28, 0.2)
 
 
 ## ระเบียง: ผนังทึบ 0.9 ม. คิ้วบน ร่องเส้นกลาง แถบพื้นด้านหน้า
 func _parapet(floor_y: float, under: float) -> void:
 	_box("parapet", LEFT, RIGHT, under, floor_y + PARAPET_H, 0.15, 0.0)
+	_paint("mid", LEFT, RIGHT, under, floor_y + PARAPET_H + 0.05, 0.195)
 	_box("trim", LEFT, RIGHT, floor_y + PARAPET_H, floor_y + PARAPET_H + 0.05, 0.19, -0.04)
 	_box("groove", LEFT, RIGHT, floor_y + 0.62, floor_y + 0.64, 0.155, 0.14)
 	_box("trim", LEFT, RIGHT, under, floor_y, 0.17, 0.15)
@@ -171,40 +181,20 @@ func _roof() -> void:
 			_beam("roof", Vector3(x, a.y + 0.03, a.z), Vector3(x, b.y + 0.03, b.z), 0.05)
 			x += 0.6
 	_box("fascia", x0, x1, RIDGE[0] - 0.05, RIDGE[0] + 0.1, RIDGE[1] + 0.15, RIDGE[1] - 0.15)
+	# ลาดหน้าทาด้วยแถบหลังคาในภาพ (px 74 ที่สัน ถึง 141 ที่ชายคา)
+	var st := _tool("paint_front")
+	var lift := Vector3(0, 0.06, 0)
+	var corners := [[Vector3(x0, EAVE, OVERHANG), 141.0], [Vector3(x1, EAVE, OVERHANG), 141.0],
+			[Vector3(x1, RIDGE[0], RIDGE[1]), 74.0], [Vector3(x0, RIDGE[0], RIDGE[1]), 74.0]]
+	for i: int in [0, 1, 2, 0, 2, 3]:
+		var v: Vector3 = corners[i][0]
+		st.set_normal(Vector3.UP)
+		st.set_uv(Vector2(((v.x - PAINT_ORIGIN.x) * PPM) / PAINT_SIZE.x, float(corners[i][1]) / PAINT_SIZE.y))
+		st.add_vertex(v + lift)
 	for x in [x0 + 0.3, x1 - 0.3]:
 		var n := Vector3.LEFT if x < 0 else Vector3.RIGHT
 		_tri("wall", n, Vector3(x, EAVE - 0.1, OVERHANG - 0.6), Vector3(x, RIDGE[0], RIDGE[1]),
 				Vector3(x, EAVE - 0.1, Z_BACK - OVERHANG + 0.6))
-
-
-## ผนังห้องเรียนด้านทางเดิน: หน้าต่างบานใหญ่ ประตูหนึ่งบาน ป้ายห้อง (ประตูสลับข้างตามช่อง)
-func _classroom_front(x0: float, x1: float, y0: float, y1: float, bay: int) -> void:
-	var door_right := bay % 2 == 0
-	var dx0 := x1 - 1.3 if door_right else x0 + 0.4
-	var dx1 := dx0 + 0.9
-	var wx0 := x0 + 0.55 if door_right else dx1 + 0.5
-	var wx1 := dx0 - 0.5 if door_right else x1 - 0.55
-	var z := Z_WALL
-	var sill := y0 + 0.95
-	var head := y0 + 2.35
-	var dhead := y0 + 2.1
-	_box("wall", x0, x1, head, y1, z, z - WALL_T)
-	var a := minf(wx0, dx0)
-	var b := maxf(wx1, dx1)
-	# ผนังข้างหน้าต่างกับประตู
-	_box("wall", x0, a, y0, head, z, z - WALL_T)
-	_box("wall", b, x1, y0, head, z, z - WALL_T)
-	if door_right:
-		_box("wall", wx0, wx1, y0, sill, z, z - WALL_T)
-		_box("wall", wx1, dx0, y0, head, z, z - WALL_T)
-	else:
-		_box("wall", wx0, wx1, y0, sill, z, z - WALL_T)
-		_box("wall", dx1, wx0, y0, head, z, z - WALL_T)
-	_window(wx0, wx1, sill, head, z, true)
-	_door(dx0, dx1, y0, dhead, z, head)
-	_box("skirt", x0, x1, y0, y0 + 0.1, z + 0.01, z)
-	var px := dx0 - 0.42 if door_right else dx1 + 0.12
-	_box("plate", px, px + 0.3, dhead - 0.35, dhead - 0.15, z + 0.02, z)
 
 
 ## ผนังหลังอาคาร: หน้าต่างแถวยาว (ช่วง f0..f1 ของช่อง)
@@ -240,14 +230,6 @@ func _window(x0: float, x1: float, y0: float, y1: float, z: float, facing_front:
 			var a := lerpf(x0, x1, float(i) / n) + 0.04
 			var b := lerpf(x0, x1, float(i + 1) / n) - 0.04
 			_box("curtain", a, lerpf(a, b, 0.55), y0 + 0.05, y1 - 0.45, g - 0.12 * s, g - 0.14 * s)
-
-
-func _door(x0: float, x1: float, y0: float, y1: float, z: float, wall_head: float) -> void:
-	_box("wall", x0, x1, y1, wall_head, z, z - WALL_T)
-	_box("door_frame", x0 - 0.06, x1 + 0.06, y0, y1 + 0.06, z + 0.03, z)
-	_box("door", x0, x1, y0, y1, z + 0.035, z - 0.05)
-	_box("glass", x0 + 0.2, x1 - 0.2, y0 + 1.2, y1 - 0.2, z + 0.045, z + 0.03)
-	_box("iron", x1 - 0.14, x1 - 0.08, y0 + 0.95, y0 + 1.05, z + 0.08, z + 0.035)
 
 
 ## หลอดนีออนใต้เพดาน
@@ -381,25 +363,11 @@ func _entrance() -> void:
 		var top: float = FLOORS[0] / 3.0 * (i + 1)
 		_box("cement", x0 + 0.25 + inset, x1 - 0.25 - inset, 0.0, top, 2.6 - 0.3 * i, 0.3)
 		_box("nosing", x0 + 0.25 + inset, x1 - 0.25 - inset, top - 0.02, top + 0.003, 2.62 - 0.3 * i, 2.57 - 0.3 * i)
-	# ผนังบอร์ดในโถง: บอร์ดเขียว กระดาษประกาศ ถังขยะสามสี ช่องลมเหนือบอร์ด
-	var bx0: float = CORE[1] + 0.25
-	var bx1 := HALL_RIGHT - 0.25
-	_box("board_frame", bx0, bx1, 1.25, 2.35, Z_WALL + 0.05, Z_WALL)
-	_box("board", bx0 + 0.06, bx1 - 0.06, 1.31, 2.29, Z_WALL + 0.06, Z_WALL + 0.05)
-	var px := bx0 + 0.18
-	while px < bx1 - 0.4:
-		for py: float in [1.45, 1.85]:
-			_box("paper", px, px + 0.32, py, py + 0.36, Z_WALL + 0.065, Z_WALL + 0.06)
-		px += 0.45
-	var cols := ["bin_blue", "bin_yellow", "bin_green"]
-	for i in 3:
-		var c := bx0 + 0.1 + i * 0.52
-		_box(cols[i], c, c + 0.46, FLOORS[0], FLOORS[0] + 0.85, Z_WALL + 0.45, Z_WALL + 0.02)
-		_box("bin_lid", c + 0.08, c + 0.38, FLOORS[0] + 0.62, FLOORS[0] + 0.76, Z_WALL + 0.455, Z_WALL + 0.44)
-	_vent(bx0 + 0.1, bx1 - 0.1, 2.55, 2.95, Z_WALL + 0.01)
+	# บอร์ด ถังขยะ ช่องลม กระถาง อยู่ในภาพทางเข้าของผู้เขียนบนผนังโถงแล้ว
+	_paint("front", x0, x1, CANOPY[2], CANOPY[3], CANOPY[4] + 0.003)
+	for x: float in [-3.25, 2.75]:
+		_paint("front", x - 0.3, x + 0.3, 0.0, CANOPY[2], 1.903)
 	_bench(Vector3(-2.0, FLOORS[0], -1.9), 1.5)
-	for p: Vector3 in [Vector3(-4.3, FLOORS[0], -1.9), Vector3(4.4, FLOORS[0], -1.9)]:
-		_pot(p)
 
 
 ## ม้านั่งไม้ระแนง ขาเหล็ก
@@ -416,14 +384,6 @@ func _bench(base: Vector3, w: float) -> void:
 		_box("iron", x, x + 0.04, y, y + 0.42, z + 0.12, z + 0.08)
 		_box("iron", x, x + 0.04, y, y + 0.8, z - 0.18, z - 0.24)
 		_box("iron", x, x + 0.04, y + 0.36, y + 0.4, z + 0.14, z - 0.22)
-
-
-func _pot(p: Vector3) -> void:
-	_box("pot", p.x - 0.22, p.x + 0.22, p.y, p.y + 0.42, p.z + 0.22, p.z - 0.22)
-	for j in 6:
-		var a := j * TAU / 6.0
-		var c := p + Vector3(cos(a) * 0.14, 0.62 + 0.08 * (j % 2), sin(a) * 0.14)
-		_box("plant", c.x - 0.16, c.x + 0.16, c.y - 0.22, c.y + 0.12, c.z + 0.16, c.z - 0.16)
 
 
 # ---------------------------------------------------------------- ลาน
@@ -473,6 +433,17 @@ func _tool(mat: String) -> SurfaceTool:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		_tools[mat] = st
 	return _tools[mat]
+
+
+## หน้าตรงหันออกลาน ทาด้วยภาพหน้าอาคารชั้น layer ตรงตำแหน่งจริงของมันในภาพ
+func _paint(layer: String, x0: float, x1: float, y0: float, y1: float, z: float) -> void:
+	var st := _tool("paint_" + layer)
+	var vs := [Vector3(x0, y1, z), Vector3(x1, y1, z), Vector3(x1, y0, z), Vector3(x0, y0, z)]
+	for i: int in [0, 1, 2, 0, 2, 3]:
+		var v: Vector3 = vs[i]
+		st.set_normal(Vector3.BACK)
+		st.set_uv(Vector2((v.x - PAINT_ORIGIN.x) * PPM / PAINT_SIZE.x, (PAINT_ORIGIN.y - v.y) * PPM / PAINT_SIZE.y))
+		st.add_vertex(v)
 
 
 func _quad(mat: String, n: Vector3, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
@@ -528,6 +499,14 @@ func _commit() -> void:
 
 func _material(key: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
+	if key.begins_with("paint_"):
+		# ภาพของผู้เขียนมีแสงฝนของมันอยู่แล้ว: ไม่ลงแสงซ้ำ
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_texture = load(PAINT_DIR + key.substr(6) + ".png")
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+		return m
 	m.albedo_color = COLOURS[key]
 	m.roughness = GLOSS.get(key, 0.85)
 	if key == "lamp":
