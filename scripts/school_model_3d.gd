@@ -381,7 +381,6 @@ func _entrance() -> void:
 	_paint("front", x0, x1, CANOPY[2], CANOPY[3], CANOPY[4] + 0.003)
 	for p: Array in CANOPY_PILLARS:
 		_paint("front", p[0], p[1], 0.0, CANOPY[2], 1.903)
-	_bench(Vector3(-2.0, FLOORS[0], -1.9), 1.5)
 
 
 ## ม้านั่งไม้ระแนง ขาเหล็ก
