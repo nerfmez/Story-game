@@ -39,9 +39,6 @@ const WALK := [3.9, 6.9, 2.65, 2.85]
 const WALK_X := 24.0
 const HEDGE := [7.3, 7.95, 0.85, 1.95, 24.0]
 const PATH := 1.6
-const FOLIAGE := preload("res://assets/bg/school/paint/foliage.png")
-# UV regions from the author's unchanged foliage painting (2172 x 724).
-const LEAF_REGIONS := [Rect2(691, 402, 67, 113), Rect2(1507, 430, 68, 88), Rect2(2068, 452, 72, 66)]
 
 const COLOURS := {
 	"wall": Color("d9d3c4"), "pillar": Color("e9edf2"), "parapet": Color("e6e6e2"),
@@ -55,7 +52,7 @@ const COLOURS := {
 	"wood": Color("a9632d"), "iron": Color("2b3240"), "vent": Color("c8c9c4"),
 	"concrete": Color("a8adb6"), "cement": Color("9aa1ad"), "paver": Color("8e94a2"), "edging": Color("b8bdc6"),
 	"grass": Color("4a7a52"), "hedge": Color("3c6c47"), "steel": Color("c4ccd8"), "sheet": Color("3f68b4"),
-	"pot": Color("2f3e5c"), "plant": Color("3f7a44"), "drain": Color("4a505c"), "soil": Color("344b46"),
+	"drain": Color("4a505c"),
 }
 const GLOSS := {"glass": 0.12, "floor": 0.35, "tread": 0.45, "concrete": 0.55, "cement": 0.5, "paver": 0.55,
 	"rail": 0.3, "steel": 0.35, "roof": 0.45, "canopy": 0.5}
@@ -430,51 +427,14 @@ func _courtyard() -> void:
 	for side in [-1.0, 1.0]:
 		var a: float = HEDGE[3] * side
 		var b: float = HEDGE[4] * side
-		_box("hedge", minf(a, b), maxf(a, b), 0.0, 0.42, HEDGE[1], HEDGE[0])
+		# พุ่มไม้ตัดแต่งเรียบร้อย: ตัวพุ่ม ขอบบนหดเข้านิดหน่อยให้ดูโค้งมน ขอบปูนรอบโคน
+		_box("hedge", minf(a, b), maxf(a, b), 0.0, 0.72, HEDGE[1], HEDGE[0])
+		_box("hedge", minf(a, b) + 0.06, maxf(a, b) - 0.06, 0.72, 0.8, HEDGE[1] - 0.06, HEDGE[0] + 0.06)
 		_box("edging", minf(a, b) - 0.06, maxf(a, b) + 0.06, 0.0, 0.12, HEDGE[1] + 0.08, HEDGE[1])
-		var leaf_x := minf(a, b) + 1.65
-		var variant := 0
-		while leaf_x < maxf(a, b) - 0.7:
-			_foliage_cards(Vector3(leaf_x, 0.12, 7.63), 3.4, 0.95 + (variant % 3) * 0.04, Rect2(1120, 150, 395, 155), 0.62)
-			leaf_x += 0.85
-			variant += 1
 	for pad: Vector2 in [Vector2(-5.6, 10.6), Vector2(6.2, 11.4)]:
 		_box("concrete", pad.x - 1.25, pad.x + 1.25, -0.01, 0.004, pad.y + 0.62, pad.y - 0.58)
 	_bench(Vector3(-5.6, 0.0, 10.6), 1.8)
 	_bench(Vector3(6.2, 0.0, 11.4), 1.8)
-	_potted_plant(Vector3(-4.35, 0.0, 2.1), 0)
-	_potted_plant(Vector3(4.4, 0.0, 2.1), 1)
-	_potted_plant(Vector3(20.9, 0.0, 2.2), 2)
-
-
-func _foliage_cards(base: Vector3, width: float, height: float, region: Rect2, depth: float) -> void:
-	var image_size := Vector2(2172, 724)
-	var uv := [region.position / image_size, (region.position + Vector2(region.size.x, 0)) / image_size,
-		(region.position + region.size) / image_size, (region.position + Vector2(0, region.size.y)) / image_size]
-	var st := _tool("foliage")
-	for axis in 2:
-		var basis := Basis(Vector3.UP, axis * PI / 2.0)
-		var span := width if axis == 0 else depth
-		var points := [Vector3(-span / 2, height, 0), Vector3(span / 2, height, 0), Vector3(span / 2, 0, 0), Vector3(-span / 2, 0, 0)]
-		for i in [0, 1, 2, 0, 2, 3]:
-			st.set_normal(basis * Vector3.BACK)
-			st.set_uv(uv[i])
-			st.add_vertex(base + basis * points[i])
-
-
-func _potted_plant(base: Vector3, variant: int) -> void:
-	var height := 0.42
-	for i in 16:
-		var a := TAU * i / 16.0
-		var b := TAU * (i + 1) / 16.0
-		var p := Vector3(cos(a), 0, sin(a))
-		var q := Vector3(cos(b), 0, sin(b))
-		_quad("pot", (p + q).normalized(), base + p * 0.19, base + q * 0.19,
-			base + q * 0.28 + Vector3.UP * height, base + p * 0.28 + Vector3.UP * height)
-		_quad("pot", Vector3.UP, base + p * 0.29 + Vector3.UP * height, base + q * 0.29 + Vector3.UP * height,
-			base + q * 0.24 + Vector3.UP * height, base + p * 0.24 + Vector3.UP * height)
-		_tri("soil", Vector3.UP, base + p * 0.24 + Vector3.UP * 0.40, base + q * 0.24 + Vector3.UP * 0.40, base + Vector3.UP * 0.40)
-	_foliage_cards(base + Vector3.UP * 0.40, 0.70, 1.10, LEAF_REGIONS[variant], 0.70)
 
 
 # ---------------------------------------------------------------- เครื่องมือ
@@ -544,21 +504,13 @@ func _commit() -> void:
 			st.generate_tangents()                      # normal map ต้องมี tangent
 		mesh.mesh = st.commit()
 		mesh.material_override = _material(key)
-		if key in ["lamp", "room", "drain", "grass", "foliage"] or key.begins_with("paint_"):
+		if key in ["lamp", "room", "drain", "grass"] or key.begins_with("paint_"):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mesh)
 
 
 func _material(key: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	if key == "foliage":
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.albedo_texture = FOLIAGE
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		m.alpha_scissor_threshold = 0.5
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		return m
 	if key.begins_with("paint_"):
 		# ภาพของผู้เขียนมีแสงฝนของมันอยู่แล้ว: ไม่ลงแสงซ้ำ
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
