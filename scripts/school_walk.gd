@@ -4,12 +4,13 @@ extends Node
 ## ทั้งคู่เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียน (มุมข้าง ผู้เล่นเดินเอง สายฝนเดินข้างๆ) ข้ามถนนมาแล้วเดินต่อไปข้างหน้า
 ## มองจากอีกฝั่งถนนจึงเดินซ้ายไปขวา ซันชิดกำแพง สายฝนฝั่งถนน
 ## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ภาพใกล้หน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
-## ถึงประตูโรงเรียน: บท "gate" (ซัน: "นี่..." event "leave" = เธอเดินเข้าประตูหายไป) แล้ว "gate_after"
+## ถึงประตูโรงเรียน: บท "gate" แล้วตัดภาพไปหน้าอาคาร (โมเดล 3D มุมข้างตามขนาดตัวละคร): ทั้งคู่เดินใต้ร่มมาถึงหลังคา
+## ทางเข้า บท "entrance" (ซัน: "นี่..." event "leave" = เธอไม่ต้องพึ่งร่มแล้ว เดินขึ้นบันไดเข้าอาคารหายไปก่อน) แล้ว "gate_after"
 ## ฉากหลัง: tools/compose_school.py (ภาพหน้าโรงเรียนจากผู้เขียน กลับซ้ายขวา ต่อกำแพงให้ยาว)
 ## ตัวตึกหลังกำแพงคือโมเดล 3D (SchoolModel3D ผ่าน SchoolBuildingView) วางใต้ชั้นต้นไม้+กำแพง (tools/cut_school_wall.py)
 ## กล้อง 3D เลื่อนตามกล้องเกม: ตึกอยู่ไกลกว่ากำแพงจึงเลื่อนช้ากว่า มองผ่านประตูเห็นทางเข้าอาคาร
 
-signal left                                     # สายฝนเดินเข้าประตูหายไปแล้ว
+signal left                                     # สายฝนเดินเข้าอาคารหายไปแล้ว
 
 const BG := preload("res://assets/bg/school/school_wall.png")
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
@@ -28,6 +29,16 @@ const GATE_X := 1832.0
 const BUILDING_PPM := 15.0
 const GROUND_ROW := 200.0
 const HERO_PPM := 70.0
+## หน้าอาคาร: ทางเข้า (x 0 ของโมเดล) อยู่ที่ x 2D นี้ ทั้งคู่เดินเลียบหน้าอาคารบนลานปูน (z ENTRANCE_Z หน้าบันได
+## ทางเข้า) ตัวละครอยู่ที่ระยะนั้นพอดี: 70px/ม. เท้าแถว 273 (กล้องกว้างขึ้นให้อยู่หน้าแนวพุ่มไม้ z 7.3: ไม่บังจอ)
+const ENTRANCE_X := 1000.0
+const ENTRANCE_Z := 3.3
+const ENTRANCE_FOV := 66.0
+const FEET_ROW := 273.0
+const ENTRANCE_START := ENTRANCE_X - 520.0
+const ENTRANCE_STOP := ENTRANCE_X - 100.0
+## เธอเดินถึงกลางทางเข้า แล้วขึ้นบันไดลึกเข้าไปในโถง (สูงขึ้นบนจอ) พร้อมจางหาย
+const STEP_UP := 26.0
 ## ฝนหนักหน้าโรงเรียน: ตึกจมหมอกสีเดียวกับฟ้าของฉาก (ฟ้าฝน 8494aa ของ draw_school_building.py) มืดลงกว่าตอนมองใกล้
 const RAIN_SKY := Color("8494aa")
 const RAIN_FOG := 0.03
@@ -51,6 +62,8 @@ var dialogue_box: DialogueBox
 var cards: Node
 
 var _view: SchoolBuildingView
+var _bg: Sprite2D
+var _entrance := false
 var _glance := false
 var _glance_layer: CanvasLayer
 var _glance_image: TextureRect
@@ -66,6 +79,7 @@ func setup() -> void:
 			node.visible = false
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 	var bg := Sprite2D.new()
+	_bg = bg
 	bg.texture = BG
 	bg.centered = false
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -107,9 +121,16 @@ func _process(_delta: float) -> void:
 
 
 ## กล้อง 3D มองตรงไปที่หน้าตึก ห่างพอให้ได้ BUILDING_PPM สูงพอให้โคนตึกอยู่ที่ GROUND_ROW
+## หน้าอาคาร: ห่างจากแนวเดินพอให้ได้ HERO_PPM เท้าตัวละครอยู่บนพื้นที่ FEET_ROW
 func _follow_camera() -> void:
 	var cam := _view.camera
 	var half_h := 180.0
+	if _entrance:
+		var near := half_h / (HERO_PPM * tan(deg_to_rad(cam.fov * 0.5)))
+		var at := camera.get_screen_center_position().x
+		cam.position = Vector3((at - ENTRANCE_X) / HERO_PPM, (FEET_ROW - half_h) / HERO_PPM, ENTRANCE_Z + near)
+		cam.rotation = Vector3.ZERO
+		return
 	var distance := half_h / (BUILDING_PPM * tan(deg_to_rad(cam.fov * 0.5)))
 	var centre := camera.get_screen_center_position().x
 	var x := (centre - GATE_X) / HERO_PPM
@@ -122,12 +143,32 @@ func play() -> void:
 	await cards.reveal_scene()
 	await _walk_to_gate()
 	await prologue._say("gate")
+	await cards.fade_to_black()
+	_to_entrance()
+	await cards.reveal_scene()
+	hero.walk_to(ENTRANCE_STOP)
+	await hero.arrived
+	await get_tree().create_timer(0.5).timeout
+	await prologue._say("entrance")
 	if heroine.visible:
 		await left
 	await get_tree().create_timer(0.6).timeout
 	await prologue._say("gate_after")
 	await get_tree().create_timer(0.8).timeout
 	dialogue_box.line_started.disconnect(_on_line)
+
+
+## ใต้จอดำ: ไปหน้าอาคาร (ไม่มีกำแพง) ทั้งคู่ยืนทางซ้ายของทางเข้า
+func _to_entrance() -> void:
+	_entrance = true
+	_bg.visible = false
+	_view.camera.fov = ENTRANCE_FOV
+	hero.min_x = ENTRANCE_START
+	hero.max_x = ENTRANCE_STOP
+	hero.position.x = ENTRANCE_START
+	heroine.position.x = ENTRANCE_START + UNDER
+	heroine.follow(hero, UNDER)
+	_follow_camera()
 
 
 func _walk_to_gate() -> void:
@@ -191,15 +232,15 @@ func _on_line(line: Dictionary) -> void:
 			_leave()
 
 
-## "นี่..." ยังไม่ทันพูดต่อ เธอเดินเข้าประตูไป: เดินไปตรงประตู แล้วเดินลึกเข้าไปพร้อมจางหาย
+## "นี่..." ยังไม่ทันพูดต่อ เธอออกจากร่มไปใต้หลังคาทางเข้า (ไม่ต้องพึ่งร่มแล้ว) เดินขึ้นบันไดลึกเข้าโถงพร้อมจางหาย
 func _leave() -> void:
 	heroine.stop_following()
-	heroine.walk_to(GATE_X)
+	heroine.walk_to(ENTRANCE_X)
 	await heroine.arrived
-	heroine.walk_to(GATE_X + 24.0)
+	heroine.walk_to(ENTRANCE_X + 20.0)
 	var fade := create_tween().set_parallel().set_trans(Tween.TRANS_SINE)
-	fade.tween_property(heroine, "position:y", heroine.position.y - 10.0, 1.4)
-	fade.tween_property(heroine, "modulate:a", 0.0, 1.4)
+	fade.tween_property(heroine, "position:y", heroine.position.y - STEP_UP, 1.6)
+	fade.tween_property(heroine, "modulate:a", 0.0, 1.6)
 	await fade.finished
 	heroine.visible = false
 	left.emit()
