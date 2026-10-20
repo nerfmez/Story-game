@@ -14,8 +14,12 @@ var shot_index := 0
 var pixel_sizes := [Vector2i(480, 270), Vector2i(640, 360), Vector2i(960, 540)]
 var pixel_index := 0
 var hud_visible := true
+## Ceiling fans turn on medium speed (the blades are the Blade groups under each CeilingFan).
+const FAN_SPEED := 6.0                       # radians per second, about one turn a second
+var fans: Array[Node] = []
 
 func _ready() -> void:
+	fans = $View/SubViewport/Room.find_children("CeilingFan*", "Node3D", true, false)
 	_set_shot(0)
 	viewport.size = pixel_sizes[pixel_index]
 	_update_status()
@@ -58,6 +62,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera.rotation.x = clampf(camera.rotation.x - event.relative.y * 0.003, -1.1, 1.1)
 
 func _process(delta: float) -> void:
+	for fan: Node3D in fans:
+		fan.rotation.y = wrapf(fan.rotation.y + FAN_SPEED * delta, 0.0, TAU)
 	var move := Vector3.ZERO
 	if Input.is_physical_key_pressed(KEY_W): move.z -= 1.0
 	if Input.is_physical_key_pressed(KEY_S): move.z += 1.0
