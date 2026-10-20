@@ -60,22 +60,24 @@ const GLOSS := {"glass": 0.12, "floor": 0.35, "tread": 0.45, "concrete": 0.55, "
 ## ชื่อ texture, เมตรต่อหนึ่งรอบลาย, ความสว่างเฉลี่ยของ texture (ชดเชยให้สีเท่าเดิม), แรงนูนของ normal map
 const TEX_DIR := "res://assets/bg/school/tex/"
 const SURFACE := {
-	"wall": ["plaster", 2.0, 0.98, 0.6], "core": ["plaster", 2.0, 0.98, 0.6], "parapet": ["plaster", 2.0, 0.98, 0.6],
-	"ceiling": ["plaster", 2.0, 0.98, 0.3], "pillar": ["smooth", 2.0, 0.96, 0.4], "trim": ["smooth", 2.0, 0.96, 0.3],
-	"floor": ["terrazzo", 0.6, 0.93, 0.2], "tread": ["terrazzo", 0.6, 0.93, 0.2], "riser": ["terrazzo", 0.6, 0.93, 0.2],
-	"nosing": ["smooth", 1.0, 0.96, 0.2], "concrete": ["concrete", 2.0, 0.82, 0.8], "cement": ["concrete", 2.0, 0.82, 0.8],
-	"edging": ["concrete", 1.0, 0.82, 0.6], "paver": ["paving", 1.5, 0.74, 1.0], "grass": ["grass", 1.5, 0.74, 1.0],
-	"hedge": ["grass", 0.8, 0.74, 1.2], "wood": ["wood", 1.0, 0.72, 0.6], "roof": ["corrugated", 1.0, 0.84, 1.0],
-	"sheet": ["corrugated", 1.0, 0.84, 1.0], "canopy": ["smooth", 2.0, 0.96, 0.3], "fascia": ["metal", 1.0, 0.78, 0.4],
-	"steel": ["metal", 1.0, 0.78, 0.4], "rail": ["metal", 1.0, 0.78, 0.3],
-	"vent": ["concrete", 1.0, 0.82, 0.5],
+	"wall": ["plaster", 2.0, 1.0, 0.6], "core": ["plaster", 2.0, 1.0, 0.6], "parapet": ["plaster", 2.0, 1.0, 0.6],
+	"ceiling": ["plaster", 2.0, 1.0, 0.3], "pillar": ["smooth", 2.0, 0.98, 0.4], "trim": ["smooth", 2.0, 0.98, 0.3],
+	"floor": ["terrazzo", 0.6, 0.96, 0.2], "tread": ["terrazzo", 0.6, 0.96, 0.2], "riser": ["terrazzo", 0.6, 0.96, 0.2],
+	"nosing": ["smooth", 1.0, 0.98, 0.2], "concrete": ["concrete", 2.0, 0.91, 0.8], "cement": ["concrete", 2.0, 0.91, 0.8],
+	"edging": ["concrete", 1.0, 0.91, 0.6], "paver": ["paving", 1.5, 0.76, 1.0], "grass": ["grass", 1.5, 0.89, 1.0],
+	"hedge": ["grass", 0.8, 0.89, 1.2], "wood": ["wood", 1.0, 0.82, 0.6], "roof": ["corrugated", 1.0, 0.88, 1.0],
+	"sheet": ["corrugated", 1.0, 0.88, 1.0], "canopy": ["smooth", 2.0, 0.98, 0.3], "fascia": ["metal", 1.0, 0.85, 0.4],
+	"steel": ["metal", 1.0, 0.85, 0.4], "rail": ["metal", 1.0, 0.85, 0.3],
+	"vent": ["concrete", 1.0, 0.91, 0.5],
 }
 
 ## ภาพหน้าอาคารของผู้เขียน (ทางเข้าคือภาพทางเข้าระยะใกล้ของผู้เขียนย่อลงวาง: tools/make_building_layers.py)
 ## แปะตรงบนหน้าตรงของโมเดลตามขนาดจริง 50 px/ม. (px 1083.5 = x 0, px 668 = พื้นลาน)
 const PAINT_DIR := "res://assets/bg/school/paint/"
-const WALL_DETAIL_ART := preload("res://assets/bg/school/paint/back_detail.png")
-const ENTRANCE_DETAIL_ART := preload("res://assets/bg/school/paint/entrance_detail.png")
+## pixel-art copies of the paintings, 25 game px per metre (tools/pixelate_school_paint.py)
+const PIXEL_DIR := "res://assets/bg/school/pixel/"
+const WALL_DETAIL_ART := preload("res://assets/bg/school/pixel/back_detail.png")
+const ENTRANCE_DETAIL_ART := preload("res://assets/bg/school/pixel/entrance_detail.png")
 # Inverse of make_building_layers.py entrance() placement: use the original
 # close-view pixels directly, rather than its 34.8%-size facade copy.
 const ENTRANCE_SCALE := 0.348
@@ -515,14 +517,14 @@ func _commit() -> void:
 func _material(key: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	if key.begins_with("paint_"):
-		# Keep the painting's authored light. Anisotropic mipmaps keep thin
-		# window frames clearer down a corridor without pixel snapping bands.
+		# Keep the painting's authored light. Nearest shows its pixels square up close; mipmaps
+		# (not anisotropic, which turns magnification linear here) keep far frames from shimmering.
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		if key == "paint_entrance":
 			m.albedo_texture = ENTRANCE_DETAIL_ART
 		else:
-			m.albedo_texture = WALL_DETAIL_ART if key == "paint_back" else load(PAINT_DIR + key.substr(6) + ".png")
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+			m.albedo_texture = WALL_DETAIL_ART if key == "paint_back" else load(PIXEL_DIR + key.substr(6) + ".png")
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		m.alpha_scissor_threshold = 0.5
 		return m
@@ -545,5 +547,5 @@ func _material(key: String) -> StandardMaterial3D:
 		m.normal_scale = float(spec[3]) * 0.22
 		var repeat: float = 4.0 / float(spec[1])         # UV = 0.25 ต่อเมตร
 		m.uv1_scale = Vector3(repeat, repeat, 1.0)
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	return m
