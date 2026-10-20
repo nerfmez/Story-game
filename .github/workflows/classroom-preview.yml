@@ -7,6 +7,11 @@ on:
       - 'scenes/classroom_3d_pixel.tscn'
       - 'scripts/classroom_pixel.gd'
       - 'tools/build_classroom_scene.gd'
+      - 'tools/test_*classroom*.gd'
+      - 'tools/test_web_scene.gd'
+      - 'tools/test_camera_input.gd'
+      - 'tools/review_window_coverage.gd'
+      - 'tools/review_outside.gd'
       - 'tools/package_classroom.py'
       - 'assets/classroom/**'
       - 'docs/classroom-3d/**'
@@ -28,24 +33,31 @@ jobs:
           curl -sSLf -o /tmp/godot43.zip https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
           unzip -q /tmp/godot43.zip -d /tmp/godot43
           echo /tmp/godot43 >> "$GITHUB_PATH"
-      - name: Import and rebuild the standalone scene
+      - name: Stage the independent classroom project
+        run: python3 tools/package_classroom.py --output build/classroom-preview
+      - name: Import, rebuild and check the classroom
         run: |
-          Godot_v4.3-stable_linux.x86_64 --headless --editor --path . --import --quit
-          Godot_v4.3-stable_linux.x86_64 --headless --path . --script tools/build_classroom_scene.gd
-      - name: Render three real 3D camera views
+          project="$PWD/build/classroom-preview/Thai-Classroom-Godot43"
+          Godot_v4.3-stable_linux.x86_64 --headless --editor --path "$project" --import --quit
+          Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/build_classroom_scene.gd
+          Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/test_camera_input.gd
+          Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/test_web_scene.gd
+      - name: Render four presets and full window coverage
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
-          mkdir -p build/classroom-preview
-          for shot in 0 1 2; do
-            xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path . --rendering-method gl_compatibility --audio-driver Dummy scenes/classroom_3d_pixel.tscn -- --capture "$PWD/build/classroom-preview/view-$((shot+1)).png" --shot=$shot --no-hud
+          project="$PWD/build/classroom-preview/Thai-Classroom-Godot43"
+          for shot in 0 1 2 3; do
+            xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy scenes/classroom_3d_pixel.tscn -- --capture "$PWD/build/classroom-preview/view-$((shot+1)).png" --shot=$shot --no-hud
           done
-      - name: Package the independent Godot project
-        run: python3 tools/package_classroom.py --output build/classroom-preview
+          CAMPUS_REVIEW_OUT="$PWD/build/classroom-preview/coverage" xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy --script res://tools/review_window_coverage.gd
+      - name: Archive the exact tested Godot project
+        run: python3 tools/package_classroom.py --output build/classroom-preview --zip-only
       - uses: actions/upload-artifact@v4
         with:
           name: classroom-godot43-preview
           path: |
             build/classroom-preview/*.png
+            build/classroom-preview/coverage/*.png
             build/classroom-preview/*.zip
           if-no-files-found: error

@@ -29,18 +29,29 @@ textures/canvas_textures/default_texture_filter=0
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "build/classroom")
+    parser.add_argument("--zip-only", action="store_true", help="Archive an already staged and tested project without copying it again")
     args = parser.parse_args()
     target = args.output.resolve()
     target.mkdir(parents=True, exist_ok=True)
     project_dir = target / "Thai-Classroom-Godot43"
     project_dir.mkdir(exist_ok=True)
+    if args.zip_only:
+        if not (project_dir / "project.godot").is_file():
+            parser.error("No staged classroom project to archive")
+        write_archive(target, project_dir)
+        return
     paths = [
         "scenes/classroom_3d_pixel.tscn",
         "scripts/classroom_pixel.gd",
         "tools/build_classroom_scene.gd",
+        "tools/test_camera_input.gd",
+        "tools/test_web_scene.gd",
+        "tools/review_window_coverage.gd",
+        "tools/review_outside.gd",
         "assets/fonts/Sarabun-Regular.ttf",
+        "assets/fonts/Sarabun-Regular.ttf.import",
     ]
-    paths += [str(path.relative_to(ROOT)) for path in (ROOT / "assets/classroom").glob("*.png")]
+    paths += [str(path.relative_to(ROOT)) for path in (ROOT / "assets/classroom").glob("*.png*") if path.name.endswith((".png", ".png.import"))]
     for name in paths:
         dest = project_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -48,8 +59,16 @@ def main():
     font_license = ROOT / "assets/fonts/OFL.txt"
     if font_license.exists():
         shutil.copyfile(font_license, project_dir / "assets/fonts/OFL.txt")
+    for source in (ROOT / "docs/classroom-3d").glob("surround-*.png"):
+        shutil.copyfile(source, project_dir / source.name)
+    for name in ["courtyard-surround-review.md", "courtyard-surround-prompt.txt"]:
+        shutil.copyfile(ROOT / "docs/classroom-3d" / name, project_dir / name)
     (project_dir / "project.godot").write_text(PROJECT, encoding="utf-8")
     shutil.copyfile(ROOT / "docs/classroom-3d/README.md", project_dir / "README.md")
+    write_archive(target, project_dir)
+
+
+def write_archive(target, project_dir):
     with zipfile.ZipFile(target / "Thai-Classroom-Godot43.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(project_dir.rglob("*")):
             if path.is_file() and ".godot" not in path.parts:
