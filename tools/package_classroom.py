@@ -43,6 +43,9 @@ def main():
     paths = [
         "scenes/classroom_3d_pixel.tscn",
         "scripts/classroom_pixel.gd",
+        "scripts/classroom_students.gd",
+        "tools/review_classroom_students.gd",
+        "tools/test_classroom_students.gd",
         "tools/build_classroom_scene.gd",
         "tools/test_camera_input.gd",
         "tools/test_web_scene.gd",
@@ -51,7 +54,7 @@ def main():
         "assets/fonts/Sarabun-Regular.ttf",
         "assets/fonts/Sarabun-Regular.ttf.import",
     ]
-    paths += [str(path.relative_to(ROOT)) for path in (ROOT / "assets/classroom").glob("*.png*") if path.name.endswith((".png", ".png.import"))]
+    paths += [str(path.relative_to(ROOT)) for path in (ROOT / "assets/classroom").rglob("*.png*") if path.name.endswith((".png", ".png.import"))]
     for name in paths:
         dest = project_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -59,9 +62,9 @@ def main():
     font_license = ROOT / "assets/fonts/OFL.txt"
     if font_license.exists():
         shutil.copyfile(font_license, project_dir / "assets/fonts/OFL.txt")
-    for source in (ROOT / "docs/classroom-3d").glob("surround-*.png"):
+    for source in list((ROOT / "docs/classroom-3d").glob("surround-*.png")) + list((ROOT / "docs/classroom-3d").glob("students-*.png")):
         shutil.copyfile(source, project_dir / source.name)
-    for name in ["courtyard-surround-review.md", "courtyard-surround-prompt.txt"]:
+    for name in ["courtyard-surround-review.md", "courtyard-surround-prompt.txt", "seated-students.md", "student-imagegen-prompts.json", "students-review.md"]:
         shutil.copyfile(ROOT / "docs/classroom-3d" / name, project_dir / name)
     (project_dir / "project.godot").write_text(PROJECT, encoding="utf-8")
     shutil.copyfile(ROOT / "docs/classroom-3d/README.md", project_dir / "README.md")

@@ -57,6 +57,8 @@ func _run() -> void:
 
 func _count(node: Node) -> Vector2i:
 	var total := Vector2i.ZERO
+	if node is Sprite3D:
+		total += Vector2i(1,0)
 	if node is MeshInstance3D:
 		total += Vector2i(1,1)
 	if node is MultiMeshInstance3D:

@@ -6,6 +6,8 @@ on:
     paths:
       - 'scenes/classroom_3d_pixel.tscn'
       - 'scripts/classroom_pixel.gd'
+      - 'scripts/classroom_students.gd'
+      - 'tools/review_classroom_students.gd'
       - 'tools/build_classroom_scene.gd'
       - 'tools/test_*classroom*.gd'
       - 'tools/test_web_scene.gd'
@@ -42,6 +44,7 @@ jobs:
           Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/build_classroom_scene.gd
           Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/test_camera_input.gd
           Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/test_web_scene.gd
+          Godot_v4.3-stable_linux.x86_64 --headless --path "$project" --script res://tools/test_classroom_students.gd
       - name: Render four presets and full window coverage
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
@@ -51,6 +54,12 @@ jobs:
             xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy scenes/classroom_3d_pixel.tscn -- --capture "$PWD/build/classroom-preview/view-$((shot+1)).png" --shot=$shot --no-hud
           done
           CAMPUS_REVIEW_OUT="$PWD/build/classroom-preview/coverage" xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy --script res://tools/review_window_coverage.gd
+      - name: Render seated students from both ends and sides
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          project="$PWD/build/classroom-preview/Thai-Classroom-Godot43"
+          CLASSROOM_STUDENTS_OUT="$PWD/build/classroom-preview/students" xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy --script res://tools/review_classroom_students.gd
       - name: Archive the exact tested Godot project
         run: python3 tools/package_classroom.py --output build/classroom-preview --zip-only
       - uses: actions/upload-artifact@v4
@@ -59,5 +68,6 @@ jobs:
           path: |
             build/classroom-preview/*.png
             build/classroom-preview/coverage/*.png
+            build/classroom-preview/students/*.png
             build/classroom-preview/*.zip
           if-no-files-found: error

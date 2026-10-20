@@ -53,6 +53,7 @@ func _initialize() -> void:
 	_outdoors()
 	_lighting()
 	_batch_static_parts()
+	_seated_students()
 	var cam := Camera3D.new()
 	cam.name = "Camera3D"
 	cam.position = Vector3(0.35, 1.95, 5.65)
@@ -599,6 +600,44 @@ func _furniture() -> void:
 		for x in [-4.05, -2.8, -0.8, 0.45, 2.45, 3.7]:
 			_desk(a, index, x, -2.9 + row * 1.42)
 			index += 1
+
+func _seated_students() -> void:
+	var students := _group("SeatedStudents")
+	students.set_script(load("res://scripts/classroom_students.gd"))
+	var textures: Dictionary = {}
+	for id in ["sun", "saifon", "boy_short", "boy_glasses", "girl_bob", "girl_ponytail"]:
+		textures[id] = load("res://assets/classroom/students/" + id + ".png")
+	var variants := ["boy_short", "girl_bob", "boy_glasses", "girl_ponytail"]
+	for row in 5:
+		for column in 6:
+			var index := row * 6 + column + 1
+			var desk: Node3D = room.get_node("StudentDesks/Desk%02d" % index)
+			var chair: Node3D = desk.get_node("Chair")
+			var id: String = variants[(column + row * 3) % variants.size()]
+			if column == 0 and row == 4: id = "saifon"
+			if column == 0 and row == 3: id = "sun"
+			var student := Sprite3D.new()
+			student.name = "Seat%02d_%s" % [index, id]
+			student.texture = textures[id]
+			student.hframes = 4
+			student.pixel_size = 1.28 / 180.0
+			student.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			student.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			student.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			student.alpha_scissor_threshold = 0.5
+			student.no_depth_test = false
+			student.shaded = false
+			student.double_sided = true
+			student.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			student.set_meta("seat", index)
+			student.set_meta("row", row)
+			student.set_meta("column", column)
+			student.set_meta("character", id)
+			student.set_meta("mirror_left", id == "girl_bob")
+			# Match each chair's pulled-out offset and slight rotation exactly.
+			student.transform = desk.transform * chair.transform
+			student.position += Vector3(0, (184.0 - 96.0) * student.pixel_size + 0.025, 0)
+			students.add_child(student)
 
 func _ceiling() -> void:
 	var a := _group("CeilingFixtures")
