@@ -1,8 +1,7 @@
 extends Node3D
 ## Seated, camera-direction sprites. Seats stay fixed while only the drawing changes.
-## Classmates are background: drawn without eyes, a shadow over the eye line like extras in anime
-## (students/mob/, tools/mob_faces.py), and muted (less colour and contrast, a touch of the room's cool
-## light) so Sun and Saifon, in full colour, are the ones the eye goes to.
+## Classmates are background: their drawings are muted (less colour and contrast, a touch of the
+## room's cool light) so Sun and Saifon, in full colour, are the ones the eye goes to.
 const LEADS := ["sun", "saifon"]
 const EXTRA_BRIGHTNESS := 0.96
 const EXTRA_CONTRAST := 0.78
@@ -27,10 +26,6 @@ func _ready() -> void:
 	_update_views()
 
 func _muted(texture: Texture2D) -> Texture2D:
-	var path := texture.resource_path
-	var mob := path.get_base_dir().path_join("mob").path_join(path.get_file())
-	if ResourceLoader.exists(mob):
-		texture = load(mob)
 	var image := texture.get_image()
 	if image.is_compressed():
 		image.decompress()
