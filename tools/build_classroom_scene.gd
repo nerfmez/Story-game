@@ -601,21 +601,26 @@ func _furniture() -> void:
 			_desk(a, index, x, -2.9 + row * 1.42)
 			index += 1
 
+const STUDENT_LAYOUT := [
+	["boy_buzz", "girl_braided", "boy_reader", "girl_short", "boy_curly", "girl_wavy"],
+	["girl_bob_v2", "boy_stocky", "girl_ponytail_v2", "boy_sleepy", "girl_glasses", "boy_daydream"],
+	["boy_curly", "girl_glasses", "boy_buzz", "girl_bob_v2", "boy_reader", "girl_ponytail_v2"],
+	["sun", "girl_short", "boy_stocky", "girl_wavy", "boy_daydream", "girl_braided"],
+	["saifon", "boy_sleepy", "boy_buzz", "girl_braided", "boy_stocky", "girl_glasses"]
+]
+
 func _seated_students() -> void:
 	var students := _group("SeatedStudents")
 	students.set_script(load("res://scripts/classroom_students.gd"))
 	var textures: Dictionary = {}
-	for id in ["sun", "saifon", "boy_short", "boy_glasses", "girl_bob", "girl_ponytail"]:
-		textures[id] = load("res://assets/classroom/students/" + id + ".png")
-	var variants := ["boy_short", "girl_bob", "boy_glasses", "girl_ponytail"]
 	for row in 5:
 		for column in 6:
 			var index := row * 6 + column + 1
 			var desk: Node3D = room.get_node("StudentDesks/Desk%02d" % index)
 			var chair: Node3D = desk.get_node("Chair")
-			var id: String = variants[(column + row * 3) % variants.size()]
-			if column == 0 and row == 4: id = "saifon"
-			if column == 0 and row == 3: id = "sun"
+			var id: String = STUDENT_LAYOUT[row][column]
+			if not textures.has(id):
+				textures[id] = load("res://assets/classroom/students/" + id + ".png")
 			var student := Sprite3D.new()
 			student.name = "Seat%02d_%s" % [index, id]
 			student.texture = textures[id]
@@ -633,8 +638,7 @@ func _seated_students() -> void:
 			student.set_meta("row", row)
 			student.set_meta("column", column)
 			student.set_meta("character", id)
-			student.set_meta("mirror_left", id == "girl_bob")
-			# Match each chair's pulled-out offset and slight rotation exactly.
+			# Anchor the drawing to the same physical chair, including its rotation.
 			student.transform = desk.transform * chair.transform
 			student.position += Vector3(0, (184.0 - 96.0) * student.pixel_size + 0.025, 0)
 			students.add_child(student)
