@@ -4,7 +4,8 @@ extends Node
 ## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่ม
 ## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์
 ## -> ไฟเขียว -> ปุ่ม "ข้ามทางม้าลาย" -> คัทซีนแบบหนัง: ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมเสียงเล่า "end" -> จอดำ
-## -> เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียนจนถึงประตู เธอเดินเข้าไปหายไป (scripts/school_walk.gd) -> จอดำ -> ปุ่ม "ออก"
+## -> เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียนจนถึงประตู เธอเดินเข้าอาคารไปก่อน (scripts/school_walk.gd) -> จอดำ
+## -> ห้อง 4/5: นั่งตรงหน้าเธอ คุยเรื่องไทม์แมชชีน โฮมรูม (scripts/classroom_scene.gd) -> จอดำ -> ปุ่ม "ออก"
 ## ผู้เล่นบังคับเดินได้ช่วงเดินไปทางม้าลายและช่วงเดินไปโรงเรียน ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
 @export_file("*.json") var script_file := "res://data/prologue.json"
@@ -112,6 +113,7 @@ func _crossing() -> void:
 	cross.restore()                            # ตัวละคร ฝน เสาไฟ กลับเข้าฉาก (ฉากต่อไปใช้ต่อ)
 	cross.queue_free()                         # จอดำของคัทซีน (ชั้น 22) บังจอดำมีฝนกับ "แตะเพื่อเล่นอีกครั้ง" (ชั้น 20)
 	await _school()
+	await _classroom()
 	await _finish()
 
 
@@ -127,6 +129,19 @@ func _school() -> void:
 	add_child(school)
 	school.setup()
 	await school.play()
+	await cards.fade_to_black()
+	school.queue_free()                        # ตึก 3D ของฉากเดินไม่ต้องเรนเดอร์ต่อในห้องเรียน
+
+
+## ห้อง 4/5 (เริ่มใต้จอดำ จบที่จอดำ)
+func _classroom() -> void:
+	var room := ClassroomScene.new()
+	room.prologue = self
+	room.dialogue_box = dialogue_box
+	room.cards = cards
+	add_child(room)
+	room.setup()
+	await room.play()
 	await cards.fade_to_black()
 
 
@@ -169,6 +184,15 @@ func debug_crossing() -> void:
 func debug_school() -> void:
 	dialogue_box.line_started.connect(_on_line)
 	await _school()
+	await _classroom()
+	await _finish()
+
+
+## ทางลัดสำหรับทดสอบ (#class): เริ่มที่ห้องเรียนเลย
+func debug_class() -> void:
+	dialogue_box.line_started.connect(_on_line)
+	heroine.visible = false
+	await _classroom()
 	await _finish()
 
 
