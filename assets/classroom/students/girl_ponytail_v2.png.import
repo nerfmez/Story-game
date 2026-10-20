@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dft1sena7hlr8"
-path="res://.godot/imported/girl_bob.png-c4d85fd4fb3f598980c8317daef5d3d9.ctex"
+uid="uid://dn8k7c3xmpgqe"
+path="res://.godot/imported/girl_ponytail_v2.png-817112e511091d1b45b273ecf9dc84b1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/classroom/students/girl_bob.png"
-dest_files=["res://.godot/imported/girl_bob.png-c4d85fd4fb3f598980c8317daef5d3d9.ctex"]
+source_file="res://assets/classroom/students/girl_ponytail_v2.png"
+dest_files=["res://.godot/imported/girl_ponytail_v2.png-817112e511091d1b45b273ecf9dc84b1.ctex"]
 
 [params]
 

@@ -31,9 +31,9 @@ def pack(source, order, target, mirror_left=False):
         sprite = sprite.resize((round(sprite.width * scale), 180), Image.Resampling.NEAREST)
         # Profile hips are behind the horizontal thighs, not at bbox centre.
         anchor = sprite.width * (0.24 if frame == 2 and mirror_left else 0.76 if frame == 2 else 0.24 if frame == 3 else 0.5)
-        x = round(80 - anchor)
-        if x < 0 or x + sprite.width > 160:
+        if sprite.width > 160:
             raise ValueError(f'Profile exceeds frame: {source}, {cell_index}')
+        x = max(0, min(round(80 - anchor), 160 - sprite.width))
         atlas.paste(sprite, (frame * 160 + x, 4))
     target.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(target, optimize=True)

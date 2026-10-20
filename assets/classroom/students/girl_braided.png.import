@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crtha5l200ojp"
-path="res://.godot/imported/boy_glasses.png-1c89c53b20f19e6a3e2511944e567b4e.ctex"
+uid="uid://qqbk4uilowaw"
+path="res://.godot/imported/girl_braided.png-bd0c07f0a7dfd194363fb9e2a1eaaf41.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/classroom/students/boy_glasses.png"
-dest_files=["res://.godot/imported/boy_glasses.png-1c89c53b20f19e6a3e2511944e567b4e.ctex"]
+source_file="res://assets/classroom/students/girl_braided.png"
+dest_files=["res://.godot/imported/girl_braided.png-bd0c07f0a7dfd194363fb9e2a1eaaf41.ctex"]
 
 [params]
 
