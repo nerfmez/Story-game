@@ -74,7 +74,12 @@ const SURFACE := {
 ## ภาพหน้าอาคารของผู้เขียน (ทางเข้าคือภาพทางเข้าระยะใกล้ของผู้เขียนย่อลงวาง: tools/make_building_layers.py)
 ## แปะตรงบนหน้าตรงของโมเดลตามขนาดจริง 50 px/ม. (px 1083.5 = x 0, px 668 = พื้นลาน)
 const PAINT_DIR := "res://assets/bg/school/paint/"
-const WALL_REPAIR_ART := preload("res://assets/bg/school/paint/back_repair.png")
+const WALL_DETAIL_ART := preload("res://assets/bg/school/paint/back_detail.png")
+const ENTRANCE_DETAIL_ART := preload("res://assets/bg/school/paint/entrance_detail.png")
+# Inverse of make_building_layers.py entrance() placement: use the original
+# close-view pixels directly, rather than its 34.8%-size facade copy.
+const ENTRANCE_SCALE := 0.348
+const ENTRANCE_OFFSET := Vector2(912.0-328.0*ENTRANCE_SCALE,668.0-692.0*ENTRANCE_SCALE)
 const PAINT_SIZE := Vector2(2168, 725)
 const PPM := 50.0
 const PAINT_ORIGIN := Vector2(-1083.5 / PPM, 668.0 / PPM)
@@ -369,9 +374,9 @@ func _entrance() -> void:
 		_box("cement", x0 + 0.25 + inset, x1 - 0.25 - inset, 0.0, top, 2.6 - 0.3 * i, 0.3)
 		_box("nosing", x0 + 0.25 + inset, x1 - 0.25 - inset, top - 0.02, top + 0.003, 2.62 - 0.3 * i, 2.57 - 0.3 * i)
 	# บอร์ด ถังขยะ ช่องลม กระถาง อยู่ในภาพทางเข้าของผู้เขียนบนผนังโถงแล้ว
-	_paint("front", x0, x1, CANOPY[2], CANOPY[3], CANOPY[4] + 0.003)
+	_paint("entrance", x0, x1, CANOPY[2], CANOPY[3], CANOPY[4] + 0.003)
 	for p: Array in CANOPY_PILLARS:
-		_paint("front", p[0], p[1], 0.0, CANOPY[2], 1.903)
+		_paint("entrance", p[0], p[1], 0.0, CANOPY[2], 1.903)
 
 
 ## ม้านั่งไม้ระแนง ขาเหล็ก
@@ -448,7 +453,11 @@ func _paint(layer: String, x0: float, x1: float, y0: float, y1: float, z: float)
 	for i: int in [0, 1, 2, 0, 2, 3]:
 		var v: Vector3 = vs[i]
 		st.set_normal(Vector3.BACK)
-		st.set_uv(Vector2((v.x - PAINT_ORIGIN.x) * PPM / PAINT_SIZE.x, (PAINT_ORIGIN.y - v.y) * PPM / PAINT_SIZE.y))
+		var pixel := Vector2((v.x-PAINT_ORIGIN.x)*PPM,(PAINT_ORIGIN.y-v.y)*PPM)
+		if layer == "entrance":
+			st.set_uv((pixel-ENTRANCE_OFFSET)/ENTRANCE_SCALE/Vector2(ENTRANCE_DETAIL_ART.get_size()))
+		else:
+			st.set_uv(pixel/PAINT_SIZE)
 		st.add_vertex(v)
 
 
@@ -506,13 +515,14 @@ func _commit() -> void:
 func _material(key: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	if key.begins_with("paint_"):
-		# ภาพของผู้เขียนมีแสงฝนของมันอยู่แล้ว: ไม่ลงแสงซ้ำ
+		# Keep the painting's authored light. Anisotropic mipmaps keep thin
+		# window frames clearer down a corridor without pixel snapping bands.
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		# The rear wall needs complete doors/windows behind the foreground
-		# pillars and parapets. The old generated back.png is kept as source
-		# evidence, but its stretched fills must not be used for this surface.
-		m.albedo_texture = WALL_REPAIR_ART if key == "paint_back" else load(PAINT_DIR + key.substr(6) + ".png")
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		if key == "paint_entrance":
+			m.albedo_texture = ENTRANCE_DETAIL_ART
+		else:
+			m.albedo_texture = WALL_DETAIL_ART if key == "paint_back" else load(PAINT_DIR + key.substr(6) + ".png")
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		m.alpha_scissor_threshold = 0.5
 		return m
