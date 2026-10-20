@@ -98,6 +98,7 @@ var _close_from := Vector2.ZERO
 var _time := 0.0
 var _last_frame := -1
 var _bars: Array[ColorRect] = []
+var _moved := []                                # [โหนด, พ่อเดิม, ลำดับเดิม] ที่ย้ายมาวาดในคัทซีน (คืนด้วย restore())
 
 
 ## ปุ่ม "ข้ามทางม้าลาย" กลางล่างจอ กะพริบเบาๆ กดแล้วหายไป (คลิก แตะ หรือ Enter/Space)
@@ -164,6 +165,7 @@ func play() -> void:
 		var rain_layer := CanvasLayer.new()
 		rain_layer.layer = 4
 		add_child(rain_layer)
+		_moved.append([rain, rain.get_parent(), rain.get_index()])
 		rain.reparent(rain_layer, false)
 
 	_feet = Vector2(hero.position.x + 10.0, hero.position.y + 121.0)
@@ -192,11 +194,13 @@ func play() -> void:
 		var foot := crossing_signal.position + POLE_FOOT
 		_pole_z = FOCAL / (foot.y - 180.0 - 23.0)
 		_pole_x = (foot.x - _feet.x) * _pole_z / FOCAL
+		_moved.append([crossing_signal, crossing_signal.get_parent(), crossing_signal.get_index()])
 		crossing_signal.reparent(pair_layer, false)
 		crossing_signal.modulate = _pair.modulate
 	pair_layer.add_child(_pair)
 	# ท่ายืนเดิม: ย้ายตัวละครจริงออกจากฉากที่ถูกหมุน (ไม่ถูกบิด) มาวาดตั้งตรงด้วยกล้องเดียวกับภาพเดินคู่ ใต้ภาพเดินคู่
 	_characters = hero.get_parent() as Node2D
+	_moved.append([_characters, _characters.get_parent(), _characters.get_index()])
 	_characters.reparent(pair_layer, false)
 	pair_layer.move_child(_characters, 0)
 	_pair_alpha = _pair.modulate.a
@@ -266,6 +270,27 @@ func _place() -> void:
 		# ฉากหลังถอยตามกล้องช้ากว่าที่ทั้งคู่ทิ้งเสาไว้ข้างหลัง: ก่อนเสาจะเลยไปอยู่หลังกำแพง เสาจางหายไปในม่านฝน
 		var gap := (WALL_DEPTH - cam_walked * WALL_FOLLOW) - _pole_z
 		crossing_signal.modulate.a = smoothstep(0.3, 2.0, gap)
+
+
+## จบคัทซีน (จอดำแล้ว): คืนตัวละคร ฝน และเสาไฟกลับเข้าฉากที่เดิม กล้องกลับมาตามพระเอก ก่อน queue_free()
+## (ไม่งั้นโหนดที่ย้ายมาวาดในชั้นของคัทซีนหายไปพร้อมคัทซีน) ฉากต่อไปจึงใช้ตัวละครชุดเดิมได้
+func restore() -> void:
+	set_process(false)
+	_moved.reverse()                            # ย้อนลำดับที่ย้ายออก: ทุกโหนดกลับไปลำดับเดิมพอดี
+	for entry in _moved:
+		var node: Node = entry[0]
+		node.reparent(entry[1], false)
+		(entry[1] as Node).move_child(node, entry[2])
+	_moved.clear()
+	_characters.visible = true
+	_characters.position = Vector2.ZERO
+	_characters.scale = Vector2.ONE
+	if crossing_signal:
+		crossing_signal.scale = Vector2.ONE
+		crossing_signal.z_index = 0
+	camera.zoom = Vector2.ONE
+	camera.position.y = 180.0
+	camera.set_process(true)
 
 
 ## จุดบนจอช็อตกว้าง -> บนจอจริง (ช็อตแคบหน้า: ขยายรอบหน้าทั้งคู่ ไม่งั้นเหมือนเดิม)

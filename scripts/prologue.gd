@@ -3,8 +3,9 @@ extends Node
 ## การ์ดชื่อตอน -> ซันที่บ้าน (เล่าบนจอดำ) -> ออกมาบนถนน -> ผู้เล่นเดินไปทางม้าลาย (ขวาไปซ้าย) -> รอไฟ ดูเวลา
 ## ควักโทรศัพท์ดูเวลา (ภาพตัดใกล้จอ 7:35) -> ถือโทรศัพท์ยืนรอ สายฝนเดินตากฝนมาจากทางซ้ายเงียบๆ จนชิดใต้ร่ม
 ## -> "ฉันเกลียดฤดูฝน" ซันสะดุ้งเก็บโทรศัพท์
-## -> ไฟเขียว -> ปุ่ม "ข้ามทางม้าลาย" -> คัทซีนแบบหนัง: ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมบทตอนจบ -> จอดำ -> แตะเพื่อเล่นอีกครั้ง
-## ผู้เล่นบังคับเดินได้เฉพาะช่วงเดินไปทางม้าลาย ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
+## -> ไฟเขียว -> ปุ่ม "ข้ามทางม้าลาย" -> คัทซีนแบบหนัง: ทั้งคู่เดินข้ามใต้ร่มเดียวกันพร้อมเสียงเล่า "end" -> จอดำ
+## -> เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียนจนถึงประตู เธอเดินเข้าไปหายไป (scripts/school_walk.gd) -> จอดำ -> ปุ่ม "ออก"
+## ผู้เล่นบังคับเดินได้ช่วงเดินไปทางม้าลายและช่วงเดินไปโรงเรียน ที่เหลือเล่นเอง (แตะเพื่อไปบรรทัดถัดไป)
 
 @export_file("*.json") var script_file := "res://data/prologue.json"
 @export var hero: Node2D
@@ -108,7 +109,28 @@ func _crossing() -> void:
 	await _say("end")
 	await get_tree().create_timer(1.2).timeout
 	await cards.fade_to_black()
+	cross.restore()                            # ตัวละคร ฝน เสาไฟ กลับเข้าฉาก (ฉากต่อไปใช้ต่อ)
 	cross.queue_free()                         # จอดำของคัทซีน (ชั้น 22) บังจอดำมีฝนกับ "แตะเพื่อเล่นอีกครั้ง" (ชั้น 20)
+	await _school()
+	await _finish()
+
+
+## เดินใต้ร่มเดียวกันไปจนถึงประตูโรงเรียน (เริ่มใต้จอดำ จบที่จอดำ)
+func _school() -> void:
+	var school := SchoolWalk.new()
+	school.prologue = self
+	school.hero = hero
+	school.heroine = heroine
+	school.camera = camera
+	school.dialogue_box = dialogue_box
+	school.cards = cards
+	add_child(school)
+	school.setup()
+	await school.play()
+	await cards.fade_to_black()
+
+
+func _finish() -> void:
 	await PromptButton.open(dialogue_box.get_parent(), "ออก").chosen
 	_leave_fullscreen()
 	await cards.wait_restart()
@@ -143,10 +165,18 @@ func debug_crossing() -> void:
 	await _crossing()
 
 
+## ทางลัดสำหรับทดสอบ (เปิดเกมด้วย #school ท้ายลิงก์): เริ่มที่ช่วงเดินไปโรงเรียนเลย
+func debug_school() -> void:
+	dialogue_box.line_started.connect(_on_line)
+	await _school()
+	await _finish()
+
+
 ## สิ่งที่เกิดในฉากตอนบรรทัดที่มี "event" ขึ้นมา
 func _on_line(line: Dictionary) -> void:
-	# บรรทัดที่มีชื่อผู้พูด (เธอ: "???") = ฟองคำพูดเด้งขึ้นเหนือหัวเธอ บรรทัดเสียงในใจซันไม่มี
-	_show_bubble(str(line.get("speaker", "")) != "")
+	# บรรทัดที่เธอพูด (ชื่อผู้พูด "???") = ฟองคำพูดเด้งขึ้นเหนือหัวเธอ เสียงในใจซันและที่ซันพูด ("ซัน") ไม่มี
+	var speaker := str(line.get("speaker", ""))
+	_show_bubble(speaker != "" and speaker != "ซัน")
 	match str(line.get("event", "")):
 		"jolt":                                 # ซันสะดุ้งเล็กน้อย แล้วเก็บโทรศัพท์
 			hero.put_away_phone()
@@ -324,9 +354,9 @@ func _show_bubble(on: bool) -> void:
 		t.tween_property(_bubble, "scale", Vector2.ONE, 0.25)
 
 
-func _show_hint() -> void:
+func _show_hint(text := "◀  เดินไปโรงเรียน") -> void:
 	_hint = Label.new()
-	_hint.text = "◀  เดินไปโรงเรียน"
+	_hint.text = text
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_font_size_override("font_size", 15)
 	_hint.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0))

@@ -69,10 +69,14 @@ func _ready() -> void:
 		ambience.stop()
 		_ambience_db = ambience.volume_db
 	cards.restart_pressed.connect(func(): get_tree().reload_current_scene())
-	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hash")) == "#cross":
+	var hash := str(JavaScriptBridge.eval("location.hash")) if OS.has_feature("web") else ""
+	if hash == "#cross" or hash == "#school":
 		if ambience:
 			ambience.play()
-		prologue.debug_crossing()              # ทดสอบช่วงข้ามทางม้าลายอย่างเดียว
+		if hash == "#cross":
+			prologue.debug_crossing()          # ทดสอบช่วงข้ามทางม้าลาย (ต่อด้วยเดินไปโรงเรียน)
+		else:
+			prologue.debug_school()            # ทดสอบช่วงเดินไปโรงเรียนอย่างเดียว
 		return
 	# วิดีโอเปิดเรื่องเล่นทันทีที่แตะเพื่อเริ่ม (scripts/intro_video.gd) จบแล้วค่อยเปิดเสียงฝนของเกม
 	var intro := IntroVideo.new()
