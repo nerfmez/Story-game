@@ -1,0 +1,141 @@
+{
+  "generator": "Built-in imagegen",
+  "revision": 2,
+  "common_prompt": "Use case: illustration-story. Asset: ONE seated classroom NPC turnaround sprite atlas, transparent alpha. Four separate drawings of THE SAME one character in a precise equal 2 by 2 grid: top-left FRONT, top-right BACK, bottom-left nose LEFT profile, bottom-right nose RIGHT profile. All show full body from head to shoes in the specified seated pose, supported by an invisible chair, thighs horizontal, bent knees and feet resting on floor. Maintain the SAME posture and body build in all four directions; comfortable natural teenage anatomy, not chibi. No furniture, no desk, no chair pixels, no environment, no labels, no grid lines. Leave generous transparent margins in each cell. Art: simple low-detail pixel art for a background student in the referenced game classroom, clear bold pixel clusters, two shadow tones, muted school colors, dark pixel outlines; small simple eyes, no sparkling highlights, no elaborate face or hair strand detail. Character must look like an ordinary Thai high-school student with an individual body shape and recognizable personality, not a polished protagonist clone. Clean genuine transparent background with zero scenery, glow or vignette. Referenced image is classroom STYLE AND SCALE ONLY; do not draw the classroom.",
+  "characters": [
+    {
+      "id": "boy_buzz",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Broad-shouldered athletic boy, tanned skin, very short black BUZZ CUT, square jaw and small narrow eyes. Relaxed confident pose: torso leaned back a little, one hand resting on thigh, other arm loosely bent to scratch the back of his neck. Knees comfortably apart."
+    },
+    {
+      "id": "boy_stocky",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Noticeably STOCKY boy, soft round cheeks, wider waist and short height, straight black bowl haircut with a flat fringe. Easygoing slightly amused face. Sitting comfortably with legs apart and a rounded relaxed back, one hand over his belly and the other resting on a thigh. Do not make him slender."
+    },
+    {
+      "id": "boy_reader",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Very SLIM lanky boy, long narrow face, neat FLAT SIDE-PARTED BLACK hair, small thin rectangular glasses. Introverted focused pose: head bowed to a SMALL OPEN BOOK held in both hands just above his lap, elbows close to body, ankles side by side."
+    },
+    {
+      "id": "boy_curly",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Boy with short TIGHT CURLY BLACK hair, medium-dark skin, broad nose, slightly prominent ears, compact average build. Sociable cheerful pose: torso turned slightly toward his left neighbor, one hand making a small casual gesture at chest height, other hand on his knee. Keep gesture understated."
+    },
+    {
+      "id": "boy_sleepy",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Narrow-shouldered boy with flat slightly overgrown STRAIGHT BLACK CENTER-PART hair, drooping eyelids, long sleepy face. Seated slouching forward with rounded shoulders, elbows supported on his thighs, hands hanging loosely between knees, head tilted down slightly. Natural tired student, head clearly visible."
+    },
+    {
+      "id": "boy_daydream",
+      "detail": "White short-sleeve Thai school button-down shirt, dark navy shorts above knees with black belt, white calf socks and plain black school shoes. Tall thin boy with short BLACK hair brushed UP and back, high forehead, angular cheekbones and no glasses. Quiet daydreamer leaning slightly to one side, chin supported in one hand with that elbow resting on his knee, free hand relaxed on his other thigh."
+    },
+    {
+      "id": "girl_braided",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Girl with ONE long neat BLACK BRAID over a shoulder, oval face, medium build, tidy straight posture. Conscientious personality: holding a small closed notebook on her lap with one hand and a pencil loosely in the other, knees together and feet aligned."
+    },
+    {
+      "id": "girl_short",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Athletic girl with very SHORT BLACK PIXIE hair exposing ears, tanned skin, small angular eyes, flat no-nonsense eyebrows and a square-ish face. Sitting casually angled slightly to her right, one elbow resting back on the invisible chair back, other hand on her knee. Skirt remains below knees and legs relaxed but modestly aligned."
+    },
+    {
+      "id": "girl_bob_v2",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Short plump girl, rounded cheeks, straight BLACK CHIN-LENGTH BOB with blunt bangs, small eyes and a shy expression. Slightly hunched shoulders, hands holding her own fingers nervously on her lap, knees and shoes close together. Do not give her a slim heroine body."
+    },
+    {
+      "id": "girl_ponytail_v2",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Sturdy medium-height girl, a HIGH SINGLE BLACK PONYTAIL with plain dark hair elastic, broad forehead, friendly easy smile and small eyes. Confident laid-back pose: torso leaning back slightly, arms loosely folded across her chest, feet comfortably planted. Clearly different silhouette from long twin pigtails."
+    },
+    {
+      "id": "girl_glasses",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Very tall SLENDER girl, long STRAIGHT BLACK hair with CENTER PART and no fringe, elongated face, small round wire-frame glasses, reserved expression. Sits upright while one hand adjusts her glasses at temple and the other rests on her lap. Neat feet side by side."
+    },
+    {
+      "id": "girl_wavy",
+      "detail": "Authentic THAI upper-secondary school uniform (\u0e21\u0e31\u0e18\u0e22\u0e21\u0e1b\u0e25\u0e32\u0e22): plain WHITE SHORT-SLEEVE BUTTON-DOWN SHIRT with SMALL POINTED TURN-DOWN SHIRT COLLAR, shirt TUCKED INTO dark navy/black PLEATED SKIRT reaching BELOW KNEES, a visible plain BLACK WAIST BELT with small silver buckle, white ankle socks, BLACK CLOSED-TOE MARY JANE school shoes. Small subtle dark blue embroidery mark on chest only, no readable text. Crucial: NO sailor collar, NO square navy bib, NO neck bow, NO necktie, NO Japanese uniform. Average-height girl with THICK SHOULDER-LENGTH WAVY BLACK hair, broad low eyebrows, round nose and medium-dark skin, average slightly broad build. Relaxed thoughtful pose: body gently leaned to one side, one hand brushing hair behind her ear, free hand resting loosely on thigh, ankles lightly crossed on floor."
+    }
+  ],
+  "packing": {
+    "frame_size": [
+      160,
+      192
+    ],
+    "output_frames": [
+      "front",
+      "back",
+      "left",
+      "right"
+    ],
+    "source_cells": {
+      "boy_stocky": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "boy_buzz": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "boy_curly": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "boy_sleepy": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "boy_reader": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "boy_daydream": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "girl_short": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "girl_ponytail_v2": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "girl_braided": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "girl_wavy": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "girl_bob_v2": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "girl_glasses": [
+        0,
+        1,
+        3,
+        2
+      ]
+    }
+  }
+}

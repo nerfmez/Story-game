@@ -11,6 +11,7 @@ func _run() -> void:
 	var students = room.get_node("SeatedStudents")
 	assert(students.get_child_count() == 30, "Each of the 30 chairs needs one occupant")
 	var leads := {}
+	var appearances := {}
 	for student in students.get_children():
 		var seat: int = student.get_meta("seat")
 		var chair = room.get_node("StudentDesks/Desk%02d/Chair" % seat)
@@ -20,9 +21,13 @@ func _run() -> void:
 		assert(student.texture.get_width() == 640 and student.texture.get_height() == 192)
 		assert(student.alpha_cut == SpriteBase3D.ALPHA_CUT_DISCARD and not student.no_depth_test, "Desks must occlude the seated body")
 		var id: String = student.get_meta("character")
+		appearances[id] = appearances.get(id, 0) + 1
 		if id in ["sun", "saifon"]:
 			assert(not leads.has(id), "Duplicate lead")
 			leads[id] = student
+	assert(appearances.size() == 14, "Class must contain 12 distinct NPC designs plus two leads")
+	for id in appearances:
+		assert(appearances[id] <= 3, "One NPC design repeated too often")
 	assert(leads.saifon.get_meta("row") == 4 and leads.saifon.get_meta("column") == 0)
 	assert(leads.sun.get_meta("row") == 3 and leads.sun.get_meta("column") == 0)
 	assert(leads.sun.position.z < leads.saifon.position.z)
@@ -32,5 +37,5 @@ func _run() -> void:
 		camera.global_position = target.global_position + sample[0]
 		students._update_views()
 		assert(target.frame == sample[1], "Wrong front/back/profile drawing")
-	print("PASS: 30 seated occupants; unique leads at seats 25/19; chair anchors, depth occlusion and four viewing directions")
+	print("PASS: 30 seated occupants, 12 NPC identities with <=3 copies each; unique leads at seats 25/19; chair anchors, depth occlusion and four viewing directions")
 	quit()
