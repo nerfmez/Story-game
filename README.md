@@ -72,8 +72,8 @@
      ป้าย "อาคาร 1" กับตราโรงเรียน ม่านฝน ในประตูมีขั้นบันได พื้นเปียก กระถางต้นไม้ และเสาธงชาติ
      แล้ว `python3 tools/draw_school_wall.py assets/bg/school/school_front.png assets/bg/school/school_front.png trees.png` วาดกำแพง (สีต่างกันทีละช่วงเสา คราบน้ำ ตะไคร่ดำเขียว จุดไลเคน กอตะไคร่ที่โคน) เสา
      ประตู (ป้าย "โรงเรียน" ฟอนต์ Sarabun) ทางเท้าเปียกที่สะท้อนกำแพง ขอบฟุตบาท และถนนใหม่เป็นพิกเซล 2x2 ทับ
-     แล้ว `python3 tools/cut_school_wall.py assets/bg/school/school_front.png trees.png assets/bg/school/school_wall.png`
-     เก็บไว้แค่ต้นไม้ กำแพง ทางเท้า ถนน (ฟ้า ตึกที่วาด และในประตูโปร่งใส): ฉากใช้ภาพนี้ ส่วนตึกข้างหลังคือโมเดล 3D
+     แล้ว `python3 tools/cut_school_wall.py assets/bg/school/school_front.png trees.png assets/bg/school/school_wall.png assets/bg/school/school_trees.png`
+     แยกเป็นกำแพง ทางเท้า ถนน กับต้นไม้อีกชั้น (ฟ้า ตึกที่วาด และในประตูโปร่งใส): ต้นไม้โยกเบาๆ (`shaders/tree_sway.gdshader`) ส่วนตึกข้างหลังคือโมเดล 3D
      (`SchoolBuildingView` ชั้นใต้สุด) กล้อง 3D เลื่อนตามกล้องเกมแต่ช้ากว่า (ตึกไกลกว่า) ถึงประตูมองเห็นทางเข้าอาคาร หมอกฝนสีฟ้าของฉาก
 
    - ทดสอบ: เปิดเกมด้วย `#school` ท้ายลิงก์ เริ่มที่ช่วงนี้เลย (`#cross` เริ่มที่ข้ามทางม้าลายแล้วต่อมาที่นี่)

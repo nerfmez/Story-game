@@ -13,6 +13,9 @@ extends Node
 signal left                                     # สายฝนเดินเข้าอาคารหายไปแล้ว
 
 const BG := preload("res://assets/bg/school/school_wall.png")
+## ต้นไม้ของผู้เขียนแยกเป็นชั้นของตัวเอง (หลังกำแพง) พุ่มโยกเบาๆ ตามลม
+const TREES := preload("res://assets/bg/school/school_trees.png")
+const TREE_SWAY := preload("res://shaders/tree_sway.gdshader")
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 ## ชั้นของฉากถนนที่ซ่อน (ฉากนี้ใช้ภาพหน้าโรงเรียนภาพเดียว ฝน/โทนสี/ตัวละครใช้ของเดิม)
 const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"TrainLayer", ^"HazeNear",
@@ -62,6 +65,7 @@ var cards: Node
 
 var _view: SchoolBuildingView
 var _bg: Sprite2D
+var _trees: Sprite2D
 var _entrance := false
 var _glance := false
 var _glance_layer: CanvasLayer
@@ -87,6 +91,15 @@ func setup() -> void:
 	bg.material = smooth
 	main.add_child(bg)
 	main.move_child(bg, hero.get_parent().get_index())       # หลังตัวละคร
+	_trees = Sprite2D.new()
+	_trees.texture = TREES
+	_trees.centered = false
+	_trees.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	var sway := ShaderMaterial.new()
+	sway.shader = TREE_SWAY
+	_trees.material = sway
+	main.add_child(_trees)
+	main.move_child(_trees, bg.get_index())                 # หลังกำแพง
 	var back := CanvasLayer.new()
 	back.layer = -1                                          # ใต้ฉากเกมทั้งหมด
 	add_child(back)
@@ -159,6 +172,7 @@ func play() -> void:
 func _to_entrance() -> void:
 	_entrance = true
 	_bg.visible = false
+	_trees.visible = false
 	_view.camera.fov = ENTRANCE_FOV
 	hero.min_x = ENTRANCE_STAND
 	hero.max_x = ENTRANCE_STAND
