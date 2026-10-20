@@ -24,11 +24,10 @@ const STOP_X := 1730.0
 const GATE_X := 1832.0
 ## ตึก 3D: ขนาด 15 px/ม. ตรงตึก (ชั้นละ ~50px หลังคาพ้นขอบจอ) โคนตึกอยู่แถว 200 (หลังกำแพง แถว 129-255)
 ## ตัวละครสูง 1.72 ม. = 120px: กล้องเกมเลื่อน 70px = กล้อง 3D เลื่อน 1 ม.
-## เมื่อกล้องเกมอยู่ที่ END_CAM ทางเข้าอาคาร (x 0) อยู่ตรงกลางประตู
+## ประตูโรงเรียนอยู่ตรงแนวทางเดินเข้าอาคาร (x 0 ของโมเดล): ยืนตรงประตูก็มองเห็นทางเดินตรงเข้าไปถึงทางเข้า
 const BUILDING_PPM := 15.0
 const GROUND_ROW := 200.0
 const HERO_PPM := 70.0
-const END_CAM := 1730.0
 ## ฝนหนักหน้าโรงเรียน: ตึกจมหมอกสีเดียวกับฟ้าของฉาก (ฟ้าฝน 8494aa ของ draw_school_building.py) มืดลงกว่าตอนมองใกล้
 const RAIN_SKY := Color("8494aa")
 const RAIN_FOG := 0.03
@@ -113,7 +112,7 @@ func _follow_camera() -> void:
 	var half_h := 180.0
 	var distance := half_h / (BUILDING_PPM * tan(deg_to_rad(cam.fov * 0.5)))
 	var centre := camera.get_screen_center_position().x
-	var x := (centre - END_CAM) / HERO_PPM - (GATE_X - END_CAM) / BUILDING_PPM
+	var x := (centre - GATE_X) / HERO_PPM
 	var y := (GROUND_ROW - half_h) / BUILDING_PPM
 	cam.position = Vector3(x, y, distance)
 	cam.rotation = Vector3.ZERO
