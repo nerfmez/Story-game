@@ -70,11 +70,13 @@ func _ready() -> void:
 		_ambience_db = ambience.volume_db
 	cards.restart_pressed.connect(func(): get_tree().reload_current_scene())
 	var hash := str(JavaScriptBridge.eval("location.hash")) if OS.has_feature("web") else ""
-	if hash == "#cross" or hash == "#school":
+	if hash == "#cross" or hash == "#school" or hash == "#class":
 		if ambience:
 			ambience.play()
 		if hash == "#cross":
 			prologue.debug_crossing()          # ทดสอบช่วงข้ามทางม้าลาย (ต่อด้วยเดินไปโรงเรียน)
+		elif hash == "#class":
+			prologue.debug_class()             # ทดสอบห้องเรียนอย่างเดียว
 		else:
 			prologue.debug_school()            # ทดสอบช่วงเดินไปโรงเรียนอย่างเดียว
 		return

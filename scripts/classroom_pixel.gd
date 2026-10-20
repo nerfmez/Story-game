@@ -1,5 +1,6 @@
 extends Control
-## Independent Godot 4.3 classroom preview. No connection to the story flow.
+## Godot 4.3 classroom. Opened on its own it is a free-camera preview; the story (scripts/classroom_scene.gd)
+## sets scripted before adding it, which turns off the preview's camera keys, touch look and web bridge.
 
 @onready var viewport: SubViewport = $View/SubViewport
 @onready var camera: Camera3D = $View/SubViewport/Room/Camera3D
@@ -18,13 +19,17 @@ var hud_visible := true
 var web_callback: JavaScriptObject
 var touch_move := Vector2.ZERO
 var fan_rotors: Array[Node3D] = []
+var scripted := false
 
 func _ready() -> void:
 	_initialize_static_batches()
 	for node in $View/SubViewport/Room.find_children("Rotor", "Node3D", true, false):
 		if node.get_meta("animated_rotor",false): fan_rotors.append(node)
-	_set_shot(0)
 	viewport.size = pixel_sizes[pixel_index]
+	if scripted:
+		$HUD.visible = false
+		return
+	_set_shot(0)
 	_update_status()
 	var args := OS.get_cmdline_user_args()
 	for i in args.size():
@@ -108,6 +113,8 @@ func _update_status() -> void:
 	_publish_web_state()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if scripted:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_1: _set_shot(0)
@@ -137,6 +144,8 @@ func _animate_fans(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_animate_fans(delta)
+	if scripted:
+		return
 	var move := Vector3(touch_move.x, 0, touch_move.y)
 	if Input.is_physical_key_pressed(KEY_W): move.z -= 1.0
 	if Input.is_physical_key_pressed(KEY_S): move.z += 1.0
