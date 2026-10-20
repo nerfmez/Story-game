@@ -125,7 +125,6 @@ func _materials() -> void:
 	_material("paper_coral", "bd9b85")
 	_material("cork", "816d4f")
 	_material("glass", "99b5c1")
-	_material("corridor_glass", "8da4b1", "window")
 	_material("bag", "26394f")
 	_material("curtain", "b9c3bf", "plaster")
 	_material("leaf", "4f7168")
@@ -174,7 +173,12 @@ func _architecture() -> void:
 	_box(a, "FrontWall", Vector3(10.8, 3.6, 0.18), Vector3(0, 1.8, -6), "plaster")
 	_box(a, "FrontDado", Vector3(10.8, 0.85, 0.025), Vector3(0, 0.425, -5.9), "lower")
 	_box(a, "RearWall", Vector3(10.8, 3.6, 0.18), Vector3(0, 1.8, 6), "plaster")
-	_box(a, "RightWall", Vector3(0.18, 3.6, 12), Vector3(5.4, 1.8, 0), "plaster")
+	# Corridor wall with real openings for its three windows (glass y 1.3-2.7), so the corridor shows through.
+	_box(a, "RightWallLower", Vector3(0.18, 1.3, 12), Vector3(5.4, 0.65, 0), "plaster")
+	_box(a, "RightWallUpper", Vector3(0.18, 0.9, 12), Vector3(5.4, 3.15, 0), "plaster")
+	for span in [[-6.0, -2.475], [-0.325, 0.325], [2.475, 3.075], [5.225, 6.0]]:
+		var length: float = span[1] - span[0]
+		_box(a, "RightWallPier", Vector3(0.18, 1.4, length), Vector3(5.4, 2.0, (span[0] + span[1]) * 0.5), "plaster")
 	_box(a, "RightDado", Vector3(0.03, 0.85, 12), Vector3(5.29, 0.425, 0), "lower")
 	_box(a, "LeftWindowSillWall", Vector3(0.18, 0.95, 12), Vector3(-5.4, 0.475, 0), "plaster")
 	_box(a, "LeftUpperWall", Vector3(0.18, 0.48, 12), Vector3(-5.4, 3.36, 0), "plaster")
@@ -214,8 +218,12 @@ func _windows() -> void:
 				_box(a, "CurtainFold", Vector3(0.06 + (fold % 2) * 0.04, 1.84, 0.11), Vector3(-5.05, 2.06, z + 0.85 + fold * 0.1), "curtain")
 	# Right wall is on the open-corridor side of a Thai school.
 	for z in [-1.4, 1.4, 4.15]:
-		_box(a, "CorridorWindowFrame", Vector3(0.045, 1.4, 2.15), Vector3(5.28, 2.0, z), "frame")
-		_box(a, "CorridorWindowGlass", Vector3(0.05, 1.24, 1.99), Vector3(5.24, 2.0, z), "corridor_glass")
+		for y in [1.32, 2.68]:
+			_box(a, "CorridorWindowFrame", Vector3(0.12, 0.08, 2.15), Vector3(5.3, y, z), "frame")
+		for dz in [-1.035, 1.035]:
+			_box(a, "CorridorWindowFrame", Vector3(0.12, 1.4, 0.08), Vector3(5.3, 2.0, z + dz), "frame")
+		var pane := _box(a, "CorridorWindowGlass", Vector3(0.05, 1.24, 1.99), Vector3(5.24, 2.0, z), "glass")
+		pane.material_override = mats["clear_glass"]
 		for dz in [-0.68, 0.0, 0.68]:
 			_box(a, "CorridorWindowDivider", Vector3(0.08, 1.35, 0.035), Vector3(5.18, 2.0, z + dz), "frame")
 		for y in [1.62, 2.33]:
@@ -321,25 +329,32 @@ func _ceiling() -> void:
 			blade.rotation.y = i * TAU / 3 + 0.25
 			_box(blade, "BladeMesh", Vector3(0.65, 0.025, 0.14), Vector3(0.42, 0, 0), "silver")
 
+## What the windows look out on: two views rendered from the school model (PR12,
+## tools/render_classroom_views.gd), the classroom being a 2nd-floor room of its left wing. Each is a flat
+## card CARD_DISTANCE from the room's middle, the size it was rendered at, so it lines up from there:
+## over the corridor (parapet, pillars, the courtyard) on the right, behind the building on the left.
+const CARD_DISTANCE := 9.4
+const CARD_SIZE := Vector2(16.0, 7.0)
+const CARD_EYE := 2.0
+
 func _outdoors() -> void:
 	var a := _group("OutsideWindow")
-	_box(a, "FarBuilding", Vector3(1.0, 6.0, 22), Vector3(-17, 0.6, 0), "outside")
-	for z in range(-12, 13, 3):
-		_box(a, "FarBuildingWindow", Vector3(0.03, 0.6, 1.3), Vector3(-16.48, 2.4, z), "frame")
-	for z in [-7.0, -2.2, 3.0, 7.0]:
-		_tube(a, "TreeTrunk", Vector3(-8.5, -1, z), Vector3(-8.5, 2.3, z), 0.13, "bark")
-		for i in 8:
-			var foliage := MeshInstance3D.new()
-			foliage.name = "Foliage"
-			var mesh := SphereMesh.new()
-			mesh.radius = rng.randf_range(0.7, 1.3)
-			mesh.height = mesh.radius * 1.2
-			mesh.radial_segments = 7
-			mesh.rings = 3
-			mesh.material = mats[["leaf", "leaf_light", "leaf_dark"][i % 3]]
-			foliage.mesh = mesh
-			foliage.position = Vector3(-8.5 + rng.randf_range(-1, 1), 1.1 + rng.randf_range(-0.5, 1.5), z + rng.randf_range(-1.5, 1.5))
-			a.add_child(foliage)
+	for v in [["view_corridor", 1.0], ["view_back", -1.0]]:
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_texture = load("res://assets/classroom/" + str(v[0]) + ".png")
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		var quad := QuadMesh.new()
+		quad.size = CARD_SIZE
+		quad.material = mat
+		var card := MeshInstance3D.new()
+		card.name = "View" + str(v[0]).capitalize().replace(" ", "")
+		card.mesh = quad
+		card.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var side: float = v[1]
+		card.position = Vector3(side * CARD_DISTANCE, CARD_EYE, 0.0)
+		card.rotation.y = -side * PI * 0.5                    # facing the room, its right edge on the viewer's right
+		a.add_child(card)
 
 func _lighting() -> void:
 	var a := _group("Lighting")

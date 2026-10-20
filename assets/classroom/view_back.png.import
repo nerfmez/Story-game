@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://sy1imylje56p"
-path="res://.godot/imported/window.png-91e3e843037bb962b1f59c3cc805269a.ctex"
+uid="uid://d0y2c6k6wjmmw"
+path="res://.godot/imported/view_back.png-d60364dc65c9587a570610d0e2e11b5f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/classroom/window.png"
-dest_files=["res://.godot/imported/window.png-91e3e843037bb962b1f59c3cc805269a.ctex"]
+source_file="res://assets/classroom/view_back.png"
+dest_files=["res://.godot/imported/view_back.png-d60364dc65c9587a570610d0e2e11b5f.ctex"]
 
 [params]
 
@@ -31,4 +31,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
