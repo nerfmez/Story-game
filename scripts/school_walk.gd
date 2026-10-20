@@ -4,8 +4,8 @@ extends Node
 ## ทั้งคู่เดินใต้ร่มเดียวกันเลียบกำแพงโรงเรียน (มุมข้าง ผู้เล่นเดินเอง สายฝนเดินข้างๆ) ข้ามถนนมาแล้วเดินต่อไปข้างหน้า
 ## มองจากอีกฝั่งถนนจึงเดินซ้ายไปขวา ซันชิดกำแพง สายฝนฝั่งถนน
 ## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ภาพใกล้หน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
-## ถึงประตูโรงเรียน: บท "gate" แล้วตัดภาพไปหน้าอาคาร (โมเดล 3D มุมข้างตามขนาดตัวละคร): ทั้งคู่เดินใต้ร่มมาถึงหลังคา
-## ทางเข้า บท "entrance" (ซัน: "นี่..." event "leave" = เธอไม่ต้องพึ่งร่มแล้ว เดินขึ้นบันไดเข้าอาคารหายไปก่อน) แล้ว "gate_after"
+## ถึงประตูโรงเรียน: บท "gate" แล้วตัดภาพไปหน้าอาคาร (โมเดล 3D มุมข้างตามขนาดตัวละคร): ทั้งคู่ยืนใต้ร่มหน้าหลังคา
+## ทางเข้าแล้ว บท "entrance" (ซัน: "นี่..." event "leave" = เธอไม่ต้องพึ่งร่มแล้ว เดินขึ้นบันไดเข้าอาคารหายไปก่อน) แล้ว "gate_after"
 ## ฉากหลัง: tools/compose_school.py (ภาพหน้าโรงเรียนจากผู้เขียน กลับซ้ายขวา ต่อกำแพงให้ยาว)
 ## ตัวตึกหลังกำแพงคือโมเดล 3D (SchoolModel3D ผ่าน SchoolBuildingView) วางใต้ชั้นต้นไม้+กำแพง (tools/cut_school_wall.py)
 ## กล้อง 3D เลื่อนตามกล้องเกม: ตึกอยู่ไกลกว่ากำแพงจึงเลื่อนช้ากว่า มองผ่านประตูเห็นทางเข้าอาคาร
@@ -29,14 +29,13 @@ const GATE_X := 1832.0
 const BUILDING_PPM := 15.0
 const GROUND_ROW := 200.0
 const HERO_PPM := 70.0
-## หน้าอาคาร: ทางเข้า (x 0 ของโมเดล) อยู่ที่ x 2D นี้ ทั้งคู่เดินเลียบหน้าอาคารบนลานปูน (z ENTRANCE_Z หน้าบันได
+## หน้าอาคาร: ทางเข้า (x 0 ของโมเดล) อยู่ที่ x 2D นี้ ทั้งคู่ยืนอยู่บนลานปูนหน้าอาคาร (z ENTRANCE_Z หน้าบันได
 ## ทางเข้า) ตัวละครอยู่ที่ระยะนั้นพอดี: 70px/ม. เท้าแถว 273 (กล้องกว้างขึ้นให้อยู่หน้าแนวพุ่มไม้ z 7.3: ไม่บังจอ)
 const ENTRANCE_X := 1000.0
 const ENTRANCE_Z := 3.3
 const ENTRANCE_FOV := 66.0
 const FEET_ROW := 273.0
-const ENTRANCE_START := ENTRANCE_X - 520.0
-const ENTRANCE_STOP := ENTRANCE_X - 100.0
+const ENTRANCE_STAND := ENTRANCE_X - 100.0
 ## เธอเดินถึงกลางทางเข้า แล้วขึ้นบันไดลึกเข้าไปในโถง (สูงขึ้นบนจอ) พร้อมจางหาย
 const STEP_UP := 26.0
 ## ฝนหนักหน้าโรงเรียน: ตึกจมหมอกสีเดียวกับฟ้าของฉาก (ฟ้าฝน 8494aa ของ draw_school_building.py) มืดลงกว่าตอนมองใกล้
@@ -146,8 +145,6 @@ func play() -> void:
 	await cards.fade_to_black()
 	_to_entrance()
 	await cards.reveal_scene()
-	hero.walk_to(ENTRANCE_STOP)
-	await hero.arrived
 	await get_tree().create_timer(0.5).timeout
 	await prologue._say("entrance")
 	if heroine.visible:
@@ -163,10 +160,10 @@ func _to_entrance() -> void:
 	_entrance = true
 	_bg.visible = false
 	_view.camera.fov = ENTRANCE_FOV
-	hero.min_x = ENTRANCE_START
-	hero.max_x = ENTRANCE_STOP
-	hero.position.x = ENTRANCE_START
-	heroine.position.x = ENTRANCE_START + UNDER
+	hero.min_x = ENTRANCE_STAND
+	hero.max_x = ENTRANCE_STAND
+	hero.position.x = ENTRANCE_STAND
+	heroine.position.x = ENTRANCE_STAND + UNDER
 	heroine.follow(hero, UNDER)
 	_follow_camera()
 
