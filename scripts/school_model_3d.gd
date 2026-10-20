@@ -381,22 +381,6 @@ func _entrance() -> void:
 		_paint("entrance", p[0], p[1], 0.0, CANOPY[2], 1.903)
 
 
-## ม้านั่งไม้ระแนง ขาเหล็ก
-func _bench(base: Vector3, w: float) -> void:
-	var x0 := base.x - w / 2.0
-	var x1 := base.x + w / 2.0
-	var y := base.y
-	var z := base.z
-	for i in 3:
-		_box("wood", x0, x1, y + 0.47 + 0.11 * i, y + 0.55 + 0.11 * i, z - 0.18, z - 0.22)
-	for i in 2:
-		_box("wood", x0, x1, y + 0.4, y + 0.44, z + 0.12 - 0.17 * i, z - 0.03 - 0.17 * i)
-	for x: float in [x0 + 0.1, x1 - 0.14]:
-		_box("iron", x, x + 0.04, y, y + 0.42, z + 0.12, z + 0.08)
-		_box("iron", x, x + 0.04, y, y + 0.8, z - 0.18, z - 0.24)
-		_box("iron", x, x + 0.04, y + 0.36, y + 0.4, z + 0.14, z - 0.22)
-
-
 # ---------------------------------------------------------------- ลาน
 
 func _courtyard() -> void:
@@ -432,10 +416,6 @@ func _courtyard() -> void:
 		_box("hedge", minf(a, b), maxf(a, b), 0.0, 0.72, HEDGE[1], HEDGE[0])
 		_box("hedge", minf(a, b) + 0.06, maxf(a, b) - 0.06, 0.72, 0.8, HEDGE[1] - 0.06, HEDGE[0] + 0.06)
 		_box("edging", minf(a, b) - 0.06, maxf(a, b) + 0.06, 0.0, 0.12, HEDGE[1] + 0.08, HEDGE[1])
-	for pad: Vector2 in [Vector2(-5.6, 10.6), Vector2(6.2, 11.4)]:
-		_box("concrete", pad.x - 1.25, pad.x + 1.25, -0.01, 0.004, pad.y + 0.62, pad.y - 0.58)
-	_bench(Vector3(-5.6, 0.0, 10.6), 1.8)
-	_bench(Vector3(6.2, 0.0, 11.4), 1.8)
 
 
 # ---------------------------------------------------------------- เครื่องมือ
