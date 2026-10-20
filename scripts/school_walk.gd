@@ -6,10 +6,12 @@ extends Node
 ## ความคิดขึ้นเองตามระยะ (บท "school" + "at") บรรทัด event "glance" = ภาพใกล้หน้าเธอ (ซันแอบมอง) จนบรรทัดนั้นจบ
 ## ถึงประตูโรงเรียน: บท "gate" (ซัน: "นี่..." event "leave" = เธอเดินเข้าประตูหายไป) แล้ว "gate_after"
 ## ฉากหลัง: tools/compose_school.py (ภาพหน้าโรงเรียนจากผู้เขียน กลับซ้ายขวา ต่อกำแพงให้ยาว)
+## ตัวตึกหลังกำแพงคือโมเดล 3D (SchoolModel3D ผ่าน SchoolBuildingView) วางใต้ชั้นต้นไม้+กำแพง (tools/cut_school_wall.py)
+## กล้อง 3D เลื่อนตามกล้องเกม: ตึกอยู่ไกลกว่ากำแพงจึงเลื่อนช้ากว่า มองผ่านประตูเห็นทางเข้าอาคาร
 
 signal left                                     # สายฝนเดินเข้าประตูหายไปแล้ว
 
-const BG := preload("res://assets/bg/school/school_front.png")
+const BG := preload("res://assets/bg/school/school_wall.png")
 const SMOOTH_PIXEL := preload("res://shaders/smooth_pixel.gdshader")
 ## ชั้นของฉากถนนที่ซ่อน (ฉากนี้ใช้ภาพหน้าโรงเรียนภาพเดียว ฝน/โทนสี/ตัวละครใช้ของเดิม)
 const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"TrainLayer", ^"HazeNear",
@@ -20,6 +22,17 @@ const STREET := [^"Sky", ^"Wisps", ^"City", ^"HazeFar", ^"Birds", ^"Railway", ^"
 const START_X := 360.0
 const STOP_X := 1730.0
 const GATE_X := 1832.0
+## ตึก 3D: ขนาด 15 px/ม. ตรงตึก (ชั้นละ ~50px หลังคาพ้นขอบจอ) โคนตึกอยู่แถว 200 (หลังกำแพง แถว 129-255)
+## ตัวละครสูง 1.72 ม. = 120px: กล้องเกมเลื่อน 70px = กล้อง 3D เลื่อน 1 ม.
+## เมื่อกล้องเกมอยู่ที่ END_CAM ทางเข้าอาคาร (x 0) อยู่ตรงกลางประตู
+const BUILDING_PPM := 15.0
+const GROUND_ROW := 200.0
+const HERO_PPM := 70.0
+const END_CAM := 1730.0
+## ฝนหนักหน้าโรงเรียน: ตึกจมหมอกสีเดียวกับฟ้าของฉาก (ฟ้าฝน 8494aa ของ draw_school_building.py) มืดลงกว่าตอนมองใกล้
+const RAIN_SKY := Color("8494aa")
+const RAIN_FOG := 0.03
+const RAIN_EXPOSURE := 0.85
 const UNDER := -5.0                             # สายฝนเดินเคียงข้างซัน ใต้ร่มเดียวกัน
 ## เธออยู่ฝั่งถนน: เท้าต่ำกว่าตำแหน่งเดิม (161 ใน main.tscn) 4px ใกล้กล้องกว่า
 const ROAD_Y := 165.0
@@ -38,6 +51,7 @@ var camera: Camera2D
 var dialogue_box: DialogueBox
 var cards: Node
 
+var _view: SchoolBuildingView
 var _glance := false
 var _glance_layer: CanvasLayer
 var _glance_image: TextureRect
@@ -61,6 +75,19 @@ func setup() -> void:
 	bg.material = smooth
 	main.add_child(bg)
 	main.move_child(bg, hero.get_parent().get_index())       # หลังตัวละคร
+	var back := CanvasLayer.new()
+	back.layer = -1                                          # ใต้ฉากเกมทั้งหมด
+	add_child(back)
+	_view = SchoolBuildingView.new()
+	back.add_child(_view)
+	var env := _view.environment
+	env.fog_light_color = RAIN_SKY
+	env.fog_density = RAIN_FOG
+	env.tonemap_exposure = RAIN_EXPOSURE
+	var sky := env.sky.sky_material as ProceduralSkyMaterial
+	sky.sky_top_color = RAIN_SKY
+	sky.sky_horizon_color = RAIN_SKY.lightened(0.08)
+	_follow_camera()
 	hero.speed = SPEED
 	hero.walk_fps = hero.umbrella_walk_fps * SPEED / hero.umbrella_speed
 	hero.position.x = START_X
@@ -73,6 +100,23 @@ func setup() -> void:
 	camera.pan_to(320.0)
 	dialogue_box.set_subtitles(false)
 	dialogue_box.line_started.connect(_on_line)
+
+
+func _process(_delta: float) -> void:
+	if _view:
+		_follow_camera()
+
+
+## กล้อง 3D มองตรงไปที่หน้าตึก ห่างพอให้ได้ BUILDING_PPM สูงพอให้โคนตึกอยู่ที่ GROUND_ROW
+func _follow_camera() -> void:
+	var cam := _view.camera
+	var half_h := 180.0
+	var distance := half_h / (BUILDING_PPM * tan(deg_to_rad(cam.fov * 0.5)))
+	var centre := camera.get_screen_center_position().x
+	var x := (centre - END_CAM) / HERO_PPM - (GATE_X - END_CAM) / BUILDING_PPM
+	var y := (GROUND_ROW - half_h) / BUILDING_PPM
+	cam.position = Vector3(x, y, distance)
+	cam.rotation = Vector3.ZERO
 
 
 func play() -> void:

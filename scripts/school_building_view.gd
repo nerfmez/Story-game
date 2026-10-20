@@ -7,6 +7,7 @@ extends SubViewportContainer
 const SIZE := Vector2i(640, 360)
 
 var camera: Camera3D
+var environment: Environment                  # ฉากที่ใช้ปรับแสง/หมอกให้เข้ากับฉากตัวเองได้
 var school: SchoolModel3D
 var _viewport: SubViewport
 
@@ -78,6 +79,7 @@ func _environment() -> WorldEnvironment:
 	env.glow_hdr_threshold = 1.2
 	var node := WorldEnvironment.new()
 	node.environment = env
+	environment = env
 	return node
 
 
