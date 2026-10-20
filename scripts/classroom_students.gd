@@ -1,14 +1,36 @@
 extends Node3D
 ## Seated, camera-direction sprites. Seats stay fixed while only the drawing changes.
+## Classmates are background: their drawings are muted (less colour and contrast, a touch of the
+## room's cool light) so Sun and Saifon, in full colour, are the ones the eye goes to.
+const LEADS := ["sun", "saifon"]
+const EXTRA_BRIGHTNESS := 0.96
+const EXTRA_CONTRAST := 0.78
+const EXTRA_SATURATION := 0.5
+const EXTRA_TINT := Color(0.88, 0.91, 0.97)
 var _camera: Camera3D
 var _last_camera := Vector3.INF
 var _students: Array[Sprite3D] = []
 
 func _ready() -> void:
 	_camera = get_parent().get_node("Camera3D")
+	var muted := {}
 	for child in get_children():
-		_students.append(child as Sprite3D)
+		var student := child as Sprite3D
+		_students.append(student)
+		if str(student.get_meta("character", "")) in LEADS:
+			continue
+		if not muted.has(student.texture):
+			muted[student.texture] = _muted(student.texture)
+		student.texture = muted[student.texture]
+		student.modulate = EXTRA_TINT
 	_update_views()
+
+func _muted(texture: Texture2D) -> Texture2D:
+	var image := texture.get_image()
+	if image.is_compressed():
+		image.decompress()
+	image.adjust_bcs(EXTRA_BRIGHTNESS, EXTRA_CONTRAST, EXTRA_SATURATION)
+	return ImageTexture.create_from_image(image)
 
 func _process(_delta: float) -> void:
 	if _camera.global_position.distance_squared_to(_last_camera) > 0.0001:
