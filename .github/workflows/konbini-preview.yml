@@ -1,0 +1,56 @@
+name: Godot 4.3 konbini diorama preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scenes/konbini_diorama.tscn'
+      - 'scripts/konbini_*.gd'
+      - 'shaders/konbini_*.gdshader'
+      - 'tools/*konbini*'
+      - 'docs/konbini-diorama/**'
+      - '.github/workflows/konbini-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install virtual display
+        run: sudo apt-get update -qq && sudo apt-get install -y xvfb libgl1-mesa-dri
+      - name: Download Godot 4.3
+        run: |
+          curl -sSLf -o /tmp/godot43.zip https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          unzip -q /tmp/godot43.zip -d /tmp/godot43
+          echo /tmp/godot43 >> "$GITHUB_PATH"
+      - name: Stage the independent diorama project
+        run: python3 tools/package_konbini.py --output build/konbini
+      - name: Import, build and check the diorama
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          project="$PWD/build/konbini/Konbini-Diorama-Godot43"
+          Godot_v4.3-stable_linux.x86_64 --headless --editor --path "$project" --import --quit
+          xvfb-run -a Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy --script res://tools/test_konbini_diorama.gd
+      - name: Render the six camera presets
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          project="$PWD/build/konbini/Konbini-Diorama-Godot43"
+          for view in 0 1 2 3 4 5; do
+            xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy -- --view=$view --capture "$PWD/build/konbini/view-$((view+1)).png"
+            test -s "build/konbini/view-$((view+1)).png"
+          done
+      - name: Archive the exact tested Godot project
+        run: python3 tools/package_konbini.py --output build/konbini --zip-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: konbini-diorama-godot43
+          path: |
+            build/konbini/*.png
+            build/konbini/*.zip
+          if-no-files-found: error

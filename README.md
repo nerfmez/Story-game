@@ -4,6 +4,8 @@
 
 ฉากทดลองใหม่: [ห้องเรียนไทย 3D Pixel พร้อมวิธีเปิดและภาพเรนเดอร์](docs/classroom-3d/README.md) — เปิด `scenes/classroom_3d_pixel.tscn` แล้วกด F6 เป็นฉากแยกจากบทและฉากเริ่มเกม
 
+ฉากทดลองใหม่: [ร้านสะดวกซื้อหัวมุมถนน คืนฝนตก (Diorama 3D แบบ Cel-shaded)](docs/konbini-diorama/README.md) — เปิด `scenes/konbini_diorama.tscn` แล้วกด F6 ลากเพื่อหมุน เลื่อน และซูมรอบโมเดล ไม่มี UI บนจอ
+
 ## เอกสารโครงเรื่องหลัก
 
 [ถ้าหากโลกนี้ไม่มีฤดูฝน — โครงเรื่องที่ปรับร่วมกัน](story/story-bible-th.md)
