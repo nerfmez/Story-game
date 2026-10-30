@@ -1,7 +1,8 @@
 extends Node3D
 ## Rainy-night konbini on a street corner, as a small collectible diorama in
 ## cel-shaded "3D that looks 2D" style. Separate from the story; open
-## scenes/konbini_diorama.tscn and press F6. No UI: drag, pinch and scroll to look around
+## scenes/konbini_diorama.tscn (Japan) or scenes/konbini_diorama_thai.tscn
+## (Thailand) and press F6. No UI: drag, pinch and scroll to look around
 ## (see scripts/konbini_camera.gd).
 ## The model is built from code when the scene loads; afterwards only small loops
 ## run: rain, drips, the auto door, the flickering signs and the traffic signals.
@@ -13,6 +14,7 @@ const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const Interior := preload("res://scripts/konbini_interior.gd")
 const Weather := preload("res://scripts/konbini_weather.gd")
+const Thai := preload("res://scripts/konbini_thai.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -31,7 +33,11 @@ const DOOR_CLOSED := [0.325, 1.175]
 const DOOR_TRAVEL := 0.8
 const DOOR_CYCLE := 9.0
 
+## "japan" or "thailand": which street corner the builders make.
+@export_enum("japan", "thailand") var country := "japan"
+
 # filled in by the builders
+var countdowns: Array = []
 var sign_band_material: ShaderMaterial
 var pole_sign_material: ShaderMaterial
 var signal_a: Array
@@ -66,6 +72,8 @@ func _ready() -> void:
 	weather = Weather.new()
 	weather.name = "Weather"
 	add_child(weather)
+	if country == "thailand":
+		weather.extra_shelters.append(Thai.UMBRELLA_SHELTER)
 	weather.setup(_rain_lamps())
 	_reflections()
 	rig = CameraRig.new()
@@ -168,10 +176,10 @@ func _doors(kit: Kit) -> void:
 		var sticker := Vector3(0, 0.15, 0.03)
 		if i == 0:
 			kit.cyl(sticker, 0.1, 0.004, Color(0.2, 0.7, 0.4), {"node": panel, "rot": Vector3(90, 0, 0), "seg": 18, "line": 0.0, "emit": 0.2})
-			kit.text("AUTO\nDOOR", sticker + Vector3(0, 0, 0.004), 0.035, Color(1, 1, 1), {"node": panel})
+			kit.text("ประตู\nอัตโนมัติ" if country == "thailand" else "AUTO\nDOOR", sticker + Vector3(0, 0, 0.004), 0.035, Color(1, 1, 1), {"node": panel})
 		else:
 			kit.cyl(sticker, 0.1, 0.004, Color(1.0, 0.55, 0.24), {"node": panel, "rot": Vector3(90, 0, 0), "seg": 18, "line": 0.0, "emit": 0.2})
-			kit.text("24H", sticker + Vector3(0, 0, 0.004), 0.06, Color(1, 1, 1), {"node": panel})
+			kit.text("24 ชม." if country == "thailand" else "24H", sticker + Vector3(0, 0, 0.004), 0.06, Color(1, 1, 1), {"node": panel})
 
 # --- light -------------------------------------------------------------------------
 
@@ -244,6 +252,9 @@ func _lights() -> void:
 	_omni("BackDoor", Vector3(-1.65, 2.3, -6.0), Color(1.0, 0.82, 0.55), 0.45, 3.0)
 	_omni("Security", Vector3(4.9, 4.6, -7.7), Color(0.82, 1.0, 0.88), 1.1, 5.5)
 	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
+	if country == "thailand":
+		_omni("FoodCart", Thai.CART + Vector3(-0.4, 1.8, 0), Color(1.0, 0.72, 0.4), 1.4, 4.2)
+		_omni("SpiritHouse", Vector3(3.6, 1.6, 0.9), Color(1.0, 0.7, 0.4), 0.6, 2.2, Kit.LAYER_OUT, true)
 
 func _rain_lamps() -> Array:
 	var list := [
@@ -257,6 +268,8 @@ func _rain_lamps() -> Array:
 		[Vector3(-1.3, 3.6, 0.9), 3.0, Color(0.3, 0.45, 0.42)],
 		[Vector3(7.5, 4.8, 7.5), 3.0, Color(0.05, 0.4, 0.3)],
 	]
+	if country == "thailand":
+		list.insert(0, [Thai.CART + Vector3(-0.4, 1.8, 0), 2.2, Color(0.5, 0.35, 0.18)])
 	traffic_lamp_index = list.size() - 1
 	return list
 
@@ -274,6 +287,8 @@ func _reflections() -> void:
 	weather.add_reflection(Vector3(-6.4, 0.12, -1.0), Color(1.0, 0.75, 0.45), 0.5, 2.4, 0.5, 2.0)
 	weather.add_reflection(Vector3(4.9, 0.12, -7.7), Color(0.82, 1.0, 0.88), 0.6, 4.6, 0.55, 2.0)
 	weather.add_reflection(Vector3(-7.85, 0.12, 2.5), Color(1.0, 0.78, 0.5), 1.1, 4.0, 0.3, 1.0)
+	if country == "thailand":
+		weather.add_reflection(Thai.CART + Vector3(-1.0, 0.0, 0.9), Color(1.0, 0.72, 0.4), 0.6, 1.8, 0.35, 2.0)
 	traffic_reflections = [
 		weather.add_reflection(Vector3(8.6, 0.0, 6.9), Color.WHITE, 1.1, 5.0, 0.0, 1.6),
 		weather.add_reflection(Vector3(6.9, 0.0, 8.6), Color.WHITE, 1.1, 5.0, 0.0, 1.6),
@@ -342,6 +357,20 @@ func _animate_traffic() -> void:
 		traffic_reflections[i].set_shader_parameter("energy", 0.75)
 	weather.lamps[traffic_lamp_index][2] = lit_color.clamp() * 0.4
 	weather.update_lamps()
+	if countdowns.size() == 2:
+		_set_countdown(countdowns[0], t)
+		_set_countdown(countdowns[1], fmod(t + 13.0, 26.0))
+
+## Thai signal countdown: seconds left on green (green digits) or red (red digits).
+func _set_countdown(label: Label3D, t: float) -> void:
+	if t < 8.0:
+		label.text = "%02d" % ceili(8.0 - t)
+		label.modulate = Color(0.2, 1.0, 0.45) * 1.6
+	elif t < 11.0:
+		label.text = ""
+	else:
+		label.text = "%02d" % ceili(26.0 - t)
+		label.modulate = Color(1.0, 0.2, 0.15) * 1.6
 
 ## Lens levels [green, amber, red] at time t of one road's cycle, with soft edges.
 func _phase(t: float) -> Array:

@@ -86,5 +86,23 @@ func _run() -> void:
 		scene.show_view(preset)
 	scene.queue_free()
 	await process_frame
-	print("PASS: konbini diorama builds without UI; orbit, zoom, pan, touch, door and signals work")
+	# the Thai corner builds too, and its signal countdowns tick
+	var thai: Node3D = load("res://scenes/konbini_diorama_thai.tscn").instantiate()
+	root.add_child(thai)
+	await process_frame
+	if thai.country != "thailand" or thai.countdowns.size() != 2:
+		return _fail("The Thai corner should have two signal countdowns")
+	if not thai.find_children("*", "Control", true, false).is_empty():
+		return _fail("The Thai diorama must not contain UI nodes")
+	var shown: String = thai.countdowns[0].text
+	var ticked := false
+	for i in 40:
+		thai._process(0.05)
+		ticked = ticked or thai.countdowns[0].text != shown
+	if not ticked:
+		return _fail("The Thai countdown never changed")
+	print("thai: %d primitives" % thai.get_meta("primitive_count"))
+	thai.queue_free()
+	await process_frame
+	print("PASS: konbini diorama (Japan and Thailand) builds without UI; orbit, zoom, pan, touch, door, signals and countdown work")
 	quit(0)

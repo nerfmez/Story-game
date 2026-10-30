@@ -27,16 +27,21 @@ const PRODUCT := [
 var k: Kit
 var scene: Node3D
 var rng := RandomNumberGenerator.new()
+var thai := false
 
 static func build(kit: Kit, diorama: Node3D) -> void:
 	var b := new()
 	b.k = kit
 	b.scene = diorama
 	b.rng.seed = 7_2024
+	b.thai = diorama.country == "thailand"
 	b._room()
 	b._coolers()
 	b._bento_case()
-	b._lockers()
+	if b.thai:
+		b._atm()
+	else:
+		b._lockers()
 	b._magazines()
 	b._gondola(-1.55)
 	b._gondola(-2.65)
@@ -46,6 +51,10 @@ static func build(kit: Kit, diorama: Node3D) -> void:
 	b._signs_and_posters()
 	b._entrance_bits()
 	b._stockroom()
+
+## The Japanese text, or its Thai counterpart in the Thai shop.
+func _t(japan: String, thailand: String) -> String:
+	return thailand if thai else japan
 
 ## Options for indoor parts: layer 2 plus the warm fill light.
 func o(extra := {}) -> Dictionary:
@@ -85,7 +94,7 @@ func _coolers() -> void:
 	k.slab(Vector3(x_from, FLOOR, Z_BACK), Vector3(x_from + bays * bay, FLOOR + 0.18, front), FRAME, o())
 	k.slab(Vector3(x_from, 2.2, Z_BACK), Vector3(x_from + bays * bay, 2.6, front + 0.02), FRAME, o())
 	k.slab(Vector3(x_from + 0.05, 2.27, front + 0.02), Vector3(x_from + bays * bay - 0.05, 2.53, front + 0.03), Color(0.85, 0.96, 1.0), o({"emit": 1.0, "line": 0.0}))
-	k.text("COLD  DRINKS", Vector3(x_from + bays * bay * 0.5, 2.4, front + 0.035), 0.16, Color(0.1, 0.45, 0.75) * 1.2, {"indoor": true, "outline": 6})
+	k.text(_t("COLD  DRINKS", "เครื่องดื่มเย็น"), Vector3(x_from + bays * bay * 0.5, 2.4, front + 0.035), 0.16, Color(0.1, 0.45, 0.75) * 1.2, {"indoor": true, "outline": 6})
 	var shelf_y := [0.42, 0.78, 1.14, 1.5, 1.86]
 	for b in bays:
 		var bx := x_from + b * bay
@@ -167,6 +176,22 @@ func _lockers() -> void:
 	k.slab(Vector3(X0 + 0.02, 2.0, z0), Vector3(X0 + 0.44, 2.12, z1), TEAL, o())
 	k.text("PARCEL LOCKER", Vector3(x + 0.23, 2.06, (z0 + z1) * 0.5), 0.07, Color(1, 1, 1), {"indoor": true, "rot": Vector3(0, 90, 0)})
 
+## Thai shops have a cash machine where the Japanese one has parcel lockers.
+func _atm() -> void:
+	var c := Vector3(X0 + 0.32, FLOOR, -0.8)
+	k.box(c + Vector3(0, 0.85, 0), Vector3(0.6, 1.7, 0.66), Color(0.2, 0.28, 0.5), o({"gloss": 0.5}))
+	k.box(c + Vector3(0.31, 1.2, 0), Vector3(0.02, 0.3, 0.4), Color(0.35, 0.7, 1.0), o({"emit": 1.0, "line": 0.4}))
+	k.box(c + Vector3(0.33, 0.9, 0), Vector3(0.1, 0.03, 0.44), Color(0.75, 0.78, 0.85), o())
+	# keypad on the ledge
+	for r in 4:
+		for col in 3:
+			k.box(c + Vector3(0.31 + r * 0.022, 0.92, -0.05 + col * 0.05), Vector3(0.016, 0.008, 0.035), Color(0.9, 0.9, 0.92), o({"line": 0.0}))
+	k.box(c + Vector3(0.31, 0.75, 0.12), Vector3(0.02, 0.03, 0.12), Color(0.1, 0.1, 0.12), o({"line": 0.0}))
+	k.box(c + Vector3(0.31, 0.62, -0.05), Vector3(0.02, 0.04, 0.22), Color(0.1, 0.1, 0.12), o({"line": 0.0}))
+	k.box(c + Vector3(0.05, 1.82, 0), Vector3(0.5, 0.2, 0.66), Color(0.12, 0.65, 0.62), o({"emit": 0.6}))
+	k.text("ATM", c + Vector3(0.31, 1.82, 0), 0.12, Color(1, 1, 1), {"indoor": true, "rot": Vector3(0, 90, 0), "outline": 4})
+	k.text("ตู้เอทีเอ็ม 24 ชม.", c + Vector3(0.31, 1.52, 0), 0.04, Color(1, 1, 1), {"indoor": true, "rot": Vector3(0, 90, 0)})
+
 func _magazines() -> void:
 	var x0 := -4.3
 	var x1 := -0.55
@@ -215,7 +240,7 @@ func _gondola(zc: float) -> void:
 			k.box(Vector3(x1 + 0.2, 0.32 + i * 0.2, zc - 0.17 + j * 0.24 + i * 0.12), Vector3(0.3, 0.19, 0.22), [ORANGE, Color(0.95, 0.85, 0.3), Color(0.9, 0.3, 0.35)][(i + j) % 3], o({"lit": 0.42}))
 	k.rod(Vector3(x1 + 0.2, 0.9, zc), Vector3(x1 + 0.2, 1.35, zc), 0.01, STEEL, o())
 	k.box(Vector3(x1 + 0.2, 1.42, zc), Vector3(0.02, 0.2, 0.34), Color(1.0, 0.9, 0.2), o({"lit": 0.5}))
-	k.text("SALE", Vector3(x1 + 0.215, 1.42, zc), 0.1, Color(0.85, 0.1, 0.1), {"indoor": true, "rot": Vector3(0, 90, 0), "outline": 4})
+	k.text(_t("SALE", "ลดราคา"), Vector3(x1 + 0.215, 1.42, zc), 0.1, Color(0.85, 0.1, 0.1), {"indoor": true, "rot": Vector3(0, 90, 0), "outline": 4})
 
 func _fill_shelf(x0: float, x1: float, y: float, z: float, side: float, level: int) -> void:
 	var kind := (level + (1 if side > 0 else 0) + int(z * 3.0)) % 4
@@ -244,7 +269,7 @@ func _freezer() -> void:
 	var c := Vector3(0.5, FLOOR, -1.95)
 	k.box(c + Vector3(0, 0.4, 0), Vector3(1.6, 0.8, 0.62), Color(0.95, 0.96, 0.98), o({"gloss": 0.3}))
 	k.box(c + Vector3(0, 0.55, 0.312), Vector3(1.5, 0.12, 0.01), Color(0.35, 0.6, 0.95), o({"line": 0.0, "emit": 0.3}))
-	k.text("ICE CREAM", c + Vector3(0, 0.55, 0.32), 0.07, Color(1, 1, 1), {"indoor": true})
+	k.text(_t("ICE CREAM", "ไอศกรีม"), c + Vector3(0, 0.55, 0.32), 0.07, Color(1, 1, 1), {"indoor": true})
 	k.box(c + Vector3(0, 0.77, 0), Vector3(1.48, 0.04, 0.5), Color(0.6, 0.78, 0.95), o({"emit": 0.3, "line": 0.0}))
 	for i in 18:
 		var p := c + Vector3(-0.66 + (i % 9) * 0.165, 0.83, -0.12 + (i / 9) * 0.24)
@@ -271,7 +296,7 @@ func _counter() -> void:
 	k.slab(Vector3(x0, 0.3, z1), Vector3(x1, 0.42, z1 + 0.01), TEAL, o({"line": 0.0}))
 	k.slab(Vector3(x0, 0.42, z1), Vector3(x1, 0.47, z1 + 0.01), ORANGE, o({"line": 0.0}))
 	k.box(Vector3(0.9, 0.82, z1 + 0.01), Vector3(0.5, 0.4, 0.01), Color(1.0, 0.92, 0.6), o({"lit": 0.5}))
-	k.text("FRIED\nCHICKEN", Vector3(0.9, 0.86, z1 + 0.018), 0.07, Color(0.75, 0.25, 0.1), {"indoor": true})
+	k.text(_t("FRIED\nCHICKEN", "ไก่ทอด\nกรอบๆ"), Vector3(0.9, 0.86, z1 + 0.018), 0.07, Color(0.75, 0.25, 0.1), {"indoor": true})
 	k.ball(Vector3(0.9, 0.7, z1 + 0.016), Vector3(0.1, 0.07, 0.01), Color(0.9, 0.6, 0.2), o({"line": 0.3, "seg": 8}))
 	# self-serve coffee
 	var cm := Vector3(-0.35, top, -3.3)
@@ -281,28 +306,13 @@ func _counter() -> void:
 	k.cyl(cm + Vector3(0, 0.08, 0.08), 0.04, 0.1, Color(0.97, 0.97, 0.95), o({"top": 1.2, "seg": 10}))
 	k.cyl(cm + Vector3(0.3, 0.12, 0.05), 0.045, 0.24, Color(0.97, 0.97, 0.95), o({"seg": 10}))
 	k.box(cm + Vector3(0, 0.73, 0), Vector3(0.36, 0.14, 0.02), Color(0.4, 0.22, 0.12), o({"lit": 0.5}))
-	k.text("COFFEE", cm + Vector3(0, 0.73, 0.012), 0.07, Color(1.0, 0.95, 0.85), {"indoor": true})
+	k.text(_t("COFFEE", "กาแฟ"), cm + Vector3(0, 0.73, 0.012), 0.07, Color(1.0, 0.95, 0.85), {"indoor": true})
 	scene.add_steam(cm + Vector3(0, 0.25, 0.08), Vector2(0.12, 0.3), 0.25)
-	# oden: a steel bath of broth with eggs, daikon, konnyaku and chikuwa
 	var od := Vector3(0.28, top, -3.25)
-	k.box(od + Vector3(0, 0.08, 0), Vector3(0.56, 0.16, 0.44), STEEL, o({"gloss": 0.7}))
-	k.box(od + Vector3(0, 0.155, 0), Vector3(0.5, 0.01, 0.38), Color(0.8, 0.55, 0.22), o({"emit": 0.25, "line": 0.0, "gloss": 0.6}))
-	for x in [-0.08, 0.08]:
-		k.box(od + Vector3(x, 0.15, 0), Vector3(0.012, 0.04, 0.38), STEEL, o({"line": 0.0}))
-	k.box(od + Vector3(0, 0.15, 0), Vector3(0.5, 0.04, 0.012), STEEL, o({"line": 0.0}))
-	for i in 3:
-		var cell := od + Vector3(-0.17, 0.17, -0.1 + i * 0.1)
-		k.ball(cell, Vector3(0.05, 0.04, 0.04), [Color(0.95, 0.85, 0.65), Color(0.97, 0.95, 0.9), Color(0.8, 0.6, 0.35)][i], o({"line": 0.4, "seg": 8}))
-	for i in 3:
-		k.cyl(od + Vector3(0.0, 0.17, -0.12 + i * 0.12), 0.04, 0.035, Color(0.95, 0.88, 0.72), o({"seg": 10, "line": 0.4}))
-	for i in 2:
-		k.prism(od + Vector3(0.17, 0.18, -0.1 + i * 0.13), Vector3(0.08, 0.06, 0.02), Color(0.55, 0.55, 0.6), o({"rot": Vector3(-90, 0, 0), "line": 0.4}))
-	k.rod(od + Vector3(0.12, 0.17, 0.13), od + Vector3(0.22, 0.17, 0.13), 0.02, Color(0.85, 0.65, 0.4), o({"line": 0.4}))
-	k.rod(od + Vector3(-0.2, 0.17, 0.15), od + Vector3(-0.05, 0.3, 0.15), 0.004, Color(0.85, 0.75, 0.55), o({"line": 0.0}))
-	k.box(od + Vector3(0, 0.36, -0.18), Vector3(0.24, 0.14, 0.01), ORANGE, o({"lit": 0.5}))
-	k.rod(od + Vector3(0, 0.16, -0.18), od + Vector3(0, 0.29, -0.18), 0.006, STEEL, o())
-	k.text("ODEN", od + Vector3(0, 0.36, -0.172), 0.08, Color(1, 1, 1), {"indoor": true})
-	scene.add_steam(od + Vector3(0, 0.35, 0), Vector2(0.45, 0.5), 0.3)
+	if thai:
+		_steamer_and_grill(od)
+	else:
+		_oden(od)
 	# hot snack case
 	var hs := Vector3(0.9, top, -3.28)
 	k.box(hs + Vector3(0, 0.03, 0), Vector3(0.48, 0.06, 0.4), FRAME, o())
@@ -330,17 +340,68 @@ func _counter() -> void:
 	k.box(Vector3(1.05, 1.24, Z_BACK + 0.2), Vector3(0.45, 0.28, 0.32), Color(0.85, 0.86, 0.9), o())
 	k.box(Vector3(1.0, 1.24, Z_BACK + 0.361), Vector3(0.28, 0.18, 0.01), Color(0.25, 0.25, 0.3), o({"line": 0.0, "emit": 0.2}))
 	k.slab(Vector3(-0.5, 1.4, Z_BACK + 0.02), Vector3(1.3, 2.2, Z_BACK + 0.2), Color(0.25, 0.27, 0.32), o())
-	k.slab(Vector3(-0.47, 1.43, Z_BACK + 0.19), Vector3(1.27, 2.17, Z_BACK + 0.2), Color(0.95, 0.95, 1.0), o({"emit": 0.6, "line": 0.0}))
-	for r in 6:
-		for c in 14:
-			k.box(Vector3(-0.4 + c * 0.12, 1.5 + r * 0.12, Z_BACK + 0.22), Vector3(0.08, 0.1, 0.03), _pick(), o({"line": 0.0, "lit": 0.45}))
+	if thai:
+		# cigarettes stay behind closed doors by law
+		for c in 4:
+			k.box(Vector3(-0.28 + c * 0.44, 1.8, Z_BACK + 0.205), Vector3(0.42, 0.74, 0.02), Color(0.6, 0.63, 0.68), o({"line": 0.5, "gloss": 0.4}))
+			k.box(Vector3(-0.1 + c * 0.44, 1.8, Z_BACK + 0.22), Vector3(0.02, 0.12, 0.02), STEEL, o({"line": 0.0}))
+		k.text("ไม่จำหน่ายบุหรี่แก่ผู้มีอายุต่ำกว่า 20 ปี", Vector3(0.4, 1.47, Z_BACK + 0.22), 0.035, Color(0.95, 0.95, 0.95), {"indoor": true})
+	else:
+		k.slab(Vector3(-0.47, 1.43, Z_BACK + 0.19), Vector3(1.27, 2.17, Z_BACK + 0.2), Color(0.95, 0.95, 1.0), o({"emit": 0.6, "line": 0.0}))
+		for r in 6:
+			for c in 14:
+				k.box(Vector3(-0.4 + c * 0.12, 1.5 + r * 0.12, Z_BACK + 0.22), Vector3(0.08, 0.1, 0.03), _pick(), o({"line": 0.0, "lit": 0.45}))
 	k.slab(Vector3(-0.5, 2.3, Z_BACK + 0.02), Vector3(1.3, 2.75, Z_BACK + 0.06), Color(0.15, 0.15, 0.2), o())
 	var menu := [[Color(1.0, 0.75, 0.3), "KARAAGE"], [Color(0.95, 0.85, 0.5), "KOROKKE"], [Color(0.85, 0.45, 0.25), "NIKUMAN"], [Color(0.55, 0.35, 0.2), "COFFEE"]]
+	if thai:
+		menu = [[Color(0.9, 0.35, 0.25), "ไส้กรอก"], [Color(0.98, 0.95, 0.88), "ซาลาเปา"], [Color(0.95, 0.8, 0.4), "ขนมจีบ"], [Color(0.55, 0.35, 0.2), "กาแฟเย็น"]]
 	for i in menu.size():
 		var p := Vector3(-0.28 + i * 0.44, 2.55, Z_BACK + 0.065)
 		k.box(p, Vector3(0.4, 0.4, 0.01), Color(1.0, 0.98, 0.92), o({"emit": 0.9, "line": 0.0}))
 		k.ball(p + Vector3(0, 0.05, 0.008), Vector3(0.18, 0.14, 0.01), menu[i][0], o({"emit": 0.5, "line": 0.0, "seg": 10}))
 		k.text(menu[i][1], p + Vector3(0, -0.13, 0.012), 0.05, Color(0.2, 0.15, 0.1), {"indoor": true})
+
+func _oden(od: Vector3) -> void:
+	# oden: a steel bath of broth with eggs, daikon, konnyaku and chikuwa
+	k.box(od + Vector3(0, 0.08, 0), Vector3(0.56, 0.16, 0.44), STEEL, o({"gloss": 0.7}))
+	k.box(od + Vector3(0, 0.155, 0), Vector3(0.5, 0.01, 0.38), Color(0.8, 0.55, 0.22), o({"emit": 0.25, "line": 0.0, "gloss": 0.6}))
+	for x in [-0.08, 0.08]:
+		k.box(od + Vector3(x, 0.15, 0), Vector3(0.012, 0.04, 0.38), STEEL, o({"line": 0.0}))
+	k.box(od + Vector3(0, 0.15, 0), Vector3(0.5, 0.04, 0.012), STEEL, o({"line": 0.0}))
+	for i in 3:
+		var cell := od + Vector3(-0.17, 0.17, -0.1 + i * 0.1)
+		k.ball(cell, Vector3(0.05, 0.04, 0.04), [Color(0.95, 0.85, 0.65), Color(0.97, 0.95, 0.9), Color(0.8, 0.6, 0.35)][i], o({"line": 0.4, "seg": 8}))
+	for i in 3:
+		k.cyl(od + Vector3(0.0, 0.17, -0.12 + i * 0.12), 0.04, 0.035, Color(0.95, 0.88, 0.72), o({"seg": 10, "line": 0.4}))
+	for i in 2:
+		k.prism(od + Vector3(0.17, 0.18, -0.1 + i * 0.13), Vector3(0.08, 0.06, 0.02), Color(0.55, 0.55, 0.6), o({"rot": Vector3(-90, 0, 0), "line": 0.4}))
+	k.rod(od + Vector3(0.12, 0.17, 0.13), od + Vector3(0.22, 0.17, 0.13), 0.02, Color(0.85, 0.65, 0.4), o({"line": 0.4}))
+	k.rod(od + Vector3(-0.2, 0.17, 0.15), od + Vector3(-0.05, 0.3, 0.15), 0.004, Color(0.85, 0.75, 0.55), o({"line": 0.0}))
+	k.box(od + Vector3(0, 0.36, -0.18), Vector3(0.24, 0.14, 0.01), ORANGE, o({"lit": 0.5}))
+	k.rod(od + Vector3(0, 0.16, -0.18), od + Vector3(0, 0.29, -0.18), 0.006, STEEL, o())
+	k.text("ODEN", od + Vector3(0, 0.36, -0.172), 0.08, Color(1, 1, 1), {"indoor": true})
+	scene.add_steam(od + Vector3(0, 0.35, 0), Vector2(0.45, 0.5), 0.3)
+
+## Thai counter food: a two-tier bao steamer and a sausage roller grill.
+func _steamer_and_grill(at: Vector3) -> void:
+	var st := at + Vector3(-0.1, 0, 0)
+	for tier in 2:
+		k.cyl(st + Vector3(0, 0.08 + tier * 0.15, 0), 0.2, 0.14, STEEL, o({"seg": 18, "gloss": 0.7}))
+		k.box(st + Vector3(0, 0.08 + tier * 0.15, 0.19), Vector3(0.2, 0.08, 0.02), Color(1.0, 0.9, 0.7), o({"emit": 0.6, "line": 0.3}))
+		for b in 3:
+			k.ball(st + Vector3(-0.06 + b * 0.06, 0.08 + tier * 0.15, 0.2), Vector3(0.05, 0.04, 0.02), Color(0.99, 0.97, 0.92), o({"seg": 8, "line": 0.3, "lit": 0.6}))
+	k.cyl(st + Vector3(0, 0.36, 0), 0.21, 0.04, STEEL, o({"seg": 18, "top": 0.6, "gloss": 0.7}))
+	k.cyl(st + Vector3(0, 0.4, 0), 0.03, 0.03, FRAME, o({"seg": 8}))
+	scene.add_steam(st + Vector3(0, 0.38, 0), Vector2(0.4, 0.5), 0.3)
+	var grill := at + Vector3(0.22, 0, 0.02)
+	k.box(grill + Vector3(0, 0.04, 0), Vector3(0.24, 0.08, 0.36), STEEL, o({"gloss": 0.6}))
+	for i in 6:
+		var z := -0.14 + i * 0.056
+		k.rod(grill + Vector3(-0.1, 0.1, z), grill + Vector3(0.1, 0.1, z), 0.012, STEEL, o({"line": 0.0}))
+		if i % 2 == 0 or i == 3:
+			k.rod(grill + Vector3(-0.08, 0.125, z), grill + Vector3(0.08, 0.125, z), 0.016, Color(0.85, 0.35, 0.25), o({"line": 0.4, "lit": 0.55}))
+	k.box(grill + Vector3(0, 0.22, -0.18), Vector3(0.24, 0.12, 0.01), Color(0.9, 0.2, 0.2), o({"lit": 0.5}))
+	k.text("ซาลาเปา  ไส้กรอก", at + Vector3(0.06, 0.32, -0.18) + Vector3(0, 0, 0.007), 0.045, Color(1, 1, 1), {"indoor": true})
 
 func _eat_in() -> void:
 	var x0 := 1.85
@@ -360,10 +421,10 @@ func _eat_in() -> void:
 
 func _signs_and_posters() -> void:
 	# hanging aisle signs
-	var hangers := [[Vector3(-2.35, 2.62, -3.3), "DRINKS"], [Vector3(-2.35, 2.62, -2.1), "SNACKS · FOOD"], [Vector3(-4.2, 2.62, -2.4), "BENTO"], [Vector3(0.5, 2.62, -2.75), "REGISTER"]]
+	var hangers := [[Vector3(-2.35, 2.62, -3.3), _t("DRINKS", "เครื่องดื่ม")], [Vector3(-2.35, 2.62, -2.1), _t("SNACKS · FOOD", "ขนม · ของใช้")], [Vector3(-4.2, 2.62, -2.4), _t("BENTO", "อาหารพร้อมทาน")], [Vector3(0.5, 2.62, -2.75), _t("REGISTER", "ชำระเงิน")]]
 	for h in hangers:
 		var p: Vector3 = h[0]
-		var vertical: bool = h[1] == "BENTO"
+		var vertical: bool = h == hangers[2]
 		var size := Vector3(0.08, 0.26, 0.9) if vertical else Vector3(0.9, 0.26, 0.08)
 		k.box(p, size, Color(0.97, 0.99, 1.0), o({"emit": 0.6}))
 		k.box(p + Vector3(0, -0.11, 0), size + Vector3(0.01, -0.22, 0.01), TEAL, o({"emit": 0.5, "line": 0.0}))
@@ -375,12 +436,16 @@ func _signs_and_posters() -> void:
 			var n := Vector3(face * 0.045, 0, 0) if vertical else Vector3(0, 0, face * 0.045)
 			k.text(h[1], p + n + Vector3(0, 0.03, 0), 0.1, Color(0.06, 0.35, 0.4), {"indoor": true, "rot": rot})
 	# posters facing out through the glass (read from the street)
-	_poster(Vector3(-4.35, 1.05, -0.1), Vector2(0.6, 0.8), Color(1.0, 0.72, 0.82), "SWEETS\nFAIR", Color(0.75, 0.2, 0.4), Basis.IDENTITY)
-	_poster(Vector3(-1.62, 1.0, -0.1), Vector2(0.62, 0.78), Color(1.0, 0.7, 0.35), "ODEN\n70 YEN", Color(0.5, 0.15, 0.05), Basis.IDENTITY)
-	_oden_skewer(Vector3(-1.62, 1.2, -0.088))
-	_poster(Vector3(X1 + 0.03, 1.05, -2.25), Vector2(0.5, 0.7), Color(0.55, 0.32, 0.2), "HOT\nCOFFEE\n100", Color(1.0, 0.92, 0.8), Basis(Vector3.UP, PI * 0.5))
+	_poster(Vector3(-4.35, 1.05, -0.1), Vector2(0.6, 0.8), Color(1.0, 0.72, 0.82), _t("SWEETS\nFAIR", "ขนมหวาน\nลด 20%"), Color(0.75, 0.2, 0.4), Basis.IDENTITY)
+	_poster(Vector3(-1.62, 1.0, -0.1), Vector2(0.62, 0.78), Color(1.0, 0.7, 0.35), _t("ODEN\n70 YEN", "ซาลาเปา\n2 ลูก 25.-"), Color(0.5, 0.15, 0.05), Basis.IDENTITY)
+	if thai:
+		for i in 2:
+			k.ball(Vector3(-1.7 + i * 0.16, 1.22, -0.088), Vector3(0.13, 0.1, 0.01), Color(0.99, 0.97, 0.92), o({"line": 0.4, "seg": 10, "lit": 0.55}))
+	else:
+		_oden_skewer(Vector3(-1.62, 1.2, -0.088))
+	_poster(Vector3(X1 + 0.03, 1.05, -2.25), Vector2(0.5, 0.7), Color(0.55, 0.32, 0.2), _t("HOT\nCOFFEE\n100", "กาแฟร้อน\n25.-"), Color(1.0, 0.92, 0.8), Basis(Vector3.UP, PI * 0.5))
 	# indoor posters
-	_poster(Vector3(X0 + 0.03, 2.5, -2.4), Vector2(0.7, 0.4), Color(0.35, 0.75, 0.95), "SUMMER\nCAMPAIGN", Color(1, 1, 1), Basis(Vector3.UP, PI * 0.5))
+	_poster(Vector3(X0 + 0.03, 2.5, -2.4), Vector2(0.7, 0.4), Color(0.35, 0.75, 0.95), _t("SUMMER\nCAMPAIGN", "สะสมแต้ม\nแลกของ"), Color(1, 1, 1), Basis(Vector3.UP, PI * 0.5))
 
 func _poster(center: Vector3, size: Vector2, paper: Color, label: String, ink: Color, face: Basis) -> void:
 	k.box(center, Vector3(size.x, size.y, 0.008), paper, o({"basis": face, "lit": 0.55, "line": 0.4}))
@@ -406,11 +471,11 @@ func _entrance_bits() -> void:
 	k.cyl(stand + Vector3(0, 0.01, 0), 0.15, 0.02, STEEL, o({"seg": 12}))
 	k.box(stand + Vector3(0, 0.95, 0), Vector3(0.3, 0.3, 0.12), Color(0.95, 0.96, 1.0), o({"lit": 0.42}))
 	k.box(stand + Vector3(0, 0.75, 0.01), Vector3(0.22, 0.4, 0.02), Color(0.85, 0.92, 0.98), o({"line": 0.3}))
-	k.text("UMBRELLA\nBAGS", stand + Vector3(0, 0.95, 0.065), 0.04, TEAL, {"indoor": true})
+	k.text(_t("UMBRELLA\nBAGS", "ถุงใส่ร่ม"), stand + Vector3(0, 0.95, 0.065), 0.04, TEAL, {"indoor": true})
 	var sign := Vector3(0.9, FLOOR, -0.65)
 	for s in [-1.0, 1.0]:
 		k.box(sign + Vector3(0, 0.3, s * 0.08), Vector3(0.3, 0.6, 0.02), Color(1.0, 0.85, 0.1), o({"rot": Vector3(s * 14, 0, 0), "lit": 0.5}))
-	k.text("CAUTION\nWET FLOOR", sign + Vector3(0, 0.38, 0.165), 0.045, Color(0.1, 0.1, 0.1), {"indoor": true, "rot": Vector3(-14, 0, 0)})
+	k.text(_t("CAUTION\nWET FLOOR", "ระวัง\nพื้นลื่น"), sign + Vector3(0, 0.38, 0.165), 0.045, Color(0.1, 0.1, 0.1), {"indoor": true, "rot": Vector3(-14, 0, 0)})
 	# queue footprints and an arrow on the floor in front of the register
 	for i in 2:
 		var f := Vector3(1.2, FLOOR + 0.002, -2.55 + i * 0.5)
@@ -418,7 +483,7 @@ func _entrance_bits() -> void:
 			k.quad(f + Vector3(s, 0, 0), Vector2(0.08, 0.18), TEAL, o({"lit": 0.42}))
 	k.quad(Vector3(0.5, FLOOR + 0.002, -0.9), Vector2(0.12, 0.5), ORANGE, o({"lit": 0.42}))
 	k.prism(Vector3(0.5, FLOOR + 0.003, -1.25), Vector3(0.28, 0.2, 0.002), ORANGE, o({"rot": Vector3(-90, 0, 0), "lit": 0.42, "line": 0.0}))
-	k.text("WAIT HERE", Vector3(1.2, FLOOR + 0.004, -2.0), 0.06, TEAL * 0.8, {"indoor": true, "rot": Vector3(-90, 0, 0)})
+	k.text(_t("WAIT HERE", "รอคิวตรงนี้"), Vector3(1.2, FLOOR + 0.004, -2.0), 0.06, TEAL * 0.8, {"indoor": true, "rot": Vector3(-90, 0, 0)})
 
 func _stockroom() -> void:
 	var dim := {"indoor": true, "lit": 0.18}
@@ -433,7 +498,7 @@ func _stockroom() -> void:
 	k.box(hinge + door * Vector3(-0.4, 1.05, -0.02), Vector3(0.8, 2.1, 0.04), Color(0.65, 0.72, 0.8), o({"basis": door}))
 	k.box(hinge + door * Vector3(-0.4, 1.55, 0.005), Vector3(0.3, 0.3, 0.01), Color(0.3, 0.32, 0.35), o({"basis": door, "line": 0.3}))
 	k.box(hinge + door * Vector3(-0.4, 1.2, 0.006), Vector3(0.36, 0.1, 0.01), Color(0.95, 0.95, 0.98), o({"basis": door, "line": 0.0}))
-	var t := k.text("STAFF ONLY", hinge + door * Vector3(-0.4, 1.2, 0.013), 0.05, Color(0.75, 0.15, 0.15), {"indoor": true})
+	var t := k.text(_t("STAFF ONLY", "เฉพาะพนักงาน"), hinge + door * Vector3(-0.4, 1.2, 0.013), 0.05, Color(0.75, 0.15, 0.15), {"indoor": true})
 	t.basis = door
 	k.box(hinge + door * Vector3(-0.72, 1.0, 0.03), Vector3(0.1, 0.03, 0.04), STEEL, o({"basis": door}))
 	k.slab(Vector3(1.38, FLOOR, Z_BACK - 0.03), Vector3(1.42, 2.32, Z_BACK + 0.03), FRAME, o())

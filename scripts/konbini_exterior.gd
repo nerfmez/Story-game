@@ -5,6 +5,7 @@ extends RefCounted
 ## and +X (road B) and meet at the far corner, the shop stands in the middle.
 
 const Kit := preload("res://scripts/konbini_kit.gd")
+const Thai := preload("res://scripts/konbini_thai.gd")
 
 const LOT := 0.12          # top of the raised lot and sidewalks (road top is 0)
 const FLOOR := 0.2         # shop floor
@@ -30,17 +31,22 @@ const RAIL := Color(0.9, 0.92, 0.96)
 
 var k: Kit
 var scene: Node3D
+var thai := false   # Thai street corner instead of the Japanese one (see konbini_thai.gd)
 
 static func build(kit: Kit, diorama: Node3D) -> void:
 	var b := new()
 	b.k = kit
 	b.scene = diorama
+	b.thai = diorama.country == "thailand"
 	b._base()
 	b._roads()
 	b._lot()
 	b._shop_shell()
 	b._shop_front()
-	b._side_yard()
+	if b.thai:
+		Thai.street_corner(kit, diorama)
+	else:
+		b._side_yard()
 	b._alley()
 	b._neighbour()
 	b._back()
@@ -49,6 +55,10 @@ static func build(kit: Kit, diorama: Node3D) -> void:
 	b._guard_rails()
 	b._signs()
 	b._traffic_signals()
+
+## The Japanese text, or its Thai counterpart on the Thai corner.
+func _t(japan: String, thailand: String) -> String:
+	return thailand if thai else japan
 
 # --- base and ground -------------------------------------------------------------
 
@@ -61,7 +71,7 @@ func _base() -> void:
 	k.slab(Vector3(-9.0, -0.06, -9.0), Vector3(9.0, -0.02, 9.0), Color(0.42, 0.42, 0.47), {"line": 0.4})
 	# name plate on the front of the plinth
 	k.box(Vector3(0, -0.6, 9.4), Vector3(2.6, 0.32, 0.04), BRASS, {"gloss": 0.8})
-	k.text("HOSHI MART  ·  RAINY NIGHT", Vector3(0, -0.6, 9.425), 0.12, Color(0.25, 0.16, 0.1))
+	k.text(_t("HOSHI MART  ·  RAINY NIGHT", "ดาวมาร์ท  ·  คืนฝนตก"), Vector3(0, -0.6, 9.425), 0.12, Color(0.25, 0.16, 0.1))
 
 func _roads() -> void:
 	k.material("asphalt", 3)
@@ -87,10 +97,14 @@ func _roads() -> void:
 		k.quad(Vector3(5.6 + i * 0.9, 0.004, 2.5), Vector2(0.45, 3.0), PAINT, paint)
 	_line(Vector3(0.75, 0, 5.95), Vector3(0.75, 0, 6.85), 0.3, paint)
 	_line(Vector3(6.95, 0, 0.6), Vector3(8.15, 0, 0.6), 0.3, paint)
-	# diamond: crossing ahead
-	var c := Vector3(-4.6, 0.004, 6.4)
-	for corner in [[Vector3(-1.1, 0, 0), Vector3(0, 0, -0.38)], [Vector3(0, 0, -0.38), Vector3(1.1, 0, 0)], [Vector3(1.1, 0, 0), Vector3(0, 0, 0.38)], [Vector3(0, 0, 0.38), Vector3(-1.1, 0, 0)]]:
-		_line(c + corner[0], c + corner[1], 0.1, paint)
+	if thai:
+		# "slow down" painted in the near lane
+		k.text("ช้าลง", Vector3(-4.6, 0.006, 6.4), 0.7, PAINT * 0.95, {"rot": Vector3(-90, 0, 0)})
+	else:
+		# diamond: crossing ahead
+		var c := Vector3(-4.6, 0.004, 6.4)
+		for corner in [[Vector3(-1.1, 0, 0), Vector3(0, 0, -0.38)], [Vector3(0, 0, -0.38), Vector3(1.1, 0, 0)], [Vector3(1.1, 0, 0), Vector3(0, 0, 0.38)], [Vector3(0, 0, 0.38), Vector3(-1.1, 0, 0)]]:
+			_line(c + corner[0], c + corner[1], 0.1, paint)
 	# gutters with grated covers along both kerbs
 	k.slab(Vector3(-9, -0.02, 5.2), Vector3(5.2, 0.006, 5.5), Color(0.4, 0.41, 0.48), {"gloss": 0.6, "line": 0.3})
 	k.slab(Vector3(5.2, -0.02, -9), Vector3(5.5, 0.006, 5.2), Color(0.4, 0.41, 0.48), {"gloss": 0.6, "line": 0.3})
@@ -122,6 +136,12 @@ func _lot() -> void:
 	k.slab(Vector3(4.0, -0.02, -9), Vector3(5.05, LOT, 4.0), PAVER, pave)
 	k.slab(Vector3(-9, -0.02, 5.05), Vector3(5.2, LOT + 0.015, 5.2), CURB, {"gloss": 0.5})
 	k.slab(Vector3(5.05, -0.02, -9), Vector3(5.2, LOT + 0.015, 5.05), CURB, {"gloss": 0.5})
+	if thai:
+		# red and white painted kerb: no parking along the shop front
+		var red := Color(0.85, 0.16, 0.18)
+		for i in 14:
+			k.slab(Vector3(-9.0 + i * 1.0, -0.02, 5.04), Vector3(-8.5 + i * 1.0, LOT + 0.017, 5.21), red, {"gloss": 0.5})
+			k.slab(Vector3(5.04, -0.02, -9.0 + i * 1.0), Vector3(5.21, LOT + 0.017, -8.5 + i * 1.0), red, {"gloss": 0.5})
 	var lot := {"mat": "asphalt", "gloss": 0.8}
 	k.slab(Vector3(-6.6, -0.02, 0.0), Vector3(4.0, LOT, 4.0), LOT_TOP, lot)
 	k.slab(Vector3(2.4, -0.02, -9), Vector3(4.0, LOT, 0.0), LOT_TOP, lot)
@@ -134,7 +154,7 @@ func _lot() -> void:
 	var paint := {"gloss": 0.7}
 	for x in [-4.9, -2.45, 0.0]:
 		k.quad(Vector3(x, LOT + 0.004, 2.75), Vector2(0.1, 2.3), PAINT, paint)
-	for x in [-3.675, -1.225]:
+	for x in ([-1.225] if thai else [-3.675, -1.225]):
 		for side in [-0.45, 0.45]:
 			k.box(Vector3(x + side, LOT + 0.05, 2.0), Vector3(0.55, 0.1, 0.13), Color(0.62, 0.62, 0.66), {"gloss": 0.4})
 			k.box(Vector3(x + side, LOT + 0.101, 2.0), Vector3(0.12, 0.002, 0.131), Color(0.95, 0.8, 0.2), {"line": 0.0})
@@ -206,9 +226,10 @@ func _sign_band() -> void:
 	_star(Vector3(-3.55, 3.76, 0.155), 0.26, Basis.IDENTITY, "sign_band")
 	_star(Vector3(SHOP_X.y + 0.155, 3.76, -3.9), 0.26, Basis(Vector3.UP, PI * 0.5), "sign_band")
 	var ink := Color(0.04, 0.42, 0.44) * 1.4
-	k.text("HOSHI MART", Vector3(-0.9, 3.76, 0.16), 0.42, ink, {"outline": 10})
-	k.text("HOSHI MART", Vector3(SHOP_X.y + 0.16, 3.76, -2.3), 0.42, ink, {"outline": 10, "rot": Vector3(0, 90, 0)})
-	k.text("24H", Vector3(1.75, 3.76, 0.16), 0.3, Color(1.0, 0.45, 0.18) * 1.3, {"outline": 8})
+	var name := _t("HOSHI MART", "ดาวมาร์ท")
+	k.text(name, Vector3(-0.9, 3.76, 0.16), 0.42, ink, {"outline": 10})
+	k.text(name, Vector3(SHOP_X.y + 0.16, 3.76, -2.3), 0.42, ink, {"outline": 10, "rot": Vector3(0, 90, 0)})
+	k.text(_t("24H", "24 ชม."), Vector3(1.75, 3.76, 0.16), 0.3, Color(1.0, 0.45, 0.18) * 1.3, {"outline": 8})
 
 ## Five-pointed star logo lying in the plane of the given basis (facing its +Z).
 func _star(center: Vector3, radius: float, basis: Basis, mat: String) -> void:
@@ -230,6 +251,9 @@ func _awning() -> void:
 func _shop_front() -> void:
 	# recycling bins, umbrella stand and door mat under the awning
 	var bins := [[Color(0.24, 0.45, 0.78), "CANS"], [Color(0.28, 0.62, 0.42), "PET"], [Color(0.55, 0.56, 0.62), "TRASH"]]
+	if thai:
+		# Thai bin colours: general waste blue, recyclables yellow, hazardous red
+		bins = [[Color(0.24, 0.45, 0.78), "ทั่วไป"], [Color(0.95, 0.78, 0.2), "รีไซเคิล"], [Color(0.85, 0.22, 0.22), "อันตราย"]]
 	for i in 3:
 		var x := -1.4 + i * 0.38
 		k.box(Vector3(x, LOT + 0.47, 0.3), Vector3(0.36, 0.94, 0.42), bins[i][0], {"gloss": 0.5})
@@ -250,7 +274,7 @@ func _shop_front() -> void:
 		k.rod(tip, tip + Vector3(0.06, 0.04, 0), 0.012, Color(0.3, 0.2, 0.15))
 	k.slab(Vector3(-0.05, LOT, 0.05), Vector3(1.55, LOT + 0.012, 0.95), Color(0.16, 0.2, 0.22), {"line": 0.3})
 	k.quad(Vector3(0.75, LOT + 0.014, 0.85), Vector2(1.5, 0.08), TEAL * 0.7)
-	k.text("WELCOME", Vector3(0.75, LOT + 0.015, 0.5), 0.14, Color(0.4, 0.55, 0.55), {"rot": Vector3(-90, 0, 0)})
+	k.text(_t("WELCOME", "ยินดีต้อนรับ"), Vector3(0.75, LOT + 0.015, 0.5), 0.14, Color(0.4, 0.55, 0.55), {"rot": Vector3(-90, 0, 0)})
 	_pole_sign()
 
 func _pole_sign() -> void:
@@ -270,7 +294,7 @@ func _pole_sign() -> void:
 		var normal := turn * Vector3(0, 0, side)
 		var face_basis := turn if side > 0 else turn * Basis(Vector3.UP, PI)
 		_star(head + Vector3(0, 0.28, 0) + normal * 0.19, 0.3, face_basis, "pole_sign")
-		var label := k.text("HOSHI\nMART", head + Vector3(0, -0.12, 0) + normal * 0.19, 0.2, Color(0.04, 0.42, 0.44) * 1.4, {"outline": 8})
+		var label := k.text(_t("HOSHI\nMART", "ดาว\nมาร์ท"), head + Vector3(0, -0.12, 0) + normal * 0.19, 0.2, Color(0.04, 0.42, 0.44) * 1.4, {"outline": 8})
 		label.basis = face_basis
 		label.line_spacing = -18
 
@@ -358,8 +382,13 @@ func _alley() -> void:
 	k.torus(mirror, 0.32, 0.035, Color(0.95, 0.45, 0.15), {"basis": mirror_basis})
 	k.cyl(mirror, 0.31, 0.02, Color(0.55, 0.68, 0.85), {"basis": mirror_basis, "seg": 20, "gloss": 1.0, "emit": 0.12})
 	k.box(mirror + Vector3(0, 0.33, -0.02), Vector3(0.55, 0.03, 0.18), Color(0.95, 0.45, 0.15), {"rot": Vector3(0, 30, 0)})
-	k.prism(base + Vector3(0, 1.9, 0.06), Vector3(0.62, 0.52, 0.03), Color(0.85, 0.12, 0.16), {"rot": Vector3(0, 0, 180)})
-	k.text("STOP", base + Vector3(0, 1.96, 0.08), 0.1, Color(1, 1, 1))
+	if thai:
+		# Thai stop sign: red octagon reading หยุด
+		k.cyl(base + Vector3(0, 1.9, 0.06), 0.3, 0.03, Color(0.85, 0.12, 0.16), {"basis": Basis(Vector3.RIGHT, PI * 0.5) * Basis(Vector3.UP, PI / 8.0), "seg": 8})
+		k.text("หยุด", base + Vector3(0, 1.9, 0.08), 0.16, Color(1, 1, 1), {"outline": 4})
+	else:
+		k.prism(base + Vector3(0, 1.9, 0.06), Vector3(0.62, 0.52, 0.03), Color(0.85, 0.12, 0.16), {"rot": Vector3(0, 0, 180)})
+		k.text("STOP", base + Vector3(0, 1.96, 0.08), 0.1, Color(1, 1, 1))
 
 func _ac_unit(center: Vector3) -> void:
 	k.box(center, Vector3(0.3, 0.6, 0.8), Color(0.86, 0.86, 0.84), {"gloss": 0.4})
@@ -386,6 +415,16 @@ func _neighbour() -> void:
 	for spot in [Vector2(-8.2, 4.0), Vector2(-7.4, 1.5)]:
 		k.slab(Vector3(spot.x - 0.4, spot.y - 0.45, -6.02), Vector3(spot.x + 0.4, spot.y + 0.45, -5.99), Color(0.14, 0.17, 0.3), {"gloss": 0.9})
 	k.rod(Vector3(-9.06, 5.6, -5.9), Vector3(-9.06, LOT, -5.9), 0.045, Color(0.6, 0.6, 0.65), {"seg": 8})
+	if thai:
+		Thai.shophouse_front(k)
+	else:
+		_house_front()
+	_house_upstairs()
+	if not thai:
+		_front_yard()
+	_notice_board()
+
+func _house_front() -> void:
 	# front door with a little lamp, two windows (upstairs one lit behind curtains)
 	k.slab(Vector3(-8.55, LOT, 2.4), Vector3(-7.85, 2.1, 2.46), Color(0.36, 0.25, 0.2), {"gloss": 0.3})
 	k.box(Vector3(-7.95, 1.05, 2.48), Vector3(0.04, 0.12, 0.04), BRASS, {"gloss": 0.8})
@@ -393,6 +432,8 @@ func _neighbour() -> void:
 	k.box(Vector3(-7.6, 1.9, 2.47), Vector3(0.1, 0.16, 0.08), Color(1.0, 0.82, 0.5), {"emit": 1.2})
 	k.slab(Vector3(-7.5, 1.1, 2.4), Vector3(-6.95, 2.0, 2.44), Color(0.12, 0.16, 0.28), {"gloss": 0.9})
 	k.slab(Vector3(-7.55, 1.05, 2.4), Vector3(-6.9, 1.1, 2.48), Color(0.6, 0.55, 0.5))
+
+func _house_upstairs() -> void:
 	k.slab(Vector3(-8.5, 3.4, 2.4), Vector3(-7.2, 4.6, 2.42), Color(1.0, 0.78, 0.48), {"emit": 1.3})
 	k.slab(Vector3(-8.5, 3.4, 2.42), Vector3(-8.15, 4.6, 2.43), Color(0.95, 0.62, 0.55), {"emit": 0.5, "line": 0.3})
 	k.slab(Vector3(-7.55, 3.4, 2.42), Vector3(-7.2, 4.6, 2.43), Color(0.95, 0.62, 0.55), {"emit": 0.5, "line": 0.3})
@@ -417,7 +458,9 @@ func _neighbour() -> void:
 	k.rod(Vector3(-6.6, 0.6, -0.1), Vector3(-6.6, LOT, -0.1), 0.02, Color(0.6, 0.6, 0.65))
 	k.rod(Vector3(-6.75, 2.55, -1.0), Vector3(-6.45, 2.55, -1.0), 0.02, TRIM)
 	k.ball(Vector3(-6.4, 2.48, -1.0), Vector3(0.12, 0.14, 0.12), Color(1.0, 0.8, 0.5), {"emit": 1.4})
-	# front yard: block wall with gate gap, potted plants, mailbox, the community notice board
+
+func _front_yard() -> void:
+	# front yard: block wall with gate gap, potted plants, mailbox
 	k.slab(Vector3(-9.0, LOT, 3.75), Vector3(-8.6, 1.15, 3.95), Color(0.58, 0.58, 0.62), {"mat": "block"})
 	k.slab(Vector3(-7.85, LOT, 3.75), Vector3(-6.75, 1.15, 3.95), Color(0.58, 0.58, 0.62), {"mat": "block"})
 	k.slab(Vector3(-6.75, LOT, -6.0), Vector3(-6.6, 1.15, 3.95), Color(0.58, 0.58, 0.62), {"mat": "block"})
@@ -427,6 +470,9 @@ func _neighbour() -> void:
 	for p in [Vector3(-8.85, LOT, 3.2), Vector3(-7.4, LOT, 3.3), Vector3(-7.05, LOT, 3.0)]:
 		k.cyl(p + Vector3(0, 0.15, 0), 0.16, 0.3, Color(0.55, 0.32, 0.22), {"seg": 10, "top": 1.15})
 		k.ball(p + Vector3(0, 0.45, 0), Vector3(0.26, 0.3, 0.26), Color(0.26, 0.5, 0.36))
+
+## The community notice board facing the sidewalk.
+func _notice_board() -> void:
 	var board := Vector3(-7.3, 1.45, 4.08)
 	for x in [-0.42, 0.42]:
 		k.box(board + Vector3(x, -0.7, 0), Vector3(0.06, 1.4, 0.06), Color(0.4, 0.28, 0.2))
@@ -434,6 +480,11 @@ func _neighbour() -> void:
 	k.box(board + Vector3(0, 0, 0.03), Vector3(0.85, 0.55, 0.01), Color(0.72, 0.62, 0.45), {"line": 0.0})
 	k.box(board + Vector3(0, 0.38, 0.03), Vector3(1.05, 0.04, 0.16), Color(0.3, 0.3, 0.36))
 	var papers := [[Vector3(-0.24, 0.08, 0), Vector2(0.28, 0.34), Color(0.98, 0.95, 0.85), "BON\nODORI"], [Vector3(0.12, 0.12, 0), Vector2(0.24, 0.2), Color(0.75, 0.88, 0.98), "NOTICE"], [Vector3(0.18, -0.13, 0), Vector2(0.3, 0.2), Color(0.98, 0.82, 0.86), "LOST\nCAT"], [Vector3(-0.22, -0.17, 0), Vector2(0.26, 0.14), Color(0.88, 0.96, 0.82), "GARBAGE\nDAYS"]]
+	if thai:
+		papers[0][3] = "งานวัด\nเสาร์นี้"
+		papers[1][3] = "ประกาศ"
+		papers[2][3] = "แมวหาย"
+		papers[3][3] = "เก็บขยะ\nจ. พ. ศ."
 	for paper in papers:
 		k.box(board + paper[0] + Vector3(0, 0, 0.04), Vector3(paper[1].x, paper[1].y, 0.004), paper[2], {"line": 0.3})
 		k.text(paper[3], board + paper[0] + Vector3(0, 0, 0.044), 0.045, Color(0.2, 0.2, 0.3))
@@ -485,6 +536,8 @@ func _poles_and_wires() -> void:
 	_wire(P2 + Vector3(0, 6.6, 0), Vector3(2.3, 4.0, -0.1), 0.5, 0.02)
 	_wire(P1 + Vector3(0, 6.6, 0), Vector3(-7.0, 5.0, 2.4), 0.45, 0.02)
 	_wire(P2 + Vector3(0, 5.2, 0), Vector3(8.75, 5.4, 8.75), 0.35, 0.018)
+	if thai:
+		Thai.cable_tangle(self, [P1, P2, P3])
 
 ## Concrete pole with cross-arms; returns the wire attachment points.
 func _utility_pole(at: Vector3, yaw: float, transformer: bool) -> Array:
@@ -585,8 +638,12 @@ func _traffic_signals() -> void:
 	# arm over road A, head facing traffic coming along +X; arm over road B facing +Z traffic
 	k.rod(foot + Vector3(0, 5.2, 0), Vector3(8.82, 5.2, 6.4), 0.05, grey)
 	k.rod(foot + Vector3(0, 5.2, 0), Vector3(6.4, 5.2, 8.82), 0.05, grey)
-	scene.signal_a = _signal_head(Vector3(8.6, 5.0, 6.9), Basis(Vector3.UP, -PI * 0.5), "sig_a")
-	scene.signal_b = _signal_head(Vector3(6.9, 5.0, 8.6), Basis(Vector3.UP, PI), "sig_b")
+	if thai:
+		scene.signal_a = Thai.signal_head(k, scene, Vector3(8.6, 4.55, 6.6), Basis(Vector3.UP, -PI * 0.5), "sig_a")
+		scene.signal_b = Thai.signal_head(k, scene, Vector3(6.6, 4.55, 8.6), Basis(Vector3.UP, PI), "sig_b")
+	else:
+		scene.signal_a = _signal_head(Vector3(8.6, 5.0, 6.9), Basis(Vector3.UP, -PI * 0.5), "sig_a")
+		scene.signal_b = _signal_head(Vector3(6.9, 5.0, 8.6), Basis(Vector3.UP, PI), "sig_b")
 	scene.walk_a = _walk_signal(Vector3(2.0, LOT, 8.88), Basis(Vector3.UP, PI), "walk_a")
 	scene.walk_b = _walk_signal(Vector3(8.88, LOT, 1.9), Basis(Vector3.UP, -PI * 0.5), "walk_b")
 
