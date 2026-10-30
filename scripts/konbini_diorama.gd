@@ -14,7 +14,6 @@ const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const Interior := preload("res://scripts/konbini_interior.gd")
 const Weather := preload("res://scripts/konbini_weather.gd")
-const Thai := preload("res://scripts/konbini_thai.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -72,8 +71,6 @@ func _ready() -> void:
 	weather = Weather.new()
 	weather.name = "Weather"
 	add_child(weather)
-	if country == "thailand":
-		weather.extra_shelters.append(Thai.UMBRELLA_SHELTER)
 	weather.setup(_rain_lamps())
 	_reflections()
 	rig = CameraRig.new()
@@ -252,9 +249,6 @@ func _lights() -> void:
 	_omni("BackDoor", Vector3(-1.65, 2.3, -6.0), Color(1.0, 0.82, 0.55), 0.45, 3.0)
 	_omni("Security", Vector3(4.9, 4.6, -7.7), Color(0.82, 1.0, 0.88), 1.1, 5.5)
 	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
-	if country == "thailand":
-		_omni("FoodCart", Thai.CART + Vector3(-0.4, 1.8, 0), Color(1.0, 0.72, 0.4), 1.4, 4.2)
-		_omni("SpiritHouse", Vector3(3.6, 1.6, 0.9), Color(1.0, 0.7, 0.4), 0.6, 2.2, Kit.LAYER_OUT, true)
 
 func _rain_lamps() -> Array:
 	var list := [
@@ -268,8 +262,7 @@ func _rain_lamps() -> Array:
 		[Vector3(-1.3, 3.6, 0.9), 3.0, Color(0.3, 0.45, 0.42)],
 		[Vector3(7.5, 4.8, 7.5), 3.0, Color(0.05, 0.4, 0.3)],
 	]
-	if country == "thailand":
-		list.insert(0, [Thai.CART + Vector3(-0.4, 1.8, 0), 2.2, Color(0.5, 0.35, 0.18)])
+
 	traffic_lamp_index = list.size() - 1
 	return list
 
@@ -287,8 +280,6 @@ func _reflections() -> void:
 	weather.add_reflection(Vector3(-6.4, 0.12, -1.0), Color(1.0, 0.75, 0.45), 0.5, 2.4, 0.5, 2.0)
 	weather.add_reflection(Vector3(4.9, 0.12, -7.7), Color(0.82, 1.0, 0.88), 0.6, 4.6, 0.55, 2.0)
 	weather.add_reflection(Vector3(-7.85, 0.12, 2.5), Color(1.0, 0.78, 0.5), 1.1, 4.0, 0.3, 1.0)
-	if country == "thailand":
-		weather.add_reflection(Thai.CART + Vector3(-1.0, 0.0, 0.9), Color(1.0, 0.72, 0.4), 0.6, 1.8, 0.35, 2.0)
 	traffic_reflections = [
 		weather.add_reflection(Vector3(8.6, 0.0, 6.9), Color.WHITE, 1.1, 5.0, 0.0, 1.6),
 		weather.add_reflection(Vector3(6.9, 0.0, 8.6), Color.WHITE, 1.1, 5.0, 0.0, 1.6),

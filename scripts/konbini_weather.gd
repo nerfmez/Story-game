@@ -24,7 +24,6 @@ const SHELTERS := [
 ]
 
 var rain_material: ShaderMaterial
-var extra_shelters: Array = []  # more [rect, height] roofs, set before setup()
 var lamps: Array = []          # [position, radius, color] fed to the rain shader
 var reflections: Array = []    # {node, base, width, length}
 var _rng := RandomNumberGenerator.new()
@@ -68,15 +67,9 @@ func _rain() -> void:
 	rain_material.shader = RAIN
 	var rects := []
 	var tops := PackedFloat32Array()
-	for s in SHELTERS + extra_shelters:
-		var r: Vector4 = s[0]
-		if r == Vector4.ZERO or rects.size() == 8:
-			continue
-		rects.append(r)
+	for s in SHELTERS:
+		rects.append(s[0])
 		tops.append(s[1])
-	while rects.size() < 8:
-		rects.append(Vector4.ZERO)
-		tops.append(0.0)
 	rain_material.set_shader_parameter("shelters", rects)
 	rain_material.set_shader_parameter("shelter_top", tops)
 	update_lamps()
