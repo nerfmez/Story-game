@@ -14,6 +14,24 @@ expects that quality from short requests. Read `references/architecture.md` befo
 mood, light, weather, time of day or a regional version. Read `references/pitfalls.md` before the first render of
 a session: it lists the mistakes that already happened once.
 
+## Plan first, then ask, then build
+
+There is no template layout. The konbini corner (two roads along the edges, poles, a neighbour house) is one
+plan among many, and reusing it for a new subject is a reskin, which the user rejected. Each request gets a
+new plan: no road at all, a road through the middle, a lane, a roundabout, a canal with a bridge, a slope with
+steps, a plaza, whatever suits the subject and the brief. Every element (ground, paths, buildings, props,
+lights) is placed fresh for that plan.
+
+Before writing any scene code:
+
+1. Write the brief (below) and draw 2 or 3 genuinely different top-down plans of the 18 × 18 m base as one
+   image (PIL is enough: coloured shapes with Thai labels in Sarabun, the focal building in a strong colour).
+   Mark what crosses each edge of the base (lane, road, canal, wall, nothing) so blocks can be joined later.
+2. Send the image and ask the user to pick one and say what to cut or add. Wait for the answer; do not build
+   on a plan the user has not chosen.
+3. To extend an existing map, the new block's edge must carry the same things at the same places as the
+   neighbour's edge it touches; read the neighbour's plan, draw the new one to match, and show both side by side.
+
 ## The loop
 
 Every change goes through the same loop. Do not skip the render: the look of this scene cannot be judged from
@@ -24,7 +42,8 @@ code, and the first render after a change is usually wrong in some small way.
    interior objects, signs of life, 6 to 10 motions, a mood sentence) and show the user a compact version.
    For a region or theme, list what makes a real street there recognisable and what to remove because it
    belongs to the old place. Ask only if the place or mood is genuinely unclear; otherwise decide, show the
-   brief and build. `references/example-brief.md` is the request that produced the konbini: match its depth.
+   brief and the plans, and build once the user has chosen. `references/example-brief.md` is the request that
+   produced the konbini: match its depth.
    A different subject (not a konbini) gets its own builder scripts made the same way, reusing the kit,
    shaders, weather and camera.
 2. **Edit the builders.** Shared geometry lives in the exterior and interior builders; anything specific to a

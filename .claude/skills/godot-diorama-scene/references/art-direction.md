@@ -10,12 +10,13 @@ from it. Never build straight from a one-line request.
 ## Step 1: write the brief (in the user's language), then build
 
 Fill every heading below. Be concrete: name objects, materials, colours and positions, not adjectives.
-Show the user a compact version (6 to 10 lines) and start building in the same turn unless something in the
-request is genuinely ambiguous; they can redirect after the first render.
+Show the user a compact version (6 to 10 lines) together with the top-down plans (see "Plan first" in
+SKILL.md), and build only after they pick a plan and say what to cut or add.
 
-1. **Format.** Square diorama base, every part on it, clear layers of space: road or ground at the front, the
-   main building in the middle, a back layer that closes the view (wall, building slices, trees). Edges cut
-   cleanly like a model, a plinth with a name plate.
+1. **Format and layout.** Square diorama base, every part on it, clear layers of space (something low in
+   front, the focal subject, something taller behind that closes the view). The layout itself is free and
+   new each time: where paths or roads run (or none), where the focal building sits and which way it faces,
+   what surrounds it. Edges cut cleanly like a model, a plinth with a name plate.
 2. **Subject and focal point.** One building or place that holds the eye and is the main light source. Decide
    what it is lit by and what colour that light is.
 3. **Time, weather, season.** Each one changes light, surfaces and motion. Write what each does here (rain:
