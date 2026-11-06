@@ -22,13 +22,17 @@ balls (the first beach pines) reads as a toy, not as anime.
    volume.
 3. **Leaf cards.** Small quads scattered over each clump surface. All four vertices of a card share its
    centre, and the vertex shader spreads the corners in the camera plane, turned by a random angle. The
-   fragment shader cuts each card into a 5- or 6-lobed leaf cluster (no texture needed). The silhouette
-   becomes scalloped, and shadows on the ground get leafy edges for free. Leaf size is about 0.3 x tree
+   fragment shader cuts each card into a
+   ragged clump edge (`card_edge`): two bumps of random count, size and phase around the angle, a random
+   squash, and on about half the cards one side bitten away. The user rejected identical 5-lobed stars on
+   every card ("the same star repeated, a whole closed shape"): every card must differ, and many should
+   be partial, so only a few bumps show at the crown edge. Leaf size is about 0.3 x tree
    size; density is about 34 per square metre for broadleaf and 60 for pine.
 4. **Three flat tones with a hue shift.** Light is yellow-green, mid is green, shadow is blue-green, chosen by
    `dot(spherized normal, sun)`. Wobble the band edges with noise (brush strokes) and darken the underside
-   of the crown. Each card gets a touch of random value, and each cut edge a darker band of the same hue
-   (no black ink on foliage). The trunk and branches keep the toon kit's ink line.
+   of the crown. Keep the lit side one flat tone: the user preferred it to cards with random values,
+   whose shapes showed inside the mass. In the mid and shadow tones only, each cut edge gets a darker band
+   of the same hue (no black ink on foliage). The trunk and branches keep the toon kit's ink line.
 5. **Glow.** Brighten the rim on the side facing away from the sun, as if light comes through the leaves.
    It is subtle.
 6. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.

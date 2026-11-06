@@ -27,7 +27,6 @@ varying vec3 world_pos;
 varying float card;
 varying float seed;
 varying vec2 corner;
-varying float low;   // how far below the crown centre (the underside is in its own shade)
 
 float hash1(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -38,6 +37,26 @@ float noise2(vec2 p) {
 	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(hash1(i), hash1(i + vec2(1.0, 0.0)), f.x), mix(hash1(i + vec2(0.0, 1.0)), hash1(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+// The outline of a leaf card: a ragged clump edge that differs card to card. The
+// radius at each angle is a sum of two bumps of random count, size and phase, the
+// card is squashed by a random amount, and part of it may be bitten away, so no two
+// cards share a shape and many are not a whole closed blob.
+float card_edge(vec2 q, float sd) {
+	float aspect = 0.7 + 0.3 * fract(sd * 3.31);
+	q.y /= aspect;
+	float ang = atan(q.y, q.x);
+	float k1 = 3.0 + floor(fract(sd * 5.17) * 4.0);
+	float k2 = 7.0 + floor(fract(sd * 8.73) * 5.0);
+	float a1 = 0.06 + 0.12 * fract(sd * 2.71);
+	float a2 = 0.03 + 0.06 * fract(sd * 6.11);
+	float e = 0.72 + a1 * cos(ang * k1 + sd * 31.0) + a2 * cos(ang * k2 + sd * 17.0);
+	// some cards lose a side, so only a few bumps of them show at the crown edge
+	float bite = step(0.55, fract(sd * 4.49));
+	vec2 bd = vec2(cos(sd * 41.0), sin(sd * 41.0));
+	e = mix(e, min(e, 0.35 + dot(normalize(q + 1e-4), bd) * -0.9 + 0.6), bite);
+	return e - length(q);   // > 0 inside
 }
 
 void vertex() {
@@ -61,31 +80,20 @@ void vertex() {
 		vec3 up = INV_VIEW_MATRIX[1].xyz;
 		p += (right * c.x + up * c.y) * card;
 	}
-	low = crown.y - p.y;
 	world_pos = p;
 	VERTEX = p;
 }
 
 void fragment() {
 	if (card > 0.0) {
-		// a cluster of five or six rounded leaf tips, cut out of the quad
-		float r = length(corner);
-		float ang = atan(corner.y, corner.x);
-		float lobes = 5.0 + floor(seed * 2.0);
-		float edge = 0.78 + 0.16 * cos(ang * lobes + seed * 20.0);
-		if (r > edge) {
+		if (card_edge(corner, seed) < 0.0) {
 			discard;
 		}
 	}
 	// spherized lighting in three flat tones, band edges wobbled like brush work
 	float l = dot(n_sphere, normalize(sun_dir));
 	l += (noise2(world_pos.xz * 2.2 + world_pos.y * 1.7) - 0.5) * 0.35;
-	l -= clamp(low, 0.0, 2.0) * 0.28;   // the underside of the crown sits in shade
-	vec3 col = l > 0.42 ? light_col : (l > 0.0 ? mid_col : shadow_col);
-	// each leaf cluster a touch lighter or darker, so the masses read as many clusters
-	if (card > 0.0) {
-		col *= 0.95 + 0.08 * fract(seed * 7.13);
-	}
+	vec3 col = l > 0.32 ? light_col : (l > -0.12 ? mid_col : shadow_col);
 	// light through the leaves on the rim of the side away from the sun
 	vec3 v = normalize(CAMERA_POSITION_WORLD - world_pos);
 	float rim = pow(1.0 - abs(dot(n_sphere, v)), 3.0);
@@ -93,10 +101,7 @@ void fragment() {
 	col = mix(col, glow_col, step(0.55, rim * (0.35 + back)) * 0.6);
 	// a darker band of the same hue along the cut edge of each card
 	if (card > 0.0) {
-		float r = length(corner);
-		float ang = atan(corner.y, corner.x);
-		float edge = 0.78 + 0.16 * cos(ang * (5.0 + floor(seed * 2.0)) + seed * 20.0);
-		col *= mix(1.0, l > 0.42 ? 0.93 : 0.74, smoothstep(edge - 0.12, edge - 0.04, r));
+		col *= mix(1.0, 0.72, (1.0 - smoothstep(0.03, 0.09, card_edge(corner, seed))) * step(l, 0.32));
 	}
 	ALBEDO = col * brightness;
 }
