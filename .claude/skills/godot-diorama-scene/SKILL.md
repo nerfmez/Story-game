@@ -1,6 +1,6 @@
 ---
 name: godot-diorama-scene
-description: Art direction and build method for cel-shaded "3D that looks 2D" anime diorama scenes in Godot 4.3 (the rainy-night konbini corner in this repo, Japan and Thailand versions), and how to publish them as a playable web link. It turns a one-line request ("ร้านราเมนตอนหิมะตก", "a small station at dusk") into a full art-direction brief and then into a scene of the same quality as the konbini. Use it whenever the user wants a new diorama, miniature or scene in this style for any subject, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
+description: Art direction and build method for cel-shaded "3D that looks 2D" anime diorama scenes in Godot 4.3 (the rainy-night konbini corner in this repo, Japan and Thailand versions), and how to publish them as a playable web link. It turns a one-line request ("ร้านราเมนตอนหิมะตก", "a small station at dusk") into a full art-direction brief and then into a scene of the same quality as the konbini. Use it whenever the user wants a new diorama, miniature or scene in this style for any subject, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), the sea, a beach or any water and waves, season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
 ---
 
 # Godot cel-shaded diorama scenes
@@ -12,7 +12,10 @@ country, a new prop or a different night is an edit to a builder script, then a 
 Start with `references/art-direction.md`: it is the reason the konbini looks the way it does, and the user
 expects that quality from short requests. Read `references/architecture.md` before editing code. Read `references/atmosphere.md` when the request is about
 mood, light, weather, time of day or a regional version. Read `references/pitfalls.md` before the first render of
-a session: it lists the mistakes that already happened once.
+a session: it lists the mistakes that already happened once. Read `references/water.md` whenever a scene has
+a sea, lake, river or any shore: it is the approved recipe for water (sloped sand under clear water, waves that
+roll in and break into foam, swash, wet sand, caustics, glints, surf on rocks) and the list of what the user
+rejected along the way.
 
 ## Plan first, then ask, then build
 
