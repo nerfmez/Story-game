@@ -9,8 +9,6 @@ extends RefCounted
 const Kit := preload("res://scripts/konbini_kit.gd")
 const FOLIAGE := preload("res://shaders/konbini_foliage.gdshader")
 
-const BARK := Color(0.56, 0.42, 0.32)       # warm brown, so it is not black in the crown shade
-const PINE_BARK := Color(0.46, 0.36, 0.33)  # greyer, as black pine bark is
 
 ## The sun direction the foliage is lit from (toward the sun), from a light's rotation.
 static func sun_from(rotation_degrees: Vector3) -> Vector3:
@@ -92,62 +90,131 @@ static func crown(scene: Node3D, centre: Vector3, clumps: Array, opts := {}) -> 
 	return mi
 
 # --- trunks ------------------------------------------------------------------------
+# Trunks, limbs and roots are smooth swept tubes collected into one mesh per tree and
+# painted by shaders/konbini_bark.gdshader, with the kit's ink outline as next pass.
 
-## A tapered limb from a to b (radius r0 at a, r1 at b) with a round joint at b, so a
-## chain of limbs bends smoothly instead of showing kinks.
-static func limb(k: Kit, a: Vector3, b: Vector3, r0: float, r1: float, color: Color, line := 1.0) -> void:
-	# a little fill light so bark in the crown's shade stays a dark brown, not black
-	k.rod(a, b, r0, color, {"top": snappedf(r1 / r0, 0.05), "seg": 8, "line": line, "lit": 0.3})
-	# the joint ball is a hair fatter than the limbs, so it hides their cap seams
-	k.ball(b, Vector3.ONE * r1 * 1.1, color, {"seg": 8, "line": 0.0, "lit": 0.3})
+const BARK_SHADER := preload("res://shaders/konbini_bark.gdshader")
+const OUTLINE := preload("res://shaders/konbini_outline.gdshader")
 
-## A trunk through the points pts (base first), thinning from r0 to r1, with a flared
-## foot and a few surface roots running out into the ground.
-static func trunk(k: Kit, pts: Array, r0: float, r1: float, color: Color, rng: RandomNumberGenerator) -> void:
-	var base: Vector3 = pts[0]
-	k.cyl(base + Vector3(0, r0 * 0.6, 0), r0 * 1.55, r0 * 1.2, color, {"top": 0.62, "seg": 10, "lit": 0.3})
-	var roots := 4 + rng.randi() % 2
-	for i in roots:
-		var a := i * TAU / roots + rng.randf_range(-0.35, 0.35)
-		var out := Vector3(cos(a), 0, sin(a))
-		var start := base + out * r0 * 0.7 + Vector3(0, r0 * 0.7, 0)
-		var end := base + out * r0 * rng.randf_range(2.6, 3.6) + Vector3(0, -0.02, 0)
-		k.rod(start, end, r0 * 0.42, color, {"top": 0.3, "seg": 6, "line": 0.7, "lit": 0.3})
-	var n := pts.size() - 1
+## Catmull-Rom through pts, `steps` points per segment, for smooth bends.
+static func smooth(pts: Array, steps := 4) -> Array:
+	var out: Array = []
+	var n := pts.size()
+	for i in n - 1:
+		var p0: Vector3 = pts[maxi(i - 1, 0)]
+		var p1: Vector3 = pts[i]
+		var p2: Vector3 = pts[i + 1]
+		var p3: Vector3 = pts[mini(i + 2, n - 1)]
+		for s in steps:
+			var t := float(s) / steps
+			var t2 := t * t
+			var t3 := t2 * t
+			out.append(0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3))
+	out.append(pts[n - 1])
+	return out
+
+## Adds a tube through pts to the bark mesh data in `m`: radius from r0 to r1 along
+## its length, shade (crown shade) from s0 to s1, ink weight `line`.
+static func tube(m: Dictionary, pts: Array, r0: float, r1: float, s0: float, s1: float, line := 1.0, sides := 9) -> void:
+	var path := smooth(pts)
+	var n := path.size()
+	var u := Vector3.ZERO
+	var base: int = m["v"].size()
 	for i in n:
-		limb(k, pts[i], pts[i + 1], lerpf(r0, r1, float(i) / n), lerpf(r0, r1, float(i + 1) / n), color)
-	# a knot and a few darker strokes of bark on the side toward the camera
-	var mid: Vector3 = pts[n / 2]
-	k.ball(mid + Vector3(r0 * 0.75, 0.0, r0 * 0.5), Vector3(0.35, 0.45, 0.3) * r0, color.darkened(0.25), {"seg": 6, "line": 0.0})
-	for j in 3:
-		var t := 0.15 + j * 0.22
-		var p: Vector3 = (pts[0] as Vector3).lerp(pts[n], t)
-		var ang := rng.randf_range(-0.6, 1.2)
-		var side := Vector3(sin(ang), 0, cos(ang)) * lerpf(r0, r1, t) * 0.98
-		k.rod(p + side, p + side + Vector3(0, rng.randf_range(0.25, 0.45), 0), 0.012, color.darkened(0.35), {"line": 0.0})
+		var p: Vector3 = path[i]
+		var t: Vector3 = ((path[mini(i + 1, n - 1)] as Vector3) - (path[maxi(i - 1, 0)] as Vector3)).normalized()
+		if i == 0:
+			u = t.cross(Vector3.FORWARD if absf(t.y) > 0.9 else Vector3.UP).normalized()
+		else:
+			u = (u - t * u.dot(t)).normalized()
+		var v := t.cross(u)
+		var f := float(i) / (n - 1)
+		var r := lerpf(r0, r1, f)
+		var sh := lerpf(s0, s1, f)
+		for k in sides + 1:
+			var a := TAU * k / sides
+			var d := u * cos(a) + v * sin(a)
+			m["v"].append(p + d * r)
+			m["n"].append(d)
+			m["c0"].append_array([d.x, d.y, d.z, line])
+			m["c1"].append_array([sh, 0.0, 0.0, 0.0])
+	for i in n - 1:
+		for k in sides:
+			var a0 := base + i * (sides + 1) + k
+			var b0 := a0 + sides + 1
+			m["i"].append_array([a0, b0, a0 + 1, a0 + 1, b0, b0 + 1])
 
-## A branch from a toward b in two curving segments (it rises, then reaches out).
-static func branch(k: Kit, a: Vector3, b: Vector3, r0: float, r1: float, color: Color) -> Vector3:
-	var d := b - a
-	var mid := a + Vector3(d.x * 0.4, d.y * 0.65, d.z * 0.4)
-	limb(k, a, mid, r0, lerpf(r0, r1, 0.55), color)
-	limb(k, mid, b, lerpf(r0, r1, 0.55), r1, color)
-	return mid
+static func bark_data() -> Dictionary:
+	return {"v": PackedVector3Array(), "n": PackedVector3Array(), "c0": PackedFloat32Array(), "c1": PackedFloat32Array(), "i": PackedInt32Array()}
+
+## Turns the collected tubes into a mesh instance with the bark look.
+static func bark_mesh(scene: Node3D, m: Dictionary, sun: Vector3, colors: Dictionary, name := "Bark") -> MeshInstance3D:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = m["v"]
+	arrays[Mesh.ARRAY_NORMAL] = m["n"]
+	var cols := PackedColorArray()
+	cols.resize((m["v"] as PackedVector3Array).size())
+	cols.fill(colors.get("mid_col", Color(0.47, 0.34, 0.28)))
+	arrays[Mesh.ARRAY_COLOR] = cols
+	arrays[Mesh.ARRAY_CUSTOM0] = m["c0"]
+	arrays[Mesh.ARRAY_CUSTOM1] = m["c1"]
+	arrays[Mesh.ARRAY_INDEX] = m["i"]
+	var fmt := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, fmt)
+	var mat := ShaderMaterial.new()
+	mat.shader = BARK_SHADER
+	mat.set_shader_parameter("sun_dir", sun)
+	for key in colors:
+		mat.set_shader_parameter(key, colors[key])
+	var ink := ShaderMaterial.new()
+	ink.shader = OUTLINE
+	mat.next_pass = ink
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	scene.add_child(mi)
+	return mi
+
+## A trunk through pts with a flared foot and a few short buttress roots that sink into
+## the ground. shade_from: the height (0..1 along the trunk) where the crown shade starts.
+static func trunk(m: Dictionary, pts: Array, r0: float, r1: float, rng: RandomNumberGenerator, shade_from := 0.55) -> void:
+	var base: Vector3 = pts[0]
+	var flared: Array = [base + Vector3(0, -0.05, 0)]
+	for p in pts:
+		flared.append(p)
+	# the foot is a short, fat stub so the trunk widens smoothly into the ground
+	tube(m, [base + Vector3(0, -0.05, 0), base + Vector3(0, r0 * 1.6, 0), base + Vector3(0, r0 * 3.2, 0)], r0 * 1.6, r0, 0.0, 0.0, 1.0)
+	tube(m, pts, r0, r1, 0.0, 1.0, 1.0)
+	var roots := 3 + rng.randi() % 2
+	for i in roots:
+		var a := i * TAU / roots + rng.randf_range(-0.4, 0.4)
+		var out := Vector3(cos(a), 0, sin(a))
+		var reach := rng.randf_range(1.9, 2.6) * r0
+		tube(m, [base + out * r0 * 0.4 + Vector3(0, r0 * 1.2, 0), base + out * r0 * 1.2 + Vector3(0, r0 * 0.35, 0), base + out * reach + Vector3(0, -0.06, 0)], r0 * 0.55, r0 * 0.12, 0.0, 0.0, 0.8, 7)
+	m["shade_from"] = shade_from
+
+## A limb from a through mid points to b, thinning from r0 to r1, in crown shade.
+static func limb(m: Dictionary, pts: Array, r0: float, r1: float, line := 1.0) -> void:
+	tube(m, pts, r0, r1, 0.8, 1.0, line, 7)
 
 ## A round broadleaf tree: a gently bending trunk with a flared, rooted foot that forks
 ## into curving limbs, each limb carrying a clump of the crown.
 static func broadleaf(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts := {}) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = opts.get("seed", 3)
-	var bark: Color = opts.get("bark", BARK)
 	var h := 3.2 * size
 	var fork_h := h * 0.48
-	var bend := Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.15, 0.15)) * size
-	var pts: Array = [base]
-	for i in range(1, 4):
+	var bend := Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.2, 0.2)) * size
+	var pts: Array = []
+	for i in 4:
 		var t := i / 3.0
 		pts.append(base + Vector3(0, fork_h * t, 0) + bend * sin(t * PI * 0.9))
-	trunk(k, pts, 0.17 * size, 0.12 * size, bark, rng)
+	var m := bark_data()
+	trunk(m, pts, 0.19 * size, 0.14 * size, rng)
 	var fork: Vector3 = pts[3]
 	var top := base + Vector3(0, h, 0)
 	var clumps: Array = [[top, Vector3(1.25, 0.95, 1.15) * size]]
@@ -156,13 +223,18 @@ static func broadleaf(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts :=
 		var a := i * TAU / limbs + rng.randf_range(-0.3, 0.3)
 		var out := Vector3(cos(a), 0, sin(a))
 		var tip := fork + out * rng.randf_range(0.8, 1.1) * size + Vector3(0, rng.randf_range(0.6, 1.3) * size, 0)
-		var mid := branch(k, fork + Vector3(0, -0.05, 0), tip, 0.085 * size, 0.035 * size, bark)
-		# a twig off each limb
+		var start := fork + Vector3(0, -0.15 * size, 0) + out * 0.03 * size
+		var d := tip - start
+		var mid := start + Vector3(d.x * 0.35, d.y * 0.6, d.z * 0.35)
+		limb(m, [start, mid, tip], 0.1 * size, 0.035 * size)
 		var twig := mid + (out.rotated(Vector3.UP, rng.randf_range(-0.9, 0.9)) * 0.45 + Vector3(0, 0.35, 0)) * size
-		limb(k, mid, twig, 0.03 * size, 0.015 * size, bark, 0.5)
+		limb(m, [mid, mid.lerp(twig, 0.5) + Vector3(0, 0.05, 0), twig], 0.035 * size, 0.012 * size, 0.5)
 		clumps.append([tip + out * 0.25 * size + Vector3(0, 0.15 * size, 0), Vector3(0.85, 0.7, 0.8) * size * rng.randf_range(0.85, 1.1)])
-	branch(k, fork, top - Vector3(0, 0.4 * size, 0), 0.1 * size, 0.045 * size, bark)
+	limb(m, [fork + Vector3(0, -0.1 * size, 0), fork + Vector3(0.05, 0.5, 0) * size, top - Vector3(0, 0.4 * size, 0)], 0.12 * size, 0.05 * size)
+	var sun: Vector3 = opts.get("sun_dir", Vector3(0.45, 0.72, 0.53))
+	bark_mesh(scene, m, sun, opts.get("bark", {}))
 	var o := opts.duplicate()
+	o.erase("bark")
 	o["leaf"] = opts.get("leaf", 0.32 * size)
 	o["seed"] = opts.get("seed", 3)
 	crown(scene, top - Vector3(0, 0.45 * size, 0), clumps, o)
@@ -173,14 +245,14 @@ static func broadleaf(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts :=
 static func pine(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts := {}) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = opts.get("seed", 5)
-	var bark: Color = opts.get("bark", PINE_BARK)
 	var lean: float = opts.get("lean", 0.4)
 	var height := 4.4 * size
-	var pts: Array = [base]
-	for i in range(1, 7):
+	var pts: Array = []
+	for i in 7:
 		var t := i / 6.0
 		pts.append(base + Vector3(lean * t * t * 2.0 + sin(t * 5.0 + base.x) * 0.2 * size, height * t, 0.5 * t * t * size))
-	trunk(k, pts, 0.16 * size, 0.06 * size, bark, rng)
+	var m := bark_data()
+	trunk(m, pts, 0.17 * size, 0.06 * size, rng)
 	var clumps: Array = []
 	for j in 4:
 		var at: Vector3 = (pts[2 + j % 4] as Vector3).lerp(pts[3 + j % 4], rng.randf_range(0.2, 0.8))
@@ -189,12 +261,14 @@ static func pine(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts := {}) 
 		var out := Vector3(cos(a), 0, sin(a) * 0.7)
 		var tip := at + out * length + Vector3(0, rng.randf_range(0.15, 0.4) * size, 0)
 		# pine limbs droop a little and lift again toward the pad
-		var dip := at + out * length * 0.45 + Vector3(0, -0.08 * size, 0)
-		limb(k, at, dip, 0.06 * size, 0.045 * size, bark)
-		limb(k, dip, tip, 0.045 * size, 0.025 * size, bark)
+		limb(m, [at, at + out * length * 0.45 + Vector3(0, -0.08 * size, 0), tip], 0.065 * size, 0.022 * size)
 		clumps.append([tip, Vector3(0.85, 0.26, 0.7) * size * rng.randf_range(0.75, 1.0)])
 	clumps.append([pts[6] + Vector3(0, 0.1, 0), Vector3(1.0, 0.3, 0.8) * size])
+	var sun: Vector3 = opts.get("sun_dir", Vector3(0.45, 0.72, 0.53))
+	var bark: Dictionary = opts.get("bark", {"light_col": Color(0.62, 0.52, 0.45), "mid_col": Color(0.42, 0.34, 0.31), "shadow_col": Color(0.24, 0.2, 0.24)})
+	bark_mesh(scene, m, sun, bark)
 	var o := opts.duplicate()
+	o.erase("bark")
 	o["leaf"] = opts.get("leaf", 0.2 * size)
 	o["clump_mix"] = opts.get("clump_mix", 0.85)
 	o["density"] = opts.get("density", 60.0)

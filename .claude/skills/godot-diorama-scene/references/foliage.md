@@ -37,15 +37,21 @@ balls (the first beach pines) reads as a toy, not as anime.
    of the same hue (no black ink on foliage). The trunk and branches keep the toon kit's ink line.
 5. **Glow.** Brighten the rim on the side facing away from the sun, as if light comes through the leaves.
    It is subtle.
-6. **Trunk and limbs** (`trunk`, `branch`, `limb`).
-   - The trunk bends gently through a few points, tapering (the `top` ratio of each rod), with a round joint
-     ball a hair fatter than the limbs at every bend, so it curves without kinks or cap seams.
-   - The foot flares out, and 4 to 5 surface roots run out into the ground.
-   - Add one knot and a few thin darker bark strokes.
-   - Limbs rise and then reach out in two segments, each with a small twig, and end in a clump. Pine limbs
-     dip and then lift toward their pad.
-   - The bark is a warm brown (pine is greyer) with a little fill light (`lit` 0.3), so the part in the
-     crown's shade stays a readable dark brown instead of black. The bark keeps the ink line.
+6. **Trunk and limbs** (`trunk`, `limb`, `tube`, `bark_mesh`, `shaders/konbini_bark.gdshader`).
+   - Every trunk, limb, twig and root is a smooth swept tube: a Catmull-Rom path with parallel-transport
+     rings, tapering from r0 to r1. All the tubes of one tree go into one mesh.
+   - The bark shader paints three tones from the sun direction: a warm tan lit side, a mid brown, and a
+     cool purple-brown shadow side. The band edges are broken by long vertical bark streaks, a few dark
+     cracks run through the mid and shadow tones, and the trunk is pushed darker as it rises into the
+     crown's shade (CUSTOM1.x).
+   - The ink line is the kit's outline shader as next pass (CUSTOM0 = ring normal and weight).
+   - The foot is a short fat stub that widens smoothly into the ground, with 3 or 4 short buttress roots
+     that sink in.
+   - Limbs start inside the trunk below the fork, rise, then reach out to their clump, each with a twig.
+     Pine limbs dip, then lift toward the pad.
+   - The user rejected two earlier trunks: stacked kit cylinders with joint balls (seams, a black stick
+     in the crown's shade, a light foot that looked like a separate object), and long stick roots
+     splayed like spider legs.
 7. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.
 
 ## Notes
