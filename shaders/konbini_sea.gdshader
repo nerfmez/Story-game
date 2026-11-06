@@ -61,7 +61,11 @@ float caustics(vec2 xz, float t) {
 	vec2 p = xz * 1.15 + warp * 0.7;
 	float a = 1.0 - smoothstep(0.025, 0.06, cell_edge(p, t * 0.3));
 	// in drifting patches rather than everywhere, so it stays a quiet detail
-	float patch = smoothstep(0.4, 0.7, beach_noise(xz * 0.45 + vec2(t * 0.02, -t * 0.012)));
+	// and the patches come and go: two fields morph into each other with a phase that
+	// differs from place to place, so the net fades in here while it fades out there
+	vec2 q = xz * 0.45 + vec2(t * 0.02, -t * 0.012);
+	float w = 0.5 + 0.5 * sin(t * 0.22 + beach_noise(xz * 0.6 + vec2(9.0, 2.0)) * 9.0);
+	float patch = smoothstep(0.42, 0.72, mix(beach_noise(q), beach_noise(q + vec2(23.1, 7.9)), w));
 	return a * patch;
 }
 

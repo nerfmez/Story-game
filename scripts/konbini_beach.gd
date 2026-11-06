@@ -156,28 +156,6 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	k.rod(Vector3(-7.2, SEA_Y + 0.05, 7.3), Vector3(7.2, SEA_Y + 0.05, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
 	for r in [[Vector3(7.0, 0.1, 6.0), Vector3(0.8, 0.55, 0.7)], [Vector3(7.7, 0.05, 6.5), Vector3(0.6, 0.4, 0.55)], [Vector3(6.4, 0.0, 6.6), Vector3(0.45, 0.3, 0.4)]]:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
-	# spray thrown up when a wave hits the rocks (moved in animate())
-	var spray := Node3D.new()
-	spray.name = "RockSpray"
-	scene.add_child(spray)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 21
-	var drops: Array = []
-	for i in 16:
-		var drop := Node3D.new()
-		drop.name = "Drop%d" % i
-		spray.add_child(drop)
-		var r := rng.randf_range(0.035, 0.07)
-		k.ball(Vector3.ZERO, Vector3(r, r * 1.2, r), Color(0.97, 0.99, 1.0), {"node": drop, "seg": 6, "line": 0.4})
-		var a := rng.randf_range(-1.2, 1.2)   # around the seaward face of the rocks
-		var start := Vector3(7.1 + sin(a) * 0.9, SEA_Y + 0.05, 6.2 + cos(a) * 0.75)
-		var vel := Vector3(sin(a) * rng.randf_range(0.2, 0.6), rng.randf_range(1.6, 2.6), cos(a) * rng.randf_range(0.1, 0.4))
-		drop.set_meta("start", start)
-		drop.set_meta("vel", vel)
-		drop.set_meta("delay", rng.randf_range(0.0, 0.25))
-		drop.visible = false
-		drops.append(drop)
-	scene.set_meta("spray", drops)
 
 ## Japanese black pines along the back of the beach: a dark trunk that leans toward
 ## the sea and bends as it climbs, a few long branches, and flat two-tone pads of
@@ -429,27 +407,8 @@ static func _gulls(k: Kit, scene: Node3D) -> void:
 		gulls.append(gull)
 	scene.set_meta("gulls", gulls)
 
-## Must match wave_lag() in shaders/konbini_beach.gdshaderinc.
-static func wave_lag(x: float) -> float:
-	return 0.12 * sin(x * 0.9 + 1.0) + 0.08 * sin(x * 0.37 + 2.0)
-
-## Gulls circle over the sea, flapping now and then; spray flies up off the rocks
-## each time a wave crest hits them (same timing as the sea shader, on its clock).
+## Gulls circle over the sea, flapping now and then.
 static func animate(scene: Node3D, clock: float) -> void:
-	var t := Time.get_ticks_msec() * 0.001
-	var x := 7.1
-	var d := 6.9 - shore(x)
-	var since := fposmod((t + wave_lag(x)) / 7.0 + d / (1.5 * 7.0), 1.0) * 7.0
-	for drop in scene.get_meta("spray"):
-		var s: float = since - float(drop.get_meta("delay"))
-		if s < 0.0 or s > 0.75:
-			drop.visible = false
-			continue
-		var v: Vector3 = drop.get_meta("vel")
-		var p: Vector3 = drop.get_meta("start") + v * s + Vector3(0, -4.9 * s * s, 0)
-		drop.visible = p.y > SEA_Y - 0.02
-		drop.position = p
-		drop.scale = Vector3.ONE * (1.0 - smoothstep(0.45, 0.75, s))
 	var gulls: Array = scene.get_meta("gulls")
 	for i in gulls.size():
 		var gull: Node3D = gulls[i]
