@@ -11,6 +11,9 @@ extends RefCounted
 const TOON := preload("res://shaders/konbini_toon.gdshader")
 const OUTLINE := preload("res://shaders/konbini_outline.gdshader")
 const FONT := preload("res://assets/fonts/Sarabun-Regular.ttf")
+## Bold Noto Sans JP cut down to the kana and kanji the scenes use (pass "jp": true).
+## Add characters with the subset command in docs/konbini-diorama/README.md.
+const FONT_JP := preload("res://assets/fonts/NotoSansJP-Bold-subset.ttf")
 const CELL := 6.0
 const LAYER_OUT := 1
 const LAYER_IN := 2
@@ -94,7 +97,7 @@ func quad(center: Vector3, size: Vector2, color: Color, opts := {}) -> void:
 func text(value: String, pos: Vector3, height: float, color: Color, opts := {}) -> Label3D:
 	var label := Label3D.new()
 	label.text = value
-	label.font = FONT
+	label.font = FONT_JP if opts.get("jp", false) else FONT
 	label.font_size = 64
 	label.pixel_size = height / 64.0
 	label.modulate = color

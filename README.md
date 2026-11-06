@@ -4,7 +4,7 @@
 
 ฉากทดลองใหม่: [ห้องเรียนไทย 3D Pixel พร้อมวิธีเปิดและภาพเรนเดอร์](docs/classroom-3d/README.md) — เปิด `scenes/classroom_3d_pixel.tscn` แล้วกด F6 เป็นฉากแยกจากบทและฉากเริ่มเกม
 
-ฉากทดลองใหม่: [ร้านสะดวกซื้อหัวมุมถนน คืนฝนตก (Diorama 3D แบบ Cel-shaded)](docs/konbini-diorama/README.md) — เปิด `scenes/konbini_diorama.tscn` (ญี่ปุ่น) หรือ `scenes/konbini_diorama_thai.tscn` (ไทย) แล้วกด F6 ลากเพื่อหมุน เลื่อน และซูมรอบโมเดล ไม่มี UI บนจอ
+ฉากทดลองใหม่: [ร้านสะดวกซื้อหัวมุมถนน คืนฝนตก (Diorama 3D แบบ Cel-shaded)](docs/konbini-diorama/README.md) — เปิด `scenes/konbini_diorama.tscn` (ญี่ปุ่น) `scenes/konbini_diorama_thai.tscn` (ไทย) หรือ `scenes/ramen_diorama.tscn` (ร้านราเมนคืนหิมะตก) แล้วกด F6 ลากเพื่อหมุน เลื่อน และซูมรอบโมเดล ไม่มี UI บนจอ
 
 ## เอกสารโครงเรื่องหลัก
 

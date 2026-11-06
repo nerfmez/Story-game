@@ -19,6 +19,9 @@
   text. Build such bases explicitly: `Basis(RIGHT, PI/2) * Basis(UP, PI/8)`.
 - **Rain under roofs.** Every new roof, canopy or umbrella needs a rectangle in `SHELTERS` (8 slots) or rain
   falls through it, and through the shop into the interior view.
+- **`k.ball` takes radii, not diameters.** A snowman given diameters came out two metres tall.
+- **A-frame boards** lean in at the top: the front board rotates by a negative angle about X; put its text in
+  the same basis.
 - **Relative capture paths** land relative to Godot's process, not your shell: pass absolute paths to
   `--capture`.
 - **Headless dummy renderer** prints `mesh_get_surface_count` errors for QuadMesh and MultiMesh; run the test

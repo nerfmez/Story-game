@@ -104,5 +104,27 @@ func _run() -> void:
 	print("thai: %d primitives" % thai.get_meta("primitive_count"))
 	thai.queue_free()
 	await process_frame
-	print("PASS: konbini diorama (Japan and Thailand) builds without UI; orbit, zoom, pan, touch, door, signals and countdown work")
+	# the ramen shop on a snowy night: no UI, the door slides, lanterns sway
+	var ramen: Node3D = load("res://scenes/ramen_diorama.tscn").instantiate()
+	root.add_child(ramen)
+	await process_frame
+	if ramen.shop != "ramen" or ramen.weather_kind != "snow":
+		return _fail("The ramen scene should be a ramen shop in the snow")
+	if not ramen.find_children("*", "Control", true, false).is_empty():
+		return _fail("The ramen diorama must not contain UI nodes")
+	var sliding: Node3D = ramen.door_panels[1]
+	var shut := sliding.position.x
+	var lantern: Node3D = ramen.sway_nodes[1]
+	var slid := false
+	var swung := false
+	for i in 400:
+		ramen._process(0.05)
+		slid = slid or absf(sliding.position.x - shut) > 0.5
+		swung = swung or absf(lantern.rotation.z) > 0.02
+	if not slid or not swung:
+		return _fail("The ramen door should slide and its lanterns sway")
+	print("ramen: %d primitives" % ramen.get_meta("primitive_count"))
+	ramen.queue_free()
+	await process_frame
+	print("PASS: konbini (Japan, Thailand) and ramen dioramas build without UI; orbit, zoom, pan, touch, doors, signals, countdown and lanterns work")
 	quit(0)

@@ -10,6 +10,9 @@
 | `scripts/konbini_exterior.gd` | Base, roads, lot, shop shell, sign, street furniture, poles and wires, signals |
 | `scripts/konbini_interior.gd` | Everything inside the shop (render layer 2) |
 | `scripts/konbini_thai.gd` | Pieces only the Thai version has; called from the exterior builder |
+| `scripts/konbini_ramen.gd` | The ramen shop (exterior and interior) used when `shop = "ramen"` |
+| `scripts/konbini_snow.gd` | Snow lying on everything when `weather_kind = "snow"` |
+| `scenes/ramen_diorama.tscn` | The ramen shop on a snowy night: `shop = "ramen"`, `weather_kind = "snow"` |
 | `scripts/konbini_weather.gd` | Rain, splash rings, drips, puddles, gutter flow, ground reflections |
 | `scripts/konbini_camera.gd` | Orbit camera: mouse, touch, keys, eased, clamped |
 | `shaders/konbini_*.gdshader` | toon, outline, rain, splash, drip, puddle, reflection, glass, steam, sky |
@@ -41,6 +44,16 @@ Named materials (`k.material(name, pattern, params)`) are separate ShaderMateria
 Use one when something must be animated as a group (`sign_band`, `pole_sign`, each signal lens animates
 `emit_energy`) or needs a surface pattern: 1 pavers, 2 floor tiles, 3 asphalt, 4 wood, 5 concrete blocks,
 6 siding (also used for the roller shutter).
+
+## Three switches
+
+`country` (japan, thailand) changes the street, `shop` (konbini, ramen) changes the building in the middle
+on the same footprint, `weather_kind` (rain, snow) changes the weather layer and lays snow. A new subject is a
+new `shop` value with its own builder file exposing `exterior(builder)` and `interior(kit, scene)`, like
+`konbini_ramen.gd`: it registers its door panels (meta `travel`), swaying nodes, and the two animated
+materials `sign_band` and `pole_sign`; the diorama adds its lights in a `_<shop>_lights()` function.
+Japanese text uses `"jp": true` on `k.text` (Noto Sans JP subset); add new characters by re-subsetting the
+font with fontTools from the full Noto Sans JP on raw.githubusercontent.com.
 
 ## Adding a variant (how the Thai version was done)
 

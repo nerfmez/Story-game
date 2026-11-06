@@ -24,6 +24,7 @@ const SHELTERS := [
 ]
 
 var rain_material: ShaderMaterial
+var snow := false              # set before setup(): drifting flakes, no splashes, drips or puddles
 var lamps: Array = []          # [position, radius, color] fed to the rain shader
 var reflections: Array = []    # {node, base, width, length}
 var _rng := RandomNumberGenerator.new()
@@ -33,6 +34,8 @@ func setup(lamp_list: Array) -> void:
 	_rng.seed = 2405
 	lamps = lamp_list
 	_rain()
+	if snow:
+		return
 	_splashes()
 	_drips()
 	_puddles()
@@ -72,6 +75,14 @@ func _rain() -> void:
 		tops.append(s[1])
 	rain_material.set_shader_parameter("shelters", rects)
 	rain_material.set_shader_parameter("shelter_top", tops)
+	if snow:
+		rain_material.set_shader_parameter("snow", 1.0)
+		rain_material.set_shader_parameter("speed", 1.1)
+		rain_material.set_shader_parameter("drop_length", 0.07)
+		rain_material.set_shader_parameter("wind", Vector2(0.25, 0.1))
+		rain_material.set_shader_parameter("tint", Color(0.92, 0.95, 1.0))
+		rain_material.set_shader_parameter("strength", 0.75)
+		rain_material.set_shader_parameter("fall_height", 8.0)
 	update_lamps()
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Rain"

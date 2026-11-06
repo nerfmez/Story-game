@@ -30,6 +30,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "build/konbini")
     parser.add_argument("--thai", action="store_true", help="Open the Thai street corner instead of the Japanese one")
+    parser.add_argument("--ramen", action="store_true", help="Open the ramen shop on a snowy night")
     parser.add_argument("--zip-only", action="store_true", help="Archive an already staged and tested project without copying it again")
     args = parser.parse_args()
     target = args.output.resolve()
@@ -40,7 +41,7 @@ def main():
             parser.error("No staged konbini project to archive")
         write_archive(target, project_dir)
         return
-    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
+    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "scripts").glob("konbini_*.gd"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "tools").glob("*konbini*.gd"))]
@@ -48,7 +49,7 @@ def main():
         dest = project_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, dest)
-    scene = "konbini_diorama_thai.tscn" if args.thai else "konbini_diorama.tscn"
+    scene = "ramen_diorama.tscn" if args.ramen else "konbini_diorama_thai.tscn" if args.thai else "konbini_diorama.tscn"
     (project_dir / "project.godot").write_text(PROJECT.replace("{scene}", scene), encoding="utf-8")
     shutil.copyfile(ROOT / "docs/konbini-diorama/README.md", project_dir / "README.md")
     write_archive(target, project_dir)

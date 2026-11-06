@@ -24,9 +24,11 @@ that was right can turn flat with one ambient tweak.
 - **Clear night, no rain:** remove `Rain`, `Splashes`, `Drips`, `DripRings`; set road `gloss` to about 0.2;
   drop puddles and reflection strips (or keep a few faint ones under lamps); set glass `rain` to 0; lift the
   moon a little and add stars to the sky shader.
-- **Snow:** reuse the rain MultiMesh with slower `speed`, a wide round sprite instead of a streak, sideways
-  drift from noise; white caps (thin boxes) on roofs, rails and the awning; low gloss everywhere; cooler,
-  brighter ambient. Puddles become slush patches with no ripples.
+- **Snow:** built: `weather_kind = "snow"` turns the rain into round drifting flakes (`snow` uniform in the
+  rain shader), skips splashes, drips, puddles and gutters, keeps only road reflections, raises and cools the
+  ambient, thickens the fog, and `konbini_snow.gd` lays the snow. Snow takes warm light easily: keep window
+  spill lights under about 1.0 or the snow turns pink. Slush on roads must be broken lumps, not bands, or it
+  reads as road paint.
 - **Dusk:** sky gradient orange to violet, ambient warm and higher, shop lights already on but weaker,
   street lamp off or just starting; reflections short and faint.
 - **Late, lonely:** fewer lit windows next door, darker ambient, one lamp flickering, door cycle slower,

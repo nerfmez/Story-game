@@ -6,7 +6,7 @@ under a .wasm name, the scene pack also gets a .wasm name, and the page patches
 fetch() to undo both. The output folder is ready for the Artifact tool:
 publish <out>/<name>.html with the other files in `files`.
 
-usage: python3 export_web.py --godot PATH --out DIR [--thai] [--title "Name"]
+usage: python3 export_web.py --godot PATH --out DIR [--thai | --ramen] [--title "Name"]
 """
 from pathlib import Path
 import argparse
@@ -99,12 +99,13 @@ def main():
     parser.add_argument("--godot", required=True, help="Godot 4.3 binary")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--thai", action="store_true")
+    parser.add_argument("--ramen", action="store_true")
     parser.add_argument("--title", default="Rainy Night Konbini")
     args = parser.parse_args()
     out = args.out.resolve()
     stage = out / "stage"
     shutil.rmtree(stage, ignore_errors=True)
-    package = [ "python3", str(REPO / "tools/package_konbini.py"), "--output", str(stage)] + (["--thai"] if args.thai else [])
+    package = [ "python3", str(REPO / "tools/package_konbini.py"), "--output", str(stage)] + (["--thai"] if args.thai else []) + (["--ramen"] if args.ramen else [])
     subprocess.run(package, check=True, stdout=subprocess.DEVNULL)
     project = stage / "Konbini-Diorama-Godot43"
     (project / "export_presets.cfg").write_text(PRESET, encoding="utf-8")
@@ -129,7 +130,7 @@ def main():
     config["ensureCrossOriginIsolationHeaders"] = False
     body = re.sub(r"const GODOT_CONFIG = \{.*?\};", "const GODOT_CONFIG = " + json.dumps(config) + ";", body)
     page = f'<title>{args.title}</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n{style}\n<style>html,body{{height:100%}}</style>\n{FETCH_PATCH}\n{body}'
-    page_name = ("konbini-thai" if args.thai else "konbini") + ".html"
+    page_name = ("ramen" if args.ramen else "konbini-thai" if args.thai else "konbini") + ".html"
     (pub / page_name).write_text(page, encoding="utf-8")
     print(pub / page_name)
 

@@ -6,6 +6,8 @@ extends RefCounted
 
 const Kit := preload("res://scripts/konbini_kit.gd")
 const Thai := preload("res://scripts/konbini_thai.gd")
+const Ramen := preload("res://scripts/konbini_ramen.gd")
+const Snow := preload("res://scripts/konbini_snow.gd")
 
 const LOT := 0.12          # top of the raised lot and sidewalks (road top is 0)
 const FLOOR := 0.2         # shop floor
@@ -32,17 +34,22 @@ const RAIL := Color(0.9, 0.92, 0.96)
 var k: Kit
 var scene: Node3D
 var thai := false   # Thai street corner instead of the Japanese one (see konbini_thai.gd)
+var ramen := false  # a ramen shop in the middle instead of the konbini (see konbini_ramen.gd)
 
 static func build(kit: Kit, diorama: Node3D) -> void:
 	var b := new()
 	b.k = kit
 	b.scene = diorama
 	b.thai = diorama.country == "thailand"
+	b.ramen = diorama.shop == "ramen"
 	b._base()
 	b._roads()
 	b._lot()
-	b._shop_shell()
-	b._shop_front()
+	if b.ramen:
+		Ramen.exterior(b)
+	else:
+		b._shop_shell()
+		b._shop_front()
 	if b.thai:
 		Thai.street_corner(kit, diorama)
 	else:
@@ -55,6 +62,8 @@ static func build(kit: Kit, diorama: Node3D) -> void:
 	b._guard_rails()
 	b._signs()
 	b._traffic_signals()
+	if diorama.weather_kind == "snow":
+		Snow.cover(b)
 
 ## The Japanese text, or its Thai counterpart on the Thai corner.
 func _t(japan: String, thailand: String) -> String:
@@ -150,6 +159,8 @@ func _lot() -> void:
 	k.slab(Vector3(-5.0, -0.02, -9), Vector3(2.4, LOT, -5.2), CONCRETE, concrete)
 	k.slab(Vector3(-9, -0.02, -9), Vector3(-6.6, LOT, 4.0), Color(0.3, 0.33, 0.36), concrete)
 	k.slab(Vector3(SHOP_X.x, -0.02, SHOP_Z.x), Vector3(SHOP_X.y, FLOOR - 0.01, SHOP_Z.y), Color(0.55, 0.56, 0.62))
+	if ramen:
+		return
 	# parking bays in front of the windows, wheel stops
 	var paint := {"gloss": 0.7}
 	for x in [-4.9, -2.45, 0.0]:

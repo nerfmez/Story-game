@@ -8,6 +8,8 @@ on:
       - 'scripts/konbini_*.gd'
       - 'shaders/konbini_*.gdshader'
       - 'tools/*konbini*'
+      - 'scenes/ramen_diorama.tscn'
+      - 'assets/fonts/NotoSansJP-*'
       - 'docs/konbini-diorama/**'
       - '.github/workflows/konbini-preview.yml'
 
@@ -55,6 +57,17 @@ jobs:
           for view in 0 1 3 5; do
             xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy -- --view=$view --capture "$PWD/build/konbini/thai-view-$((view+1)).png"
             test -s "build/konbini/thai-view-$((view+1)).png"
+          done
+      - name: Render the ramen shop in the snow
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python3 tools/package_konbini.py --ramen --output build/konbini-ramen
+          project="$PWD/build/konbini-ramen/Konbini-Diorama-Godot43"
+          Godot_v4.3-stable_linux.x86_64 --headless --editor --path "$project" --import --quit
+          for view in 0 1 5; do
+            xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy -- --view=$view --capture "$PWD/build/konbini/ramen-view-$((view+1)).png"
+            test -s "build/konbini/ramen-view-$((view+1)).png"
           done
       - name: Archive the exact tested Godot project
         run: python3 tools/package_konbini.py --output build/konbini --zip-only

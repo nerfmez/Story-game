@@ -1,9 +1,9 @@
 extends Node3D
 ## Rainy-night konbini on a street corner, as a small collectible diorama in
 ## cel-shaded "3D that looks 2D" style. Separate from the story; open
-## scenes/konbini_diorama.tscn (Japan) or scenes/konbini_diorama_thai.tscn
-## (Thailand) and press F6. No UI: drag, pinch and scroll to look around
-## (see scripts/konbini_camera.gd).
+## scenes/konbini_diorama.tscn (Japan), scenes/konbini_diorama_thai.tscn
+## (Thailand) or scenes/ramen_diorama.tscn (a ramen shop on a snowy night) and
+## press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
 ## The model is built from code when the scene loads; afterwards only small loops
 ## run: rain, drips, the auto door, the flickering signs and the traffic signals.
 ##
@@ -34,9 +34,14 @@ const DOOR_CYCLE := 9.0
 
 ## "japan" or "thailand": which street corner the builders make.
 @export_enum("japan", "thailand") var country := "japan"
+## The building in the middle of the base (see konbini_ramen.gd for the ramen shop).
+@export_enum("konbini", "ramen") var shop := "konbini"
+## Rain (wet ground, drips, puddles) or snow (white caps, slush, drifting flakes).
+@export_enum("rain", "snow") var weather_kind := "rain"
 
 # filled in by the builders
 var countdowns: Array = []
+var sway_nodes: Array[Node3D] = []   # lanterns and curtains that swing a little
 var sign_band_material: ShaderMaterial
 var pole_sign_material: ShaderMaterial
 var signal_a: Array
@@ -64,13 +69,16 @@ func _ready() -> void:
 	var kit := Kit.new(self)
 	Exterior.build(kit, self)
 	Interior.build(kit, self)
-	_doors(kit)
+	if shop == "konbini":
+		_doors(kit)
 	kit.finish()
-	_shop_glass()
+	if shop == "konbini":
+		_shop_glass()
 	_lights()
 	weather = Weather.new()
 	weather.name = "Weather"
 	add_child(weather)
+	weather.snow = weather_kind == "snow"
 	weather.setup(_rain_lamps())
 	_reflections()
 	rig = CameraRig.new()
@@ -160,6 +168,7 @@ func _doors(kit: Kit) -> void:
 		var panel := Node3D.new()
 		panel.name = "DoorPanel%d" % i
 		panel.position = Vector3(DOOR_CLOSED[i], 1.325, -0.22)
+		panel.set_meta("travel", -DOOR_TRAVEL if i == 0 else DOOR_TRAVEL)
 		add_child(panel)
 		door_panels.append(panel)
 		var opts := {"node": panel, "gloss": 0.6}
@@ -202,6 +211,12 @@ func _environment() -> void:
 	env.fog_light_color = Color(0.16, 0.18, 0.32)
 	env.fog_density = 0.006
 	env.fog_sky_affect = 0.0
+	if weather_kind == "snow":
+		# snow lights up the night: brighter, bluer ambient and a soft haze of falling flakes
+		env.ambient_light_color = Color(0.4, 0.46, 0.78)
+		env.ambient_light_energy = 0.62
+		env.fog_light_color = Color(0.24, 0.27, 0.42)
+		env.fog_density = 0.012
 	var world := WorldEnvironment.new()
 	world.name = "WorldEnvironment"
 	world.environment = env
@@ -233,15 +248,10 @@ func _lights() -> void:
 	moon.rotation_degrees = Vector3(-52, -35, 0)
 	moon.light_cull_mask = Kit.LAYER_OUT
 	add_child(moon)
-	var warm := Color(1.0, 0.74, 0.44)
-	var shop := Color(1.0, 0.93, 0.8)
-	for p in [Vector3(-3.0, 2.8, -1.3), Vector3(-3.0, 2.8, -3.4), Vector3(0.6, 2.8, -2.0)]:
-		_omni("Shop", p, shop, 0.75, 5.0, Kit.LAYER_IN, true)
-	_omni("WindowLeft", Vector3(-3.4, 1.4, 1.0), warm, 1.5, 4.6, Kit.LAYER_OUT, true)
-	_omni("WindowRight", Vector3(0.4, 1.4, 1.0), warm, 1.5, 4.6, Kit.LAYER_OUT, true)
-	_omni("SideWindow", Vector3(3.1, 1.4, -1.4), warm, 1.0, 3.6, Kit.LAYER_OUT, true)
-	_omni("SignBand", Vector3(-1.3, 3.5, 1.3), Color(0.85, 1.0, 0.96), 0.8, 5.0, Kit.LAYER_OUT, true)
-	_omni("PoleSign", Vector3(3.3, 4.5, 3.3), Color(0.88, 0.97, 1.0), 1.2, 6.0)
+	if shop == "ramen":
+		_ramen_lights()
+	else:
+		_konbini_lights()
 	_omni("StreetLamp", Vector3(-6.0, 5.0, 5.95), Color(0.75, 0.88, 1.0), 2.4, 8.0)
 	_omni("Vending", Vector3(3.6, 1.2, -3.9), Color(0.8, 0.92, 1.0), 1.4, 3.6)
 	_omni("Traffic", Vector3(7.7, 4.6, 7.7), Color(0.1, 0.95, 0.75), 1.2, 6.0)
@@ -249,6 +259,31 @@ func _lights() -> void:
 	_omni("BackDoor", Vector3(-1.65, 2.3, -6.0), Color(1.0, 0.82, 0.55), 0.45, 3.0)
 	_omni("Security", Vector3(4.9, 4.6, -7.7), Color(0.82, 1.0, 0.88), 1.1, 5.5)
 	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
+
+func _konbini_lights() -> void:
+	var warm := Color(1.0, 0.74, 0.44)
+	var inside := Color(1.0, 0.93, 0.8)
+	for p in [Vector3(-3.0, 2.8, -1.3), Vector3(-3.0, 2.8, -3.4), Vector3(0.6, 2.8, -2.0)]:
+		_omni("Shop", p, inside, 0.75, 5.0, Kit.LAYER_IN, true)
+	_omni("WindowLeft", Vector3(-3.4, 1.4, 1.0), warm, 1.5, 4.6, Kit.LAYER_OUT, true)
+	_omni("WindowRight", Vector3(0.4, 1.4, 1.0), warm, 1.5, 4.6, Kit.LAYER_OUT, true)
+	_omni("SideWindow", Vector3(3.1, 1.4, -1.4), warm, 1.0, 3.6, Kit.LAYER_OUT, true)
+	_omni("SignBand", Vector3(-1.3, 3.5, 1.3), Color(0.85, 1.0, 0.96), 0.8, 5.0, Kit.LAYER_OUT, true)
+	_omni("PoleSign", Vector3(3.3, 4.5, 3.3), Color(0.88, 0.97, 1.0), 1.2, 6.0)
+
+## Ramen shop: an orange glow from the steamy window, two red lanterns, the lit
+## standing sign, and spotlit name board. SignBand and PoleSign keep their names
+## so the hum and stutter in _animate_signs drive the lanterns and the stand sign.
+func _ramen_lights() -> void:
+	var inside := Color(1.0, 0.72, 0.42)
+	for p in [Vector3(-3.2, 2.6, -1.6), Vector3(-1.0, 2.6, -3.0), Vector3(0.9, 2.6, -1.8)]:
+		_omni("Shop", p, inside, 0.85, 4.8, Kit.LAYER_IN, true)
+	# snow takes light easily: keep the spill modest so it reads orange, not pink
+	_omni("WindowLeft", Vector3(-2.8, 1.3, 1.1), Color(1.0, 0.62, 0.3), 0.95, 4.2, Kit.LAYER_OUT, true)
+	_omni("WindowRight", Vector3(0.6, 1.3, 1.1), Color(1.0, 0.62, 0.3), 0.75, 3.6, Kit.LAYER_OUT, true)
+	_omni("SignBand", Vector3(0.4, 2.2, 1.0), Color(1.0, 0.42, 0.28), 1.3, 4.2)
+	_omni("PoleSign", Vector3(2.0, 1.2, 1.0), Color(1.0, 0.88, 0.65), 0.7, 2.6, Kit.LAYER_OUT, true)
+	_omni("NameBoard", Vector3(-1.3, 3.4, 0.9), Color(1.0, 0.85, 0.6), 0.6, 2.6, Kit.LAYER_OUT, true)
 
 func _rain_lamps() -> Array:
 	var list := [
@@ -263,10 +298,22 @@ func _rain_lamps() -> Array:
 		[Vector3(7.5, 4.8, 7.5), 3.0, Color(0.05, 0.4, 0.3)],
 	]
 
+	if shop == "ramen":
+		list[1] = [Vector3(0.4, 2.3, 1.0), 2.6, Color(0.55, 0.2, 0.12)]
+		list[2] = [Vector3(-2.4, 1.6, 1.4), 3.4, Color(0.55, 0.35, 0.18)]
+		list[7] = [Vector3(-1.3, 3.3, 0.8), 2.0, Color(0.4, 0.32, 0.2)]
 	traffic_lamp_index = list.size() - 1
 	return list
 
 func _reflections() -> void:
+	if weather_kind == "snow":
+		# snow does not mirror; only the wet tyre tracks on the road still catch lamps
+		weather.add_reflection(Vector3(-6.0, 0.0, 5.95), Color(0.75, 0.88, 1.0), 0.6, 5.3, 0.4, 2.0)
+		traffic_reflections = [
+			weather.add_reflection(Vector3(8.6, 0.0, 6.9), Color.WHITE, 1.1, 5.0, 0.0, 1.6),
+			weather.add_reflection(Vector3(6.9, 0.0, 8.6), Color.WHITE, 1.1, 5.0, 0.0, 1.6),
+		]
+		return
 	var warm := Color(1.0, 0.76, 0.46)
 	for pane in [[-4.18, 1.1], [-2.93, 1.1], [-1.68, 1.1], [-0.6, 0.75]]:
 		weather.add_reflection(Vector3(pane[0], 0.12, 0.05), warm, pane[1], 1.5, 0.5, 0.8)
@@ -292,6 +339,8 @@ func _process(delta: float) -> void:
 	_animate_door()
 	_animate_signs(delta)
 	_animate_traffic()
+	for node in sway_nodes:
+		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)
 
 func _animate_door() -> void:
@@ -304,8 +353,10 @@ func _animate_door() -> void:
 		open = 1.0
 	elif t >= 8.0 and t < 8.8:
 		open = 1.0 - smoothstep(8.0, 8.8, t)
-	door_panels[0].position.x = DOOR_CLOSED[0] - DOOR_TRAVEL * open
-	door_panels[1].position.x = DOOR_CLOSED[1] + DOOR_TRAVEL * open
+	for panel in door_panels:
+		if not panel.has_meta("closed"):
+			panel.set_meta("closed", panel.position.x)
+		panel.position.x = float(panel.get_meta("closed")) + float(panel.get_meta("travel")) * open
 
 func _animate_signs(delta: float) -> void:
 	# Mostly a steady soft hum; now and then the pole sign stutters for a moment.
