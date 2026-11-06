@@ -1,6 +1,6 @@
 ---
 name: godot-diorama-scene
-description: How to build, restyle and re-theme the cel-shaded 3D diorama scenes in this repo (the rainy-night konbini corner, Japan and Thailand versions) in Godot 4.3, and how to publish them as a playable web link. Use it whenever the user wants a new diorama or scene in this style, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
+description: Art direction and build method for cel-shaded "3D that looks 2D" anime diorama scenes in Godot 4.3 (the rainy-night konbini corner in this repo, Japan and Thailand versions), and how to publish them as a playable web link. It turns a one-line request ("ร้านราเมนตอนหิมะตก", "a small station at dusk") into a full art-direction brief and then into a scene of the same quality as the konbini. Use it whenever the user wants a new diorama, miniature or scene in this style for any subject, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
 ---
 
 # Godot cel-shaded diorama scenes
@@ -9,7 +9,8 @@ The konbini diorama (`scenes/konbini_diorama.tscn`, `scenes/konbini_diorama_thai
 from code when the scene loads: no model files, no textures. That is what makes it cheap to change: a new
 country, a new prop or a different night is an edit to a builder script, then a render to check it.
 
-Read `references/architecture.md` before editing code. Read `references/atmosphere.md` when the request is about
+Start with `references/art-direction.md`: it is the reason the konbini looks the way it does, and the user
+expects that quality from short requests. Read `references/architecture.md` before editing code. Read `references/atmosphere.md` when the request is about
 mood, light, weather, time of day or a regional version. Read `references/pitfalls.md` before the first render of
 a session: it lists the mistakes that already happened once.
 
@@ -18,11 +19,14 @@ a session: it lists the mistakes that already happened once.
 Every change goes through the same loop. Do not skip the render: the look of this scene cannot be judged from
 code, and the first render after a change is usually wrong in some small way.
 
-1. **Understand the picture.** Turn the request into concrete things you can place: what objects, where on the
-   18×18 m base, what lights, what moves. For a region or theme, list what makes a real street there
-   recognisable (signs and script, kerb paint, poles and cables, vehicles, shop furniture, traffic lights) and
-   what to remove because it belongs to the old place. Ask the user only if the place or mood is unclear;
-   otherwise decide and show them.
+1. **Write the brief.** However short the request, expand it into the full art-direction brief in
+   `references/art-direction.md` (format, focal point, time and weather, palette, 15 to 25 exterior objects,
+   interior objects, signs of life, 6 to 10 motions, a mood sentence) and show the user a compact version.
+   For a region or theme, list what makes a real street there recognisable and what to remove because it
+   belongs to the old place. Ask only if the place or mood is genuinely unclear; otherwise decide, show the
+   brief and build. `references/example-brief.md` is the request that produced the konbini: match its depth.
+   A different subject (not a konbini) gets its own builder scripts made the same way, reusing the kit,
+   shaders, weather and camera.
 2. **Edit the builders.** Shared geometry lives in the exterior and interior builders; anything specific to a
    variant goes in its own builder file and is switched by the `country` property (see architecture.md).
    Keep the existing version working: add a variant, do not overwrite the original unless the user asks.
