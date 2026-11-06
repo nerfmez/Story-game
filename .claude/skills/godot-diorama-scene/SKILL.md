@@ -22,6 +22,10 @@ new plan: no road at all, a road through the middle, a lane, a roundabout, a can
 steps, a plaza, whatever suits the subject and the brief. Every element (ground, paths, buildings, props,
 lights) is placed fresh for that plan.
 
+Examples the user gives ("no road, a road through the middle, a roundabout, anything") show how free the
+layout is; they are not a menu. Never turn them into the options. Derive each plan from the subject itself:
+where would this place really be, what makes it special, what gives a strong composition and its own motion.
+
 Before writing any scene code:
 
 1. Write the brief (below) and draw 2 or 3 genuinely different top-down plans of the 18 × 18 m base as one
