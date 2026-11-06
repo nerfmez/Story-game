@@ -30,7 +30,9 @@ void fragment() {
 	vec4 out_col = vec4(0.0);
 	// sand under the water and where it has just been is darker, drying from the top
 	float dry = smoothstep(1.4, PERIOD * 0.95, s) * smoothstep(front, front + 0.6, up);
-	float soaked = 1.0 - smoothstep(reach - 0.1, reach + 0.05, up);
+	// (only on the beach: under the sea the water colour already does this, and a
+	// sheet that ends out there would show its straight edge through the water)
+	float soaked = (1.0 - smoothstep(reach - 0.1, reach + 0.05, up)) * smoothstep(-0.6, -0.1, up);
 	out_col = vec4(wet, 0.4 * soaked * (1.0 - dry));
 	// the fringe of bubbles at the front of the water: lacy, never a solid line,
 	// thinning out as the water slows and slides back

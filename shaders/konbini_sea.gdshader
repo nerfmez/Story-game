@@ -20,7 +20,7 @@ varying float crest;
 // Height of the incoming wave at (x, distance from shore d). The crest travels
 // toward the beach at SPEED, grows as the water shallows and collapses at d < 0.6.
 float wave_height(float x, float d, float t, out float c) {
-	float lag = sin(x * 0.25) * 0.6;
+	float lag = wave_lag(x);
 	float phase = fract((t + lag) / PERIOD + d / (SPEED * PERIOD));
 	float dist = min(phase, 1.0 - phase) * SPEED * PERIOD;   // metres from the crest
 	float shape = exp(-dist * dist * 2.2);
@@ -69,6 +69,15 @@ void fragment() {
 	col = mix(col, shallow * 1.08, smoothstep(0.2, 0.6, crest) * 0.5);
 	float lace = beach_noise(vec2(world_pos.x * 2.2, d * 4.0 + TIME * 0.6));
 	float cap = smoothstep(0.55, 0.75, crest) * smoothstep(0.3, 0.55, lace + crest * 0.4);
+	// once it has broken the white water rolls on toward the beach and what it leaves
+	// behind thins into patches of foam that break up and fade
+	float since = fract((TIME + wave_lag(world_pos.x)) / PERIOD + d / (SPEED * PERIOD)) * PERIOD;   // seconds since the crest passed here
+	float zone = smoothstep(0.15, 0.6, d) * (1.0 - smoothstep(1.6, 2.8, d));
+	float drift = since * 0.25;
+	float patches = beach_noise(vec2(world_pos.x * 2.6, d * 3.2 - drift)) * 0.65 + beach_noise(world_pos.xz * 7.0 + vec2(0.0, -drift * 2.0)) * 0.35;
+	float thin = mix(0.32, 0.9, clamp(since / 3.2, 0.0, 1.0));
+	float spent = smoothstep(thin, thin + 0.08, patches) * zone * (1.0 - smoothstep(2.6, 3.4, since)) * step(0.05, since);
+	cap = max(cap, spent * 0.9);
 	col = mix(col, foam, cap);
 	// sun glints on the open water
 	float g = beach_noise(world_pos.xz * 7.0 + TIME * vec2(0.8, -0.6));

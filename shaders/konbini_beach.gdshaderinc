@@ -37,10 +37,17 @@ float ground_u(float u) {
 	return max(SEA_Y - 0.2 - (u - 2.0) * 0.03, -0.23);
 }
 
+// A small offset in the wave timing along the beach, so a wave does not reach every
+// point at once. Kept small and wiggly: a large smooth offset reads as the breaker
+// sliding sideways along the shore instead of rolling in toward it.
+float wave_lag(float x) {
+	return 0.12 * sin(x * 0.9 + 1.0) + 0.08 * sin(x * 0.37 + 2.0);
+}
+
 // Where the swash front is (metres up the beach from the waterline, negative while the
 // backwash draws the water below it) and how many seconds since this wave broke.
 float swash_front(float x, float t, out float s, out float reach, out float fall) {
-	float lag = sin(x * 0.25) * 0.6;
+	float lag = wave_lag(x);
 	float cycle = (t + lag) / PERIOD;
 	s = fract(cycle) * PERIOD;
 	float wave_no = floor(cycle);

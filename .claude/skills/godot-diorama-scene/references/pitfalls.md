@@ -51,3 +51,8 @@
   water (a height field, `kit.grid`), water that is clear where shallow (alpha from water depth over
   the sand), and a surface that rises and falls on the slope so the edge moves by itself. Keep the
   beach shape and wave timing in one shader include mirrored in GDScript.
+- Third round: a large smooth timing offset along the beach (lag = 0.6 sin(0.25x)) made the breaker
+  sweep sideways along the shore; waves roll in toward the beach, so keep the along-shore offset small
+  and wiggly. After breaking, the white water should spread into a foam field that thins into patches
+  and fades (time since the crest passed, rising noise threshold). And no overlay may end inside the
+  sea: its straight edge shows through clear water.
