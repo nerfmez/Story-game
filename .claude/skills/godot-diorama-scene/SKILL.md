@@ -31,6 +31,8 @@ Before writing any scene code:
 1. Write the brief (below) and make 2 or 3 genuinely different plans of the 18 × 18 m base. Flat top-down
    diagrams are hard for the user to picture: show each plan as a quick 3D blockout render (plain boxes in
    the scene's palette from the default three-quarter camera, labelled), with a small top-down map beside it.
+   `scripts/blockout.gd` renders such a blockout from a small JSON plan (boxes, cylinders, water, labels);
+   run it inside a staged project. Keep labels short and apart so they do not overlap.
    Mark what crosses each edge of the base (lane, road, canal, wall, nothing) so blocks can be joined later.
 2. Send the image and ask the user to pick one and say what to cut or add. Wait for the answer; do not build
    on a plan the user has not chosen.
