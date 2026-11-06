@@ -646,8 +646,8 @@ static func lights(scene: Node3D) -> void:
 	scene._omni("PoleSign", Vector3(-0.62, 1.0, 1.7), Color(1.0, 0.88, 0.65), 0.6, 2.2, Kit.LAYER_OUT, true)
 	scene._omni("IzakayaLantern", Vector3(-8.05, 2.3, 1.6), Color(1.0, 0.38, 0.25), 1.2, 4.0)
 	scene._omni("Yakitori", Vector3(1.9, 1.5, 1.8), Color(1.0, 0.6, 0.3), 1.1, 3.8, Kit.LAYER_OUT, true)
-	scene._omni("BikePark", Vector3(6.75, 3.6, -1.2), Color(0.82, 1.0, 0.9), 0.9, 5.0)
-	scene._omni("Vending", Vector3(5.75, 1.2, 1.9), Color(0.8, 0.92, 1.0), 1.0, 3.0)
+	scene._omni("BikePark", Vector3(6.75, 3.6, -1.2), Color(0.82, 1.0, 0.9), 0.9, 5.0, Kit.LAYER_OUT, true)
+	scene._omni("Vending", Vector3(5.75, 1.2, 1.9), Color(0.8, 0.92, 1.0), 1.0, 3.0, Kit.LAYER_OUT, true)
 	# the strips in reflections() already show these lamps on the wet road
 	scene._omni("StreetLampA", Vector3(-6.0, 4.6, 5.3), Color(0.75, 0.88, 1.0), 1.8, 7.0, Kit.LAYER_OUT, true)
 	scene._omni("StreetLampB", Vector3(4.5, 4.6, 5.3), Color(0.75, 0.88, 1.0), 1.8, 7.0, Kit.LAYER_OUT, true)
