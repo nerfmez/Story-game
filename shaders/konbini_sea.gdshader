@@ -58,10 +58,11 @@ float cell_edge(vec2 p, float t) {
 // the shallows (caustics), drawn as crisp cel lines, wobbling as the surface moves.
 float caustics(vec2 xz, float t) {
 	vec2 warp = vec2(beach_noise(xz * 1.3 + t * 0.2), beach_noise(xz * 1.3 + vec2(4.0, 1.0) - t * 0.2)) - 0.5;
-	vec2 p = xz * 2.0 + warp * 0.9;
-	float a = 1.0 - smoothstep(0.035, 0.085, cell_edge(p, t));
-	float b = 1.0 - smoothstep(0.03, 0.075, cell_edge(p * 1.37 + vec2(3.1, 7.7), t * 1.2));
-	return clamp(a * 0.75 + b * 0.5, 0.0, 1.0);
+	vec2 p = xz * 1.15 + warp * 0.7;
+	float a = 1.0 - smoothstep(0.025, 0.06, cell_edge(p, t * 0.8));
+	// in drifting patches rather than everywhere, so it stays a quiet detail
+	float patch = smoothstep(0.4, 0.7, beach_noise(xz * 0.45 + vec2(t * 0.05, -t * 0.03)));
+	return a * patch;
 }
 
 // The water surface: the open-sea waves, and near the shore a sheet whose edge sits
@@ -118,12 +119,13 @@ void fragment() {
 	float g = beach_noise(world_pos.xz * 7.0 + TIME * vec2(0.8, -0.6));
 	float glint = smoothstep(0.92, 0.95, g) * far;
 	// the net of light on the sand, only where the water is shallow and clear
-	float net = caustics(world_pos.xz, TIME) * smoothstep(0.004, 0.035, depth) * (1.0 - smoothstep(1.2, 3.6, d)) * (1.0 - cap);
-	col = mix(col, vec3(0.88, 1.0, 0.97), net * 0.6);
+	// (not in the swash at the edge of the beach: only out where the water is a little deeper)
+	float net = caustics(world_pos.xz, TIME) * smoothstep(0.9, 1.7, d) * (1.0 - smoothstep(2.8, 4.2, d)) * smoothstep(0.06, 0.12, depth) * (1.0 - cap);
+	col = mix(col, vec3(0.88, 1.0, 0.97), net * 0.4);
 	ALBEDO = col;
 	EMISSION = foam * glint * 1.4 + col * 0.06;
 	// clear where shallow: the sand shows through and the edge fades out to nothing
-	ALPHA = max(max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap), net * 0.55);
+	ALPHA = max(max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap), net * 0.35);
 	ROUGHNESS = 0.2;
 	SPECULAR = 0.0;
 }
