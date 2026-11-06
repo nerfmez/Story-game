@@ -30,6 +30,40 @@ float wave_height(float x, float d, float t, out float c) {
 	return shape * grow + ripple;
 }
 
+// Distance between the nearest and second-nearest of a field of slowly wandering
+// points: small along the borders between cells, which makes a net of thin lines.
+float cell_edge(vec2 p, float t) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float f1 = 8.0;
+	float f2 = 8.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 o = vec2(float(x), float(y));
+			vec2 h = vec2(beach_hash(i + o), beach_hash(i + o + vec2(17.3, 5.1)));
+			vec2 pt = o + 0.5 + 0.38 * sin(t * (0.6 + 0.5 * h) + 6.2831 * h);
+			float dist = length(pt - f);
+			if (dist < f1) {
+				f2 = f1;
+				f1 = dist;
+			} else if (dist < f2) {
+				f2 = dist;
+			}
+		}
+	}
+	return f2 - f1;
+}
+
+// Sunlight focused by the ripples into a shifting net of bright lines on the sand of
+// the shallows (caustics), drawn as crisp cel lines, wobbling as the surface moves.
+float caustics(vec2 xz, float t) {
+	vec2 warp = vec2(beach_noise(xz * 1.3 + t * 0.2), beach_noise(xz * 1.3 + vec2(4.0, 1.0) - t * 0.2)) - 0.5;
+	vec2 p = xz * 2.0 + warp * 0.9;
+	float a = 1.0 - smoothstep(0.035, 0.085, cell_edge(p, t));
+	float b = 1.0 - smoothstep(0.03, 0.075, cell_edge(p * 1.37 + vec2(3.1, 7.7), t * 1.2));
+	return clamp(a * 0.75 + b * 0.5, 0.0, 1.0);
+}
+
 // The water surface: the open-sea waves, and near the shore a sheet whose edge sits
 // exactly on the sand at the swash front, sloping gently down toward the sea.
 float surface(float x, float d, float t, out float c) {
@@ -83,10 +117,13 @@ void fragment() {
 	// sun glints on the open water
 	float g = beach_noise(world_pos.xz * 7.0 + TIME * vec2(0.8, -0.6));
 	float glint = smoothstep(0.92, 0.95, g) * far;
+	// the net of light on the sand, only where the water is shallow and clear
+	float net = caustics(world_pos.xz, TIME) * smoothstep(0.004, 0.035, depth) * (1.0 - smoothstep(1.2, 3.6, d)) * (1.0 - cap);
+	col = mix(col, vec3(0.88, 1.0, 0.97), net * 0.6);
 	ALBEDO = col;
 	EMISSION = foam * glint * 1.4 + col * 0.06;
 	// clear where shallow: the sand shows through and the edge fades out to nothing
-	ALPHA = max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap);
+	ALPHA = max(max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap), net * 0.55);
 	ROUGHNESS = 0.2;
 	SPECULAR = 0.0;
 }
