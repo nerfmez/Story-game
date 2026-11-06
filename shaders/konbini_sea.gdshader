@@ -65,6 +65,28 @@ float caustics(vec2 xz, float t) {
 	return a * patch;
 }
 
+// Sun glints: each one sits in its own cell, swells into a short bright dash and
+// shrinks away again on its own rhythm, so they twinkle on and off in turn instead
+// of sliding across the water.
+float glint_layer(vec2 xz, float t, float scale, float seed) {
+	vec2 p = xz * scale;
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float h1 = beach_hash(i + seed);
+	float h2 = beach_hash(i + seed + vec2(7.1, 3.3));
+	float h3 = beach_hash(i + seed + vec2(1.7, 9.2));
+	if (h3 < 0.35) {
+		return 0.0;   // about a third of the cells stay dark
+	}
+	vec2 centre = 0.25 + 0.5 * vec2(h1, h2);
+	float life = fract(t * (0.18 + 0.25 * h3) + h1 * 3.7);
+	float b = sin(life * PI);
+	b = b * b * b;
+	vec2 q = (f - centre) * vec2(1.0, 2.6);   // a dash lying along the swell
+	float size = 0.16 * b;
+	return 1.0 - smoothstep(size * 0.55, size, length(q));
+}
+
 // The water surface: the open-sea waves, and near the shore a sheet whose edge sits
 // exactly on the sand at the swash front, sloping gently down toward the sea.
 float surface(float x, float d, float t, out float c) {
@@ -116,8 +138,8 @@ void fragment() {
 	cap = max(cap, spent * 0.9);
 	col = mix(col, foam, cap);
 	// sun glints on the open water
-	float g = beach_noise(world_pos.xz * 7.0 + TIME * vec2(0.8, -0.6));
-	float glint = smoothstep(0.92, 0.95, g) * far;
+	vec2 rock = world_pos.xz + vec2(sin(TIME * 0.7 + world_pos.z) * 0.03, 0.0);   // bob with the swell
+	float glint = max(glint_layer(rock, TIME, 2.2, 0.0), glint_layer(rock, TIME * 1.1, 3.4, 41.0) * 0.8) * far;
 	// the net of light on the sand, only where the water is shallow and clear
 	// (not in the swash at the edge of the beach: only out where the water is a little deeper)
 	float net = caustics(world_pos.xz, TIME) * smoothstep(0.9, 1.7, d) * (1.0 - smoothstep(2.8, 4.2, d)) * smoothstep(0.06, 0.12, depth) * (1.0 - cap);
