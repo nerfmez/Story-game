@@ -101,11 +101,11 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	scene.add_child(sea)
 	# a line of swimming-area floats and a rocky outcrop with surf around it
 	for i in 15:
-		k.ball(Vector3(-7.0 + i * 1.0, 0.1, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
-	k.rod(Vector3(-7.2, 0.1, 7.3), Vector3(7.2, 0.1, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
+		k.ball(Vector3(-7.0 + i * 1.0, 0.16, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
+	k.rod(Vector3(-7.2, 0.17, 7.3), Vector3(7.2, 0.17, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
 	for r in [[Vector3(7.0, 0.1, 6.0), Vector3(0.8, 0.55, 0.7)], [Vector3(7.7, 0.05, 6.5), Vector3(0.6, 0.4, 0.55)], [Vector3(6.4, 0.0, 6.6), Vector3(0.45, 0.3, 0.4)]]:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
-	k.torus(Vector3(7.0, 0.08, 6.2), 1.05, 0.05, Color(0.97, 0.99, 1.0), {"line": 0.0})
+	k.torus(Vector3(7.0, 0.13, 6.2), 1.05, 0.05, Color(0.97, 0.99, 1.0), {"line": 0.0})
 
 static func _pines(k: Kit) -> void:
 	for p in [Vector3(-8.0, 0.55, -7.0), Vector3(-5.4, 0.55, -6.6), Vector3(-2.6, 0.55, -7.0), Vector3(1.8, 0.55, -6.7), Vector3(4.8, 0.55, -7.0), Vector3(7.8, 0.55, -6.7)]:
