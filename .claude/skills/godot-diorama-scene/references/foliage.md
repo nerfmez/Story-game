@@ -73,6 +73,10 @@ balls (the first beach pines) reads as a toy, not as anime.
 
 ## Notes
 
+- Take every per-card random value (turn, shape) from the card's own seed (CUSTOM1.w), never from a
+  hash of its position after the wind has moved it. A position hash re-rolls the value every frame, and
+  the leaves visibly shake (the user caught this in the beach link).
+
 - The shader is unshaded and takes `sun_dir` as a uniform (`Foliage.sun_from(sun.rotation_degrees)`).
   For a night scene, pass darker, bluer tones (all four colours) and a lower `brightness`.
 - Cards move in the shader, so the mesh needs a grown `custom_aabb`, or it is culled at the screen edge.
