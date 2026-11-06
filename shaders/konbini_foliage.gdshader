@@ -14,6 +14,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_opaque;
 
 uniform vec3 sun_dir = vec3(0.45, 0.72, 0.53);     // toward the sun
+uniform vec3 high_col : source_color = vec3(0.78, 0.9, 0.48);
 uniform vec3 light_col : source_color = vec3(0.62, 0.8, 0.38);
 uniform vec3 mid_col : source_color = vec3(0.3, 0.58, 0.36);
 uniform vec3 shadow_col : source_color = vec3(0.13, 0.32, 0.33);
@@ -23,6 +24,7 @@ uniform float wind = 1.0;
 uniform float brightness = 1.0;
 
 varying vec3 n_sphere;
+varying vec3 n_clump;
 varying vec3 world_pos;
 varying float card;
 varying float seed;
@@ -71,6 +73,7 @@ void vertex() {
 	float t = TIME * 1.1 + crown.x * 0.7 + crown.z * 0.4;
 	p.x += (sin(t) * 0.035 + sin(t * 2.3 + p.y * 2.0) * 0.012) * reach * wind;
 	p.z += sin(t * 0.8 + 1.3) * 0.02 * reach * wind;
+	n_clump = normalize(p - clump);
 	n_sphere = normalize(mix(normalize(p - crown + vec3(0.0, 0.25, 0.0)), normalize(p - clump), clump_mix));
 	if (card > 0.0) {
 		// leaf card: spread the four corners in the camera plane, turned by a random angle
@@ -94,6 +97,12 @@ void fragment() {
 	float l = dot(n_sphere, normalize(sun_dir));
 	l += (noise2(world_pos.xz * 2.2 + world_pos.y * 1.7) - 0.5) * 0.35;
 	vec3 col = l > 0.32 ? light_col : (l > -0.12 ? mid_col : shadow_col);
+	// on the lit side, each clump gets its own brighter cap facing the sun, so the lit
+	// mass reads as several rounded clumps instead of one flat shape
+	float lc = dot(n_clump, normalize(sun_dir)) + (noise2(world_pos.xz * 3.1 - world_pos.y * 2.3) - 0.5) * 0.3;
+	if (l > 0.32 && lc > 0.58) {
+		col = high_col;
+	}
 	// light through the leaves on the rim of the side away from the sun
 	vec3 v = normalize(CAMERA_POSITION_WORLD - world_pos);
 	float rim = pow(1.0 - abs(dot(n_sphere, v)), 3.0);

@@ -34,7 +34,7 @@ func _run() -> void:
 	Foliage.broadleaf(k, world, Vector3(-3.6, 0, -1.0), 1.0, {"sun_dir": s, "seed": 3})
 	Foliage.broadleaf(k, world, Vector3(0.2, 0, 1.2), 0.7, {"sun_dir": s, "seed": 8})
 	Foliage.broadleaf(k, world, Vector3(0.6, 0, -2.6), 0.85, {"sun_dir": s, "seed": 12,
-		"light_col": Color(1.0, 0.8, 0.86), "mid_col": Color(0.93, 0.6, 0.72), "shadow_col": Color(0.66, 0.44, 0.6), "glow_col": Color(1.0, 0.92, 0.94)})
+		"high_col": Color(1.0, 0.9, 0.93), "light_col": Color(1.0, 0.8, 0.86), "mid_col": Color(0.93, 0.6, 0.72), "shadow_col": Color(0.66, 0.44, 0.6), "glow_col": Color(1.0, 0.92, 0.94)})
 	Foliage.pine(k, world, Vector3(4.0, 0, 0.0), 1.0, {"sun_dir": s, "seed": 5})
 	k.finish()
 	var cam := Camera3D.new()

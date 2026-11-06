@@ -28,9 +28,11 @@ balls (the first beach pines) reads as a toy, not as anime.
    every card ("the same star repeated, a whole closed shape"): every card must differ, and many should
    be partial, so only a few bumps show at the crown edge. Leaf size is about 0.3 x tree
    size; density is about 34 per square metre for broadleaf and 60 for pine.
-4. **Three flat tones with a hue shift.** Light is yellow-green, mid is green, shadow is blue-green, chosen by
-   `dot(spherized normal, sun)`. Wobble the band edges with noise (brush strokes) and darken the underside
-   of the crown. Keep the lit side one flat tone: the user preferred it to cards with random values,
+4. **Four flat tones with a hue shift.** Light is yellow-green, mid is green, shadow is blue-green, chosen by
+   `dot(spherized normal, sun)`. On the lit side, each clump also gets its own brighter highlight cap from
+   its own clump normal (`high_col`, with a noisy edge). With only one lit tone the user found the crown
+   flat; the caps make the lit mass read as several rounded clumps. Wobble the band edges with noise (brush strokes) and darken the underside
+   of the crown. Keep the lit tones flat: the user preferred them to cards with random values,
    whose shapes showed inside the mass. In the mid and shadow tones only, each cut edge gets a darker band
    of the same hue (no black ink on foliage). The trunk and branches keep the toon kit's ink line.
 5. **Glow.** Brighten the rim on the side facing away from the sun, as if light comes through the leaves.
@@ -40,7 +42,7 @@ balls (the first beach pines) reads as a toy, not as anime.
 ## Notes
 
 - The shader is unshaded and takes `sun_dir` as a uniform (`Foliage.sun_from(sun.rotation_degrees)`).
-  For a night scene, pass darker, bluer tones and a lower `brightness`.
+  For a night scene, pass darker, bluer tones (all four colours) and a lower `brightness`.
 - Cards move in the shader, so the mesh needs a grown `custom_aabb`, or it is culled at the screen edge.
 - Recolour for the season with the four colour uniforms (cherry blossom: pinks with a mauve shadow; autumn:
   orange, red-brown, purple shadow).

@@ -79,7 +79,7 @@ static func crown(scene: Node3D, centre: Vector3, clumps: Array, opts := {}) -> 
 	mesh.custom_aabb = mesh.get_aabb().grow(leaf * 1.5 + 0.3)
 	var mat := ShaderMaterial.new()
 	mat.shader = FOLIAGE
-	for key in ["sun_dir", "light_col", "mid_col", "shadow_col", "glow_col", "clump_mix", "brightness", "wind"]:
+	for key in ["sun_dir", "high_col", "light_col", "mid_col", "shadow_col", "glow_col", "clump_mix", "brightness", "wind"]:
 		if opts.has(key):
 			mat.set_shader_parameter(key, opts[key])
 	var mi := MeshInstance3D.new()
@@ -141,6 +141,7 @@ static func pine(k: Kit, scene: Node3D, base: Vector3, size := 1.0, opts := {}) 
 	o["leaf"] = opts.get("leaf", 0.2 * size)
 	o["clump_mix"] = opts.get("clump_mix", 0.85)
 	o["density"] = opts.get("density", 60.0)
+	o["high_col"] = opts.get("high_col", Color(0.55, 0.78, 0.46))
 	o["light_col"] = opts.get("light_col", Color(0.4, 0.66, 0.4))
 	o["mid_col"] = opts.get("mid_col", Color(0.2, 0.44, 0.33))
 	o["shadow_col"] = opts.get("shadow_col", Color(0.09, 0.24, 0.27))
