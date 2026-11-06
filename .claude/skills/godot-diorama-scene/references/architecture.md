@@ -12,6 +12,8 @@
 | `scripts/konbini_thai.gd` | Pieces only the Thai version has; called from the exterior builder |
 | `scripts/konbini_viaduct.gd` | A whole block of its own (`layout = "viaduct"`): brick railway arches with four shops, a passing train, street, back lane, its own snow, lights, shelters and camera views |
 | `scripts/konbini_snow.gd` | Snow lying on everything when `weather_kind = "snow"` |
+| `scripts/konbini_beach.gd` | The beach block (`layout = "beach"`), first daytime scene; its sea is `shaders/konbini_sea.gdshader` (`shore()` in both must match) |
+| `scenes/beach_diorama.tscn` | The beach: `layout = "beach"`, `time_of_day = "day"`, `weather_kind = "clear"` |
 | `scenes/ramen_diorama.tscn` | The viaduct block on a snowy night: `layout = "viaduct"`, `weather_kind = "snow"` |
 | `scripts/konbini_weather.gd` | Rain, splash rings, drips, puddles, gutter flow, ground reflections |
 | `scripts/konbini_camera.gd` | Orbit camera: mouse, touch, keys, eased, clamped |
@@ -47,8 +49,11 @@ Use one when something must be animated as a group (`sign_band`, `pole_sign`, ea
 
 ## Switches and new blocks
 
-`layout` picks the whole block: `corner` (the konbini street corner, which `country` turns Thai) or
-`viaduct`. `weather_kind` (rain, snow) changes the weather layer. A new request gets a new layout file like
+`layout` picks the whole block: `corner` (the konbini street corner, which `country` turns Thai), `viaduct`
+or `beach`. `time_of_day` (night, day) switches moon and lamps for a sun with shadows (merged meshes cast
+shadows when `kit.shadows` is on) and the sky shader's day mode with clouds. `weather_kind` (rain, snow,
+clear) changes the weather layer. Daylight is easy to overexpose: ambient about 0.55, sun about 1.0,
+exposure 0.85, very light fog. A new request gets a new layout file like
 `konbini_viaduct.gd`, never a reskin of an old one. A layout file provides `build(kit, scene)` (it may reuse
 the street helpers of `konbini_exterior.gd`: plinth, poles, wires, rails, bikes, signs), `lights(scene)`,
 `reflections(scene)`, `animate(scene, clock)` for its own loops, and the constants `VIEWS` (camera presets),

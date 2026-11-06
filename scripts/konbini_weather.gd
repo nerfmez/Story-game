@@ -26,6 +26,7 @@ const SHELTERS := [
 var rain_material: ShaderMaterial
 var snow := false              # set before setup(): drifting flakes, no splashes, drips or puddles
 var shelters: Array = SHELTERS # roofs of the block being built, set before setup()
+var clear := false             # set before setup(): no rain or snow at all
 var lamps: Array = []          # [position, radius, color] fed to the rain shader
 var reflections: Array = []    # {node, base, width, length}
 var _rng := RandomNumberGenerator.new()
@@ -34,6 +35,8 @@ var _strip: ArrayMesh
 func setup(lamp_list: Array) -> void:
 	_rng.seed = 2405
 	lamps = lamp_list
+	if clear:
+		return
 	_rain()
 	if snow:
 		return
@@ -98,6 +101,8 @@ func _rain() -> void:
 
 ## Pushes lamp positions and colours (the traffic light changes) to the rain.
 func update_lamps() -> void:
+	if rain_material == null:
+		return
 	var pos := []
 	var col := []
 	for i in 10:

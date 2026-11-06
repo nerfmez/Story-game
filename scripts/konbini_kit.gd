@@ -22,6 +22,7 @@ class Batch:
 	var node: Node3D
 	var layer := 1
 	var material: Material
+	var mat_name := ""
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
@@ -33,6 +34,8 @@ var root: Node3D
 var materials := {}
 var outline: ShaderMaterial
 var primitive_count := 0
+var shadows := false   # merged meshes cast shadows (daylight scenes)
+var flat_materials := {}  # material names that never cast shadows (ground made of strips)
 var _batches := {}
 var _shapes := {}
 
@@ -150,6 +153,7 @@ func add(kind: String, xf: Transform3D, color: Color, opts := {}) -> void:
 		b.node = target
 		b.layer = layer
 		b.material = material(mat_name)
+		b.mat_name = mat_name
 		_batches[key] = b
 	var normal_basis := xf.basis.inverse().transposed()
 	var turn := xf.basis.orthonormalized()
@@ -250,6 +254,7 @@ func finish() -> void:
 		instance.name = "Merged"
 		instance.mesh = mesh
 		instance.layers = b.layer
-		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var casts := shadows and not flat_materials.has(b.mat_name)
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if casts else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		b.node.add_child(instance)
 	_batches.clear()

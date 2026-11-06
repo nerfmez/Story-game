@@ -2,8 +2,8 @@ extends Node3D
 ## Rainy-night konbini on a street corner, as a small collectible diorama in
 ## cel-shaded "3D that looks 2D" style. Separate from the story; open
 ## scenes/konbini_diorama.tscn (Japan), scenes/konbini_diorama_thai.tscn
-## (Thailand) or scenes/ramen_diorama.tscn (a ramen shop under a railway viaduct on
-## a snowy night) and press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
+## (Thailand), scenes/ramen_diorama.tscn (a ramen shop under a railway viaduct on
+## a snowy night) or scenes/beach_diorama.tscn (a beach on a summer afternoon) and press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
 ## The model is built from code when the scene loads; afterwards only small loops
 ## run: rain, drips, the auto door, the flickering signs and the traffic signals.
 ##
@@ -15,6 +15,7 @@ const Exterior := preload("res://scripts/konbini_exterior.gd")
 const Interior := preload("res://scripts/konbini_interior.gd")
 const Weather := preload("res://scripts/konbini_weather.gd")
 const Viaduct := preload("res://scripts/konbini_viaduct.gd")
+const Beach := preload("res://scripts/konbini_beach.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -37,9 +38,11 @@ const DOOR_CYCLE := 9.0
 @export_enum("japan", "thailand") var country := "japan"
 ## Which block is built: "corner" is the konbini on a street corner; "viaduct" is
 ## the row of shops under a railway viaduct (scripts/konbini_viaduct.gd).
-@export_enum("corner", "viaduct") var layout := "corner"
-## Rain (wet ground, drips, puddles) or snow (white caps, slush, drifting flakes).
-@export_enum("rain", "snow") var weather_kind := "rain"
+@export_enum("corner", "viaduct", "beach") var layout := "corner"
+## Night (lamps, moon) or day (sun with shadows, bright sky).
+@export_enum("night", "day") var time_of_day := "night"
+## Rain (wet ground, drips, puddles), snow (white caps, slush, drifting flakes) or clear.
+@export_enum("rain", "snow", "clear") var weather_kind := "rain"
 
 # filled in by the builders
 var countdowns: Array = []
@@ -72,10 +75,15 @@ func _ready() -> void:
 	_flicker_rng.seed = 99
 	_environment()
 	var kit := Kit.new(self)
+	kit.shadows = time_of_day == "day"
 	if layout == "viaduct":
 		views = Viaduct.VIEWS
 		shelters = Viaduct.SHELTERS
 		Viaduct.build(kit, self)
+	elif layout == "beach":
+		views = Beach.VIEWS
+		shelters = []
+		Beach.build(kit, self)
 	else:
 		Exterior.build(kit, self)
 		Interior.build(kit, self)
@@ -88,6 +96,7 @@ func _ready() -> void:
 	weather.name = "Weather"
 	add_child(weather)
 	weather.snow = weather_kind == "snow"
+	weather.clear = weather_kind == "clear"
 	weather.shelters = shelters
 	weather.setup(_rain_lamps())
 	_reflections()
@@ -221,6 +230,16 @@ func _environment() -> void:
 	env.fog_light_color = Color(0.16, 0.18, 0.32)
 	env.fog_density = 0.006
 	env.fog_sky_affect = 0.0
+	if time_of_day == "day":
+		# a clear summer afternoon: sky-blue shadows, a light sea haze, glow only on glints
+		sky_mat.set_shader_parameter("day", 1.0)
+		env.ambient_light_color = Color(0.55, 0.66, 0.92)
+		env.ambient_light_energy = 0.55
+		env.tonemap_exposure = 0.85
+		env.glow_intensity = 0.3
+		env.glow_hdr_threshold = 1.3
+		env.fog_light_color = Color(0.7, 0.8, 0.92)
+		env.fog_density = 0.0015
 	if weather_kind == "snow":
 		# snow lights up the night: brighter, bluer ambient and a soft haze of falling flakes
 		env.ambient_light_color = Color(0.4, 0.46, 0.78)
@@ -257,8 +276,19 @@ func _lights() -> void:
 	moon.light_energy = 0.3
 	moon.rotation_degrees = Vector3(-52, -35, 0)
 	moon.light_cull_mask = Kit.LAYER_OUT
+	if time_of_day == "day":
+		moon.name = "Sun"
+		moon.light_color = Color(1.0, 0.95, 0.86)
+		moon.light_energy = 1.0
+		moon.rotation_degrees = Vector3(-48, -32, 0)
+		moon.light_cull_mask = Kit.LAYER_OUT | Kit.LAYER_IN
+		moon.shadow_enabled = true
+		moon.shadow_blur = 0.6
+		moon.directional_shadow_max_distance = 60.0
 	add_child(moon)
-	if layout == "viaduct":
+	if layout == "beach":
+		Beach.lights(self)
+	elif layout == "viaduct":
 		Viaduct.lights(self)
 	else:
 		_konbini_lights()
@@ -282,9 +312,9 @@ func _konbini_lights() -> void:
 	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
 
 func _rain_lamps() -> Array:
-	if layout == "viaduct":
+	if layout != "corner":
 		traffic_lamp_index = -1
-		return Viaduct.RAIN_LAMPS
+		return Viaduct.RAIN_LAMPS if layout == "viaduct" else []
 	var list := [
 		[Vector3(-6.0, 5.0, 5.95), 4.5, Color(0.45, 0.55, 0.65)],
 		[Vector3(3.3, 4.5, 3.3), 3.4, Color(0.4, 0.5, 0.55)],
@@ -303,6 +333,8 @@ func _rain_lamps() -> Array:
 func _reflections() -> void:
 	if layout == "viaduct":
 		Viaduct.reflections(self)
+		return
+	if layout == "beach":
 		return
 	if weather_kind == "snow":
 		# snow does not mirror; only the wet tyre tracks on the road still catch lamps
@@ -339,6 +371,8 @@ func _process(delta: float) -> void:
 	_animate_traffic()
 	if layout == "viaduct":
 		Viaduct.animate(self, _clock)
+	elif layout == "beach":
+		Beach.animate(self, _clock)
 	for node in sway_nodes:
 		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)
@@ -359,6 +393,8 @@ func _animate_door() -> void:
 		panel.position.x = float(panel.get_meta("closed")) + float(panel.get_meta("travel")) * open
 
 func _animate_signs(delta: float) -> void:
+	if sign_band_material == null:
+		return
 	# Mostly a steady soft hum; now and then the pole sign stutters for a moment.
 	if _clock > _next_flicker:
 		_flicker_until = _clock + _flicker_rng.randf_range(0.25, 0.7)

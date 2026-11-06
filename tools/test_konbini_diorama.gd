@@ -129,5 +129,22 @@ func _run() -> void:
 	print("ramen: %d primitives" % ramen.get_meta("primitive_count"))
 	ramen.queue_free()
 	await process_frame
-	print("PASS: konbini (Japan, Thailand) and ramen dioramas build without UI; orbit, zoom, pan, touch, doors, signals, countdown and lanterns work")
+	# the beach on a summer afternoon: daylight with shadows, no rain, gulls flying
+	var beach: Node3D = load("res://scenes/beach_diorama.tscn").instantiate()
+	root.add_child(beach)
+	await process_frame
+	if beach.layout != "beach" or beach.time_of_day != "day" or beach.weather.rain_material != null:
+		return _fail("The beach should be a clear day with no rain")
+	if not beach.find_children("*", "Control", true, false).is_empty():
+		return _fail("The beach diorama must not contain UI nodes")
+	var gull: Node3D = beach.get_meta("gulls")[0]
+	var start_pos := gull.position
+	for i in 20:
+		beach._process(0.05)
+	if gull.position.distance_to(start_pos) < 0.2:
+		return _fail("The gulls should circle")
+	print("beach: %d primitives" % beach.get_meta("primitive_count"))
+	beach.queue_free()
+	await process_frame
+	print("PASS: konbini (Japan, Thailand), ramen and beach dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
 	quit(0)
