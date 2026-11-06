@@ -9,6 +9,7 @@ extends RefCounted
 const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const SEA := preload("res://shaders/konbini_sea.gdshader")
+const SWASH := preload("res://shaders/konbini_swash.gdshader")
 
 const SAND_Y := 0.12
 const SAND := Color(0.9, 0.76, 0.52)
@@ -68,7 +69,7 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 	while x < 9.0 - 0.001:
 		var line := shore(x + w * 0.5)
 		k.slab(Vector3(x, -0.02, -6.9), Vector3(x + w, SAND_Y, line + 0.3), SAND, {"mat": "sand", "line": 0.0})
-		k.slab(Vector3(x, SAND_Y, line - 0.55), Vector3(x + w, SAND_Y + 0.004, line + 0.3), WET_SAND, {"mat": "wet_sand", "gloss": 0.35, "line": 0.0})
+		k.slab(Vector3(x, SAND_Y, line - 0.35), Vector3(x + w, SAND_Y + 0.004, line + 0.3), WET_SAND, {"mat": "wet_sand", "gloss": 0.35, "line": 0.0})
 		x += w
 	# footprints wandering from the boardwalk to the parasols and the water
 	var rng := RandomNumberGenerator.new()
@@ -99,6 +100,20 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	sea.position = Vector3(0, 0.105, 5.4)
 	sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(sea)
+	# the swash: a sheet of water that runs up the sand after each wave and slides back
+	var swash_plane := PlaneMesh.new()
+	swash_plane.size = Vector2(18, 3.9)
+	swash_plane.subdivide_width = 36
+	swash_plane.subdivide_depth = 8
+	var swash_mat := ShaderMaterial.new()
+	swash_mat.shader = SWASH
+	var swash := MeshInstance3D.new()
+	swash.name = "Swash"
+	swash.mesh = swash_plane
+	swash.material_override = swash_mat
+	swash.position = Vector3(0, SAND_Y + 0.008, 2.0)
+	swash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	scene.add_child(swash)
 	# a line of swimming-area floats and a rocky outcrop with surf around it
 	for i in 15:
 		k.ball(Vector3(-7.0 + i * 1.0, 0.16, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
@@ -107,13 +122,45 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
 	k.torus(Vector3(7.0, 0.13, 6.2), 1.05, 0.05, Color(0.97, 0.99, 1.0), {"line": 0.0})
 
+## Japanese black pines along the back of the beach: a dark trunk that leans toward
+## the sea and bends as it climbs, a few long branches, and flat two-tone pads of
+## needles at their tips (the cloud-pruned look of a coastal pine grove).
 static func _pines(k: Kit) -> void:
-	for p in [Vector3(-8.0, 0.55, -7.0), Vector3(-5.4, 0.55, -6.6), Vector3(-2.6, 0.55, -7.0), Vector3(1.8, 0.55, -6.7), Vector3(4.8, 0.55, -7.0), Vector3(7.8, 0.55, -6.7)]:
-		var lean := Vector3(0.5 if p.x < 0 else -0.4, 4.2, 0.6)
-		k.rod(p, p + lean, 0.13, Color(0.42, 0.3, 0.24), {"seg": 8})
-		for j in 3:
-			var at: Vector3 = p + lean * (0.7 + j * 0.15) + Vector3((j - 1) * 0.5, 0.2, 0.1 * j)
-			k.ball(at, Vector3(1.1 - j * 0.15, 0.35, 0.9 - j * 0.1), PINE, {"seg": 10})
+	var bark := Color(0.36, 0.27, 0.23)
+	var dark := Color(0.13, 0.32, 0.24)
+	var light := Color(0.24, 0.5, 0.34)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for base in [Vector3(-8.3, SAND_Y, -6.5), Vector3(-6.0, SAND_Y, -6.6), Vector3(-3.4, SAND_Y, -6.5), Vector3(1.6, SAND_Y, -6.4), Vector3(5.6, SAND_Y, -6.5), Vector3(8.2, SAND_Y, -6.3)]:
+		var lean_x := rng.randf_range(-0.5, 0.5)
+		var height := rng.randf_range(4.2, 5.0)
+		# trunk: five bends, thinning as it rises
+		var pts: Array[Vector3] = [base]
+		for i in range(1, 6):
+			var t := i / 5.0
+			var wobble := sin(t * 5.0 + base.x) * 0.22
+			pts.append(base + Vector3(lean_x * t * t * 2.0 + wobble, height * t, 0.9 * t * t))
+		k.cyl(base + Vector3(0, 0.12, 0), 0.24, 0.24, bark, {"top": 0.62, "seg": 8})
+		for i in 5:
+			var r := lerpf(0.16, 0.07, i / 4.0)
+			k.rod(pts[i], pts[i + 1], r, bark, {"seg": 8})
+			k.ball(pts[i + 1], Vector3.ONE * lerpf(0.16, 0.07, (i + 1) / 4.0), bark, {"seg": 8, "line": 0.0})
+		# branches with a needle pad at each tip, then a crown pad on top
+		var pads: Array = []
+		for j in 4:
+			var at: Vector3 = pts[2 + j % 3].lerp(pts[3 + j % 3], rng.randf_range(0.2, 0.8))
+			var a := rng.randf_range(0.0, TAU) if j > 0 else (0.0 if lean_x > 0 else PI)
+			var length := rng.randf_range(0.8, 1.5)
+			var tip := at + Vector3(cos(a) * length, rng.randf_range(0.15, 0.45), sin(a) * length * 0.7)
+			k.rod(at, tip, 0.05, bark, {"seg": 6})
+			pads.append([tip, rng.randf_range(0.55, 0.85)])
+		pads.append([pts[5] + Vector3(0, 0.1, 0), 1.0])
+		for pad in pads:
+			var c: Vector3 = pad[0]
+			var s: float = pad[1]
+			k.ball(c, Vector3(0.95, 0.3, 0.75) * s, dark, {"seg": 10})
+			k.ball(c + Vector3(-0.08, 0.12, -0.06) * s, Vector3(0.75, 0.24, 0.6) * s, light, {"seg": 10, "line": 0.0})
+			k.ball(c + Vector3(0.35, 0.06, 0.2) * s, Vector3(0.45, 0.2, 0.4) * s, dark, {"seg": 8})
 
 static func _beach_hut(k: Kit, scene: Node3D) -> void:
 	var x0 := -7.8
@@ -242,29 +289,72 @@ static func _beach_life(k: Kit, scene: Node3D) -> void:
 	k.box(Vector3(-1.2, SAND_Y + 0.04, 2.5), Vector3(0.5, 0.06, 1.9), Color(0.98, 0.95, 0.9), {"rot": Vector3(0, 35, 0), "gloss": 0.6})
 	k.box(Vector3(-1.2, SAND_Y + 0.075, 2.5), Vector3(0.08, 0.01, 1.8), RED, {"rot": Vector3(0, 35, 0), "line": 0.0})
 
+## A white lifeguard tower: four splayed legs braced on the sand, a platform with a
+## rail, a chair under a yellow parasol, a ladder whose rails run from the sand to
+## the platform edge, a flag on the front corner and a rescue board on the sand.
 static func _lifeguard(k: Kit, scene: Node3D) -> void:
 	var at := Vector3(7.3, SAND_Y, 0.4)
-	for c in [Vector2(-0.45, -0.45), Vector2(0.45, -0.45), Vector2(-0.45, 0.45), Vector2(0.45, 0.45)]:
-		k.rod(at + Vector3(c.x * 1.3, 0, c.y * 1.3), at + Vector3(c.x, 2.2, c.y), 0.05, WHITE)
-	k.box(at + Vector3(0, 2.25, 0), Vector3(1.1, 0.08, 1.1), WHITE)
-	k.box(at + Vector3(0, 2.65, -0.3), Vector3(0.7, 0.8, 0.08), RED)
-	k.box(at + Vector3(0, 2.45, 0), Vector3(0.7, 0.08, 0.5), RED)
-	k.text("監視員", at + Vector3(0, 2.75, -0.255), 0.14, WHITE, {"jp": true})
+	var deck := 1.9
+	var foot := 0.62
+	var top := 0.45
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		k.rod(at + Vector3(c.x * foot, 0, c.y * foot), at + Vector3(c.x * top, deck, c.y * top), 0.05, WHITE)
+		k.box(at + Vector3(c.x * foot, 0.02, c.y * foot), Vector3(0.18, 0.04, 0.18), WHITE * 0.9)
+	# a cross brace on each side and a ring of rails halfway up
+	var mid := 0.95
+	var mw := lerpf(foot, top, mid / deck)
+	var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
 	for i in 4:
-		k.box(at + Vector3(0, 0.4 + i * 0.45, 0.55), Vector3(0.6, 0.05, 0.08), WHITE)
-	_parasol(k, scene, at + Vector3(0, 2.3, 0), Color(0.98, 0.85, 0.2))
+		var c0: Vector2 = corners[i]
+		var c1: Vector2 = corners[(i + 1) % 4]
+		k.rod(at + Vector3(c0.x * mw, mid, c0.y * mw), at + Vector3(c1.x * mw, mid, c1.y * mw), 0.03, WHITE)
+		k.rod(at + Vector3(c0.x * foot * 0.97, 0.12, c0.y * foot * 0.97), at + Vector3(c1.x * mw, mid, c1.y * mw), 0.022, WHITE, {"line": 0.5})
+	k.box(at + Vector3(0, deck + 0.04, 0), Vector3(1.2, 0.08, 1.2), WOOD)
+	# rail on the sides and front, with a red board on the front
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		k.rod(at + Vector3(c.x * 0.56, deck + 0.08, c.y * 0.56), at + Vector3(c.x * 0.56, deck + 0.6, c.y * 0.56), 0.025, WHITE)
+	for side in [[Vector2(-1, -1), Vector2(-1, 1)], [Vector2(1, -1), Vector2(1, 1)], [Vector2(-1, 1), Vector2(1, 1)]]:
+		var a: Vector2 = side[0]
+		var b: Vector2 = side[1]
+		k.rod(at + Vector3(a.x * 0.56, deck + 0.6, a.y * 0.56), at + Vector3(b.x * 0.56, deck + 0.6, b.y * 0.56), 0.025, WHITE)
+	k.box(at + Vector3(0, deck + 0.34, 0.57), Vector3(1.0, 0.36, 0.03), RED)
+	k.text("監視員", at + Vector3(0, deck + 0.34, 0.59), 0.17, WHITE, {"jp": true})
+	# the chair, facing the sea
+	var seat := at + Vector3(0, deck + 0.08, -0.1)
+	for c in [Vector2(-0.22, -0.18), Vector2(0.22, -0.18), Vector2(-0.22, 0.18), Vector2(0.22, 0.18)]:
+		k.rod(seat + Vector3(c.x, 0, c.y), seat + Vector3(c.x, 0.4, c.y), 0.02, WOOD_DARK)
+	k.box(seat + Vector3(0, 0.43, 0), Vector3(0.52, 0.06, 0.44), RED)
+	k.box(seat + Vector3(0, 0.75, -0.21), Vector3(0.52, 0.55, 0.05), RED, {"rot": Vector3(-8, 0, 0)})
+	# the parasol pole is clamped to the back of the chair
+	_parasol(k, scene, at + Vector3(-0.1, deck + 0.08, -0.3), Color(0.98, 0.85, 0.2))
+	# the ladder on the beach side: two rails from the sand to the deck edge, rungs between them
+	var lb := at + Vector3(0, 0, -1.35)
+	var lt := at + Vector3(0, deck + 0.06, -0.6)
+	for x in [-0.24, 0.24]:
+		k.rod(lb + Vector3(x, 0, 0), lt + Vector3(x, 0, 0), 0.03, WHITE)
+		k.rod(lt + Vector3(x, 0, 0), lt + Vector3(x, 0.55, 0.06), 0.025, WHITE)
+	var rungs := 6
+	for i in rungs:
+		var p := lb.lerp(lt, (i + 1.0) / (rungs + 1.0))
+		k.rod(p + Vector3(-0.24, 0, 0), p + Vector3(0.24, 0, 0), 0.022, WHITE, {"line": 0.5})
+	k.box(lt + Vector3(0, -0.02, 0.0), Vector3(0.48, 0.05, 0.12), WOOD)
+	# flag on the front corner
+	var fp := at + Vector3(0.56, deck + 0.6, 0.56)
+	k.rod(fp, fp + Vector3(0, 1.2, 0), 0.02, WHITE)
 	var flag := Node3D.new()
 	flag.name = "LifeguardFlag"
-	flag.position = at + Vector3(0.55, 3.6, 0.55)
+	flag.position = fp + Vector3(0, 1.18, 0)
 	flag.set_meta("amp", 0.1)
 	flag.set_meta("speed", 2.6)
 	flag.set_meta("phase", 1.0)
 	scene.add_child(flag)
 	scene.sway_nodes.append(flag)
-	k.rod(at + Vector3(0.55, 2.25, 0.55), at + Vector3(0.55, 3.62, 0.55), 0.02, WHITE)
 	k.box(Vector3(0.3, -0.18, 0), Vector3(0.6, 0.36, 0.02), RED, {"node": flag})
 	k.box(Vector3(0.3, -0.27, 0.012), Vector3(0.6, 0.18, 0.004), Color(1.0, 0.85, 0.2), {"node": flag, "line": 0.0})
-	k.box(at + Vector3(-0.9, 0.25, 0.9), Vector3(0.9, 0.12, 0.25), RED, {"rot": Vector3(0, 0, 60)})
+	# a red rescue board lying on the sand beside the tower, a rescue tube on it
+	k.box(at + Vector3(1.2, 0.045, 0.2), Vector3(0.45, 0.07, 1.9), RED, {"rot": Vector3(0, 8, 0), "gloss": 0.5})
+	k.box(at + Vector3(1.2, 0.082, 0.2), Vector3(0.06, 0.006, 1.7), WHITE, {"rot": Vector3(0, 8, 0), "line": 0.0})
+	k.box(at + Vector3(1.22, 0.13, 0.3), Vector3(0.16, 0.1, 0.75), Color(1.0, 0.5, 0.15), {"rot": Vector3(0, 25, 0), "gloss": 0.5})
 
 static func _gulls(k: Kit, scene: Node3D) -> void:
 	var gulls: Array[Node3D] = []

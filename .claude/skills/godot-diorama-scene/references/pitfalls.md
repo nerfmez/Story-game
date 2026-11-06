@@ -34,3 +34,15 @@
   service workers in artifacts).
 - **Do not run code from external repositories** without the user's go-ahead; the auto-mode classifier blocks
   `npm install` there.
+
+## Sea that stands still, trees as lollipops, towers with floating parts (beach, first try)
+
+- A sea is not a fixed foam band at the waterline. Waves come one at a time: a crest travels in, grows
+  where it shallows, turns white and breaks, then a thin sheet of water runs up the sand with a foam
+  front, slows and slides back, leaving dark wet sand that dries. Do the sea and the swash as two
+  shaders sharing one timing (`konbini_sea` and `konbini_swash`) and check frames at several `--wait`
+  values: if they all look the same, the sea is wrong.
+- A tree is a trunk that bends, branches and foliage masses at the branch tips (for a black pine: flat
+  two-tone pads), never one stick through three balls.
+- Anything climbable or standing must connect: ladder rungs are placed along the rail line (lerp between
+  the rail ends), legs reach the ground, parasol poles start on something. Zoom in on every structure.
