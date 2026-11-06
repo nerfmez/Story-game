@@ -15,7 +15,8 @@ mood, light, weather, time of day or a regional version. Read `references/pitfal
 a session: it lists the mistakes that already happened once. Read `references/water.md` whenever a scene has
 a sea, lake, river or any shore: it is the approved recipe for water (sloped sand under clear water, waves that
 roll in and break into foam, swash, wet sand, caustics, glints, surf on rocks) and the list of what the user
-rejected along the way.
+rejected along the way. Read `references/foliage.md` for any tree, bush or hedge: anime trees are clumps
+with spherized normals covered in camera-facing leaf cards, never balls on a stick.
 
 ## Plan first, then ask, then build
 
