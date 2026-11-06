@@ -56,3 +56,7 @@
   and wiggly. After breaking, the white water should spread into a foam field that thins into patches
   and fades (time since the crest passed, rising noise threshold). And no overlay may end inside the
   sea: its straight edge shows through clear water.
+- Any looping motion must start each cycle where the last one ended. The swash front ended at the
+  drawn-down level but restarted at the still-water line with new random values, so the water edge
+  and the wet sand jumped as each wave began. Make per-cycle randomness fade to zero at both ends of
+  the cycle, and let effects left behind (wet sand) grow with the motion instead of switching on.

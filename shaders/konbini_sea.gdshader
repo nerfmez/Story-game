@@ -37,7 +37,8 @@ float surface(float x, float d, float t, out float c) {
 	float s;
 	float reach;
 	float fall;
-	float front = swash_front(x, t, s, reach, fall);
+	float rise;
+	float front = swash_front(x, t, s, reach, fall, rise);
 	float sheet = ground_u(-front) + 0.002 - 0.014 * (d + front);
 	float near = 1.0 - smoothstep(0.5, 1.8, d);
 	return mix(open_sea, sheet, near);

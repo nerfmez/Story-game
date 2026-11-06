@@ -46,14 +46,16 @@ float wave_lag(float x) {
 
 // Where the swash front is (metres up the beach from the waterline, negative while the
 // backwash draws the water below it) and how many seconds since this wave broke.
-float swash_front(float x, float t, out float s, out float reach, out float fall) {
+float swash_front(float x, float t, out float s, out float reach, out float fall, out float rise) {
 	float lag = wave_lag(x);
 	float cycle = (t + lag) / PERIOD;
 	s = fract(cycle) * PERIOD;
 	float wave_no = floor(cycle);
 	reach = (0.6 + 0.3 * beach_noise(vec2(x * 0.5, wave_no * 3.7))) * (0.85 + 0.15 * sin(x * 0.7 + wave_no));
-	float rise = 1.0 - pow(1.0 - clamp(s / 1.4, 0.0, 1.0), 2.0);
+	rise = 1.0 - pow(1.0 - clamp(s / 1.4, 0.0, 1.0), 2.0);
 	fall = smoothstep(1.4, 4.8, s);
-	float front = reach * rise * (1.0 - fall) - 0.3 * fall;
-	return front + (beach_noise(vec2(x * 3.0, wave_no)) - 0.5) * 0.1;
+	// starts and ends at the same drawn-down level, so nothing jumps between waves
+	float run = rise * (1.0 - fall);
+	float front = -0.3 + (reach + 0.3) * run;
+	return front + (beach_noise(vec2(x * 3.0, wave_no)) - 0.5) * 0.1 * run + (beach_noise(vec2(x * 2.0, 0.5)) - 0.5) * 0.06;
 }
