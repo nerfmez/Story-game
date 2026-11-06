@@ -10,6 +10,7 @@ const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const SEA := preload("res://shaders/konbini_sea.gdshader")
 const SWASH := preload("res://shaders/konbini_swash.gdshader")
+const Foliage := preload("res://scripts/konbini_foliage.gd")
 
 const SAND_Y := 0.12
 const SEA_Y := 0.08
@@ -21,7 +22,6 @@ const WOOD_DARK := Color(0.45, 0.3, 0.2)
 const WHITE := Color(0.97, 0.97, 0.95)
 const TEAL := Color(0.3, 0.72, 0.74)
 const RED := Color(0.9, 0.25, 0.25)
-const PINE := Color(0.2, 0.42, 0.3)
 const INK := Color(0.08, 0.06, 0.06)
 
 ## look-at point, yaw, pitch, distance
@@ -61,7 +61,7 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	b._base()
 	_ground(kit, b)
 	_sea(kit, scene)
-	_pines(kit)
+	_pines(kit, scene)
 	_beach_hut(kit, scene)
 	_boardwalk_and_huts(kit)
 	_beach_life(kit, scene)
@@ -157,45 +157,19 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	for r in [[Vector3(7.0, 0.1, 6.0), Vector3(0.8, 0.55, 0.7)], [Vector3(7.7, 0.05, 6.5), Vector3(0.6, 0.4, 0.55)], [Vector3(6.4, 0.0, 6.6), Vector3(0.45, 0.3, 0.4)]]:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
 
-## Japanese black pines along the back of the beach: a dark trunk that leans toward
-## the sea and bends as it climbs, a few long branches, and flat two-tone pads of
-## needles at their tips (the cloud-pruned look of a coastal pine grove).
-static func _pines(k: Kit) -> void:
-	var bark := Color(0.36, 0.27, 0.23)
-	var dark := Color(0.13, 0.32, 0.24)
-	var light := Color(0.24, 0.5, 0.34)
+## Japanese black pines along the back of the beach, leaning toward the sea: the anime
+## trees of scripts/konbini_foliage.gd (smooth painted trunks, flat needle pads made of
+## leaf cards with spherized lighting, swaying a little in the sea breeze).
+static func _pines(k: Kit, scene: Node3D) -> void:
+	var sun := Foliage.sun_from(Vector3(-48, -32, 0))   # the day sun of konbini_diorama.gd
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
-	for base in [Vector3(-8.3, SAND_Y, -6.5), Vector3(-6.0, SAND_Y, -6.6), Vector3(-3.4, SAND_Y, -6.5), Vector3(2.3, SAND_Y, -6.45), Vector3(5.6, SAND_Y, -6.5), Vector3(8.2, SAND_Y, -6.3)]:
-		var lean_x := rng.randf_range(-0.5, 0.5)
-		var height := rng.randf_range(4.2, 5.0)
-		# trunk: five bends, thinning as it rises
-		var pts: Array[Vector3] = [base]
-		for i in range(1, 6):
-			var t := i / 5.0
-			var wobble := sin(t * 5.0 + base.x) * 0.22
-			pts.append(base + Vector3(lean_x * t * t * 2.0 + wobble, height * t, 0.9 * t * t))
-		k.cyl(base + Vector3(0, 0.12, 0), 0.24, 0.24, bark, {"top": 0.62, "seg": 8})
-		for i in 5:
-			var r := lerpf(0.16, 0.07, i / 4.0)
-			k.rod(pts[i], pts[i + 1], r, bark, {"seg": 8})
-			k.ball(pts[i + 1], Vector3.ONE * lerpf(0.16, 0.07, (i + 1) / 4.0), bark, {"seg": 8, "line": 0.0})
-		# branches with a needle pad at each tip, then a crown pad on top
-		var pads: Array = []
-		for j in 4:
-			var at: Vector3 = pts[2 + j % 3].lerp(pts[3 + j % 3], rng.randf_range(0.2, 0.8))
-			var a := rng.randf_range(0.0, TAU) if j > 0 else (0.0 if lean_x > 0 else PI)
-			var length := rng.randf_range(0.8, 1.5)
-			var tip := at + Vector3(cos(a) * length, rng.randf_range(0.15, 0.45), sin(a) * length * 0.7)
-			k.rod(at, tip, 0.05, bark, {"seg": 6})
-			pads.append([tip, rng.randf_range(0.55, 0.85)])
-		pads.append([pts[5] + Vector3(0, 0.1, 0), 1.0])
-		for pad in pads:
-			var c: Vector3 = pad[0]
-			var s: float = pad[1]
-			k.ball(c, Vector3(0.95, 0.3, 0.75) * s, dark, {"seg": 10})
-			k.ball(c + Vector3(-0.08, 0.12, -0.06) * s, Vector3(0.75, 0.24, 0.6) * s, light, {"seg": 10, "line": 0.0})
-			k.ball(c + Vector3(0.35, 0.06, 0.2) * s, Vector3(0.45, 0.2, 0.4) * s, dark, {"seg": 8})
+	var i := 0
+	# trees at the ends lean inward so no pad hangs off the base; the one by the shower
+	# hut stays clear of the view from the road
+	for t in [[Vector3(-7.9, SAND_Y, -6.5), 0.45], [Vector3(-5.8, SAND_Y, -6.6), -0.2], [Vector3(-3.4, SAND_Y, -6.5), 0.3], [Vector3(3.3, SAND_Y, -6.45), 0.35], [Vector3(5.7, SAND_Y, -6.5), -0.15], [Vector3(7.8, SAND_Y, -6.3), -0.5]]:
+		Foliage.pine(k, scene, t[0], rng.randf_range(0.95, 1.1), {"sun_dir": sun, "seed": 40 + i, "lean": t[1], "name": "Pine%d" % i})
+		i += 1
 
 static func _beach_hut(k: Kit, scene: Node3D) -> void:
 	var x0 := -7.8

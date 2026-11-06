@@ -60,6 +60,17 @@ balls (the first beach pines) reads as a toy, not as anime.
      a sock, and crown shade starting too low.
 7. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.
 
+## Using it in a scene
+
+- Call `Foliage.broadleaf(k, scene, base, size, opts)` or `Foliage.pine(...)` from a layout builder,
+  before `k.finish()`. Pass the sun (`Foliage.sun_from(Vector3(-48, -32, 0))` for the day sun) and a
+  different `seed` per tree. The beach (`_pines` in `scripts/konbini_beach.gd`) is the example.
+- Set `lean` by hand for each tree. Trees near the edge of the base lean inward, or their pads hang off
+  it. Keep trees out of the camera presets: a pad in front of the lens fills the frame. Render every view
+  after placing them.
+- The user approved this look ("this kind of tree"); use it for every tree and bush from now on, not
+  kit balls on sticks.
+
 ## Notes
 
 - The shader is unshaded and takes `sun_dir` as a uniform (`Foliage.sun_from(sun.rotation_degrees)`).
