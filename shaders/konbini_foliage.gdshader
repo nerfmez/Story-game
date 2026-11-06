@@ -77,7 +77,9 @@ void vertex() {
 	n_sphere = normalize(mix(normalize(p - crown + vec3(0.0, 0.25, 0.0)), normalize(p - clump), clump_mix));
 	if (card > 0.0) {
 		// leaf card: spread the four corners in the camera plane, turned by a random angle
-		float a = seed * 6.2831 + hash1(clump.xz + p.xy) * 6.2831;
+		// the turn comes from the card's own seed only: hashing its (wind-moved) position
+		// re-rolled the angle every frame and made the leaves jitter
+		float a = seed * 6.2831 * 7.0;
 		vec2 c = mat2(vec2(cos(a), sin(a)), vec2(-sin(a), cos(a))) * corner;
 		vec3 right = INV_VIEW_MATRIX[0].xyz;
 		vec3 up = INV_VIEW_MATRIX[1].xyz;
