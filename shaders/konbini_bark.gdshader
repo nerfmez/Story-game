@@ -39,8 +39,11 @@ void fragment() {
 	vec3 n = normalize(n_world);
 	// bark runs along the trunk: stretch the noise vertically
 	float around = atan(n.z, n.x) * 1.6;
-	float streak = noise2(vec2(around * 2.2 + world_pos.x * 3.0, world_pos.y * 1.3));
-	float l = dot(n, normalize(sun_dir)) + (streak - 0.5) * 0.45 - shade * 0.55;
+	float streak = noise2(vec2(around * 1.4 + world_pos.x * 2.0, world_pos.y * 0.8));
+	// under the crown the trunk is in its shade, with a few dapples of light coming through
+	float dapple = noise2(vec2(around * 1.2 + world_pos.z, world_pos.y * 2.2)) - 0.5;
+	float in_shade = smoothstep(0.55, 0.85, shade + dapple * 0.45);
+	float l = dot(n, normalize(sun_dir)) + (streak - 0.5) * 0.25 - in_shade * 0.8;
 	vec3 col = l > 0.25 ? light_col : (l > -0.25 ? mid_col : shadow_col);
 	// a few long dark cracks of bark, only out of the full light
 	float crack = noise2(vec2(around * 5.0 + world_pos.z * 4.0, world_pos.y * 0.9 + around));

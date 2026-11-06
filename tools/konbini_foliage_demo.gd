@@ -1,7 +1,7 @@
 extends SceneTree
 ## Renders the anime trees of scripts/konbini_foliage.gd on a patch of grass in daylight,
 ## for checking the foliage look on its own. Run in a staged project:
-##   godot --path <project> --rendering-method gl_compatibility -s res://tools/konbini_foliage_demo.gd -- OUT.png [yaw]
+##   godot --path <project> --rendering-method gl_compatibility -s res://tools/konbini_foliage_demo.gd -- OUT.png [yaw] [distance] [target x y z]
 
 const Kit := preload("res://scripts/konbini_kit.gd")
 const Foliage := preload("res://scripts/konbini_foliage.gd")
@@ -41,8 +41,10 @@ func _run() -> void:
 	cam.fov = 36.0
 	world.add_child(cam)
 	var yaw := deg_to_rad(float(args[1]) if args.size() > 1 else -20.0)
-	cam.position = Vector3(sin(yaw), 0.42, cos(yaw)) * 17.0 + Vector3(0, 1.0, 0)
-	cam.look_at(Vector3(0, 1.9, 0))
+	var dist := float(args[2]) if args.size() > 2 else 17.0
+	var target := Vector3(float(args[3]), float(args[4]), float(args[5])) if args.size() > 5 else Vector3(0, 1.9, 0)
+	cam.position = target + Vector3(sin(yaw), 0.42, cos(yaw)) * dist + Vector3(0, -0.9, 0)
+	cam.look_at(target)
 	cam.current = true
 	root.get_viewport().msaa_3d = Viewport.MSAA_4X
 	for i in 6:

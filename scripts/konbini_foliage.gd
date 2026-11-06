@@ -115,28 +115,36 @@ static func smooth(pts: Array, steps := 4) -> Array:
 
 ## Adds a tube through pts to the bark mesh data in `m`: radius from r0 to r1 along
 ## its length, shade (crown shade) from s0 to s1, ink weight `line`.
-static func tube(m: Dictionary, pts: Array, r0: float, r1: float, s0: float, s1: float, line := 1.0, sides := 9) -> void:
+static func tube(m: Dictionary, pts: Array, r0: float, r1: float, s0: float, s1: float, line := 1.0, sides := 9, flare := 0.0) -> void:
 	var path := smooth(pts)
 	var n := path.size()
+	var ground: float = m.get("ground", -100.0)
 	var u := Vector3.ZERO
 	var base: int = m["v"].size()
 	for i in n:
 		var p: Vector3 = path[i]
 		var t: Vector3 = ((path[mini(i + 1, n - 1)] as Vector3) - (path[maxi(i - 1, 0)] as Vector3)).normalized()
-		if i == 0:
+		var carried := u - t * u.dot(t)
+		if i == 0 or carried.length() < 0.001:
+			# start a frame (or restart one when the path turns onto the old side vector)
 			u = t.cross(Vector3.FORWARD if absf(t.y) > 0.9 else Vector3.UP).normalized()
 		else:
-			u = (u - t * u.dot(t)).normalized()
+			u = carried.normalized()
 		var v := t.cross(u)
 		var f := float(i) / (n - 1)
 		var r := lerpf(r0, r1, f)
+		if flare > 0.0:   # the foot of a trunk widens smoothly into the ground
+			r *= 1.0 + flare * exp(-maxf(p.y - (pts[0] as Vector3).y, 0.0) / (r0 * 2.4))
 		var sh := lerpf(s0, s1, f)
 		for k in sides + 1:
 			var a := TAU * k / sides
 			var d := u * cos(a) + v * sin(a)
 			m["v"].append(p + d * r)
 			m["n"].append(d)
-			m["c0"].append_array([d.x, d.y, d.z, line])
+			# no ink where the tube goes into the ground (it would draw a dark ring there)
+			# (never exactly 0: the outline shader collapses weight-0 vertices to the origin)
+			var w := maxf(line * clampf((p.y - ground) / 0.12, 0.0, 1.0), 0.002)
+			m["c0"].append_array([d.x, d.y, d.z, w])
 			m["c1"].append_array([sh, 0.0, 0.0, 0.0])
 	for i in n - 1:
 		for k in sides:
@@ -183,18 +191,20 @@ static func bark_mesh(scene: Node3D, m: Dictionary, sun: Vector3, colors: Dictio
 ## the ground. shade_from: the height (0..1 along the trunk) where the crown shade starts.
 static func trunk(m: Dictionary, pts: Array, r0: float, r1: float, rng: RandomNumberGenerator, shade_from := 0.55) -> void:
 	var base: Vector3 = pts[0]
-	var flared: Array = [base + Vector3(0, -0.05, 0)]
-	for p in pts:
-		flared.append(p)
-	# the foot is a short, fat stub so the trunk widens smoothly into the ground
-	tube(m, [base + Vector3(0, -0.05, 0), base + Vector3(0, r0 * 1.6, 0), base + Vector3(0, r0 * 3.2, 0)], r0 * 1.6, r0, 0.0, 0.0, 1.0)
-	tube(m, pts, r0, r1, 0.0, 1.0, 1.0)
+	m["ground"] = base.y
+	# one tube from just under the ground, flaring at the foot, so there is no seam;
+	# extra points low down so the flare curves smoothly
+	var up: Vector3 = (pts[1] as Vector3) - base
+	var full: Array = [base + Vector3(0, -0.08, 0), base + up * 0.12, base + up * 0.3]
+	full.append_array(pts.slice(1))
+	tube(m, full, r0, r1, 0.0, 1.0, 1.0, 11, 0.8)
+	# a few buttress roots: low ridges that start up on the flare and sink into the ground
 	var roots := 3 + rng.randi() % 2
 	for i in roots:
 		var a := i * TAU / roots + rng.randf_range(-0.4, 0.4)
 		var out := Vector3(cos(a), 0, sin(a))
-		var reach := rng.randf_range(1.9, 2.6) * r0
-		tube(m, [base + out * r0 * 0.4 + Vector3(0, r0 * 1.2, 0), base + out * r0 * 1.2 + Vector3(0, r0 * 0.35, 0), base + out * reach + Vector3(0, -0.06, 0)], r0 * 0.55, r0 * 0.12, 0.0, 0.0, 0.8, 7)
+		var reach := rng.randf_range(1.8, 2.3) * r0
+		tube(m, [base + out * r0 * 0.3 + Vector3(0, r0 * 1.5, 0), base + out * r0 * 1.0 + Vector3(0, r0 * 0.55, 0), base + out * reach * 0.8 + Vector3(0, r0 * 0.05, 0), base + out * reach + Vector3(0, -0.08, 0)], r0 * 0.5, r0 * 0.18, 0.0, 0.0, 0.6, 7)
 	m["shade_from"] = shade_from
 
 ## A limb from a through mid points to b, thinning from r0 to r1, in crown shade.

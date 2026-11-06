@@ -45,13 +45,19 @@ balls (the first beach pines) reads as a toy, not as anime.
      cracks run through the mid and shadow tones, and the trunk is pushed darker as it rises into the
      crown's shade (CUSTOM1.x).
    - The ink line is the kit's outline shader as next pass (CUSTOM0 = ring normal and weight).
-   - The foot is a short fat stub that widens smoothly into the ground, with 3 or 4 short buttress roots
-     that sink in.
+   - The foot is part of the same tube, which starts just under the ground and flares smoothly
+     (`flare`, decaying over about 2.4 x the trunk radius, with extra path points low down). 3 or 4 low
+     buttress ridges start up on the flare and sink into the ground.
+   - The crown's shade starts about halfway up the trunk with a dappled edge (light through leaves), so
+     the lower trunk is lit like the ground around it. Do not ink where a tube is under the ground. The
+     outline shader collapses weight-0 vertices to the origin, so use a tiny weight instead of 0, or you
+     get huge black spikes. Restart the tube frame if the path turns onto the side vector.
    - Limbs start inside the trunk below the fork, rise, then reach out to their clump, each with a twig.
      Pine limbs dip, then lift toward the pad.
    - The user rejected two earlier trunks: stacked kit cylinders with joint balls (seams, a black stick
      in the crown's shade, a light foot that looked like a separate object), and long stick roots
-     splayed like spider legs.
+     splayed like spider legs. They also rejected a separate stub for the foot, whose top edge read as
+     a sock, and crown shade starting too low.
 7. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.
 
 ## Notes
