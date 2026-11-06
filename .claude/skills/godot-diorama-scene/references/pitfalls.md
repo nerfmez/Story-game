@@ -22,6 +22,9 @@
 - **`k.ball` takes radii, not diameters.** A snowman given diameters came out two metres tall.
 - **A-frame boards** lean in at the top: the front board rotates by a negative angle about X; put its text in
   the same basis.
+- **Reskinning an old layout** (the ramen shop on the konbini's corner) was rejected: a new subject is a
+  new layout file with its own ground, paths, neighbours, lights and views.
+- **A camera preset placed behind buildings** shows a wall. Check every preset after building a layout.
 - **Relative capture paths** land relative to Godot's process, not your shell: pass absolute paths to
   `--capture`.
 - **Headless dummy renderer** prints `mesh_get_surface_count` errors for QuadMesh and MultiMesh; run the test

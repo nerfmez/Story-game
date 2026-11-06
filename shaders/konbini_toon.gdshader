@@ -13,6 +13,8 @@ uniform int pattern = 0;
 uniform float emit_energy = 1.6;
 uniform vec3 indoor_light : source_color = vec3(1.0, 0.88, 0.72);
 uniform vec3 sky_sheen : source_color = vec3(0.07, 0.09, 0.18);
+// Parts that move past the edge of the base (a train) are cut off there.
+uniform float clip_x = 1000.0;
 
 varying vec3 world_pos;
 
@@ -41,6 +43,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (abs(world_pos.x) > clip_x) {
+		discard;
+	}
 	vec3 albedo = COLOR.rgb;
 	float gloss = UV2.x;
 	vec3 wn = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz;

@@ -4,5 +4,5 @@
 
 [node name="RamenDiorama" type="Node3D"]
 script = ExtResource("1_konbini")
-shop = "ramen"
+layout = "viaduct"
 weather_kind = "snow"

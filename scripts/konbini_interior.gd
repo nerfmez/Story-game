@@ -30,9 +30,6 @@ var rng := RandomNumberGenerator.new()
 var thai := false
 
 static func build(kit: Kit, diorama: Node3D) -> void:
-	if diorama.shop == "ramen":
-		preload("res://scripts/konbini_ramen.gd").interior(kit, diorama)
-		return
 	var b := new()
 	b.k = kit
 	b.scene = diorama

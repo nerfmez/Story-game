@@ -25,6 +25,7 @@ const SHELTERS := [
 
 var rain_material: ShaderMaterial
 var snow := false              # set before setup(): drifting flakes, no splashes, drips or puddles
+var shelters: Array = SHELTERS # roofs of the block being built, set before setup()
 var lamps: Array = []          # [position, radius, color] fed to the rain shader
 var reflections: Array = []    # {node, base, width, length}
 var _rng := RandomNumberGenerator.new()
@@ -41,8 +42,8 @@ func setup(lamp_list: Array) -> void:
 	_puddles()
 	_gutters()
 
-static func sheltered(x: float, z: float) -> bool:
-	for s in SHELTERS:
+func sheltered(x: float, z: float) -> bool:
+	for s in shelters:
 		var r: Vector4 = s[0]
 		if x > r.x and x < r.z and z > r.y and z < r.w:
 			return true
@@ -70,15 +71,18 @@ func _rain() -> void:
 	rain_material.shader = RAIN
 	var rects := []
 	var tops := PackedFloat32Array()
-	for s in SHELTERS:
+	for s in shelters:
 		rects.append(s[0])
 		tops.append(s[1])
+	while rects.size() < 8:
+		rects.append(Vector4.ZERO)
+		tops.append(0.0)
 	rain_material.set_shader_parameter("shelters", rects)
 	rain_material.set_shader_parameter("shelter_top", tops)
 	if snow:
 		rain_material.set_shader_parameter("snow", 1.0)
 		rain_material.set_shader_parameter("speed", 1.1)
-		rain_material.set_shader_parameter("drop_length", 0.07)
+		rain_material.set_shader_parameter("drop_length", 0.05)
 		rain_material.set_shader_parameter("wind", Vector2(0.25, 0.1))
 		rain_material.set_shader_parameter("tint", Color(0.92, 0.95, 1.0))
 		rain_material.set_shader_parameter("strength", 0.75)

@@ -10,9 +10,9 @@
 | `scripts/konbini_exterior.gd` | Base, roads, lot, shop shell, sign, street furniture, poles and wires, signals |
 | `scripts/konbini_interior.gd` | Everything inside the shop (render layer 2) |
 | `scripts/konbini_thai.gd` | Pieces only the Thai version has; called from the exterior builder |
-| `scripts/konbini_ramen.gd` | The ramen shop (exterior and interior) used when `shop = "ramen"` |
+| `scripts/konbini_viaduct.gd` | A whole block of its own (`layout = "viaduct"`): brick railway arches with four shops, a passing train, street, back lane, its own snow, lights, shelters and camera views |
 | `scripts/konbini_snow.gd` | Snow lying on everything when `weather_kind = "snow"` |
-| `scenes/ramen_diorama.tscn` | The ramen shop on a snowy night: `shop = "ramen"`, `weather_kind = "snow"` |
+| `scenes/ramen_diorama.tscn` | The viaduct block on a snowy night: `layout = "viaduct"`, `weather_kind = "snow"` |
 | `scripts/konbini_weather.gd` | Rain, splash rings, drips, puddles, gutter flow, ground reflections |
 | `scripts/konbini_camera.gd` | Orbit camera: mouse, touch, keys, eased, clamped |
 | `shaders/konbini_*.gdshader` | toon, outline, rain, splash, drip, puddle, reflection, glass, steam, sky |
@@ -45,13 +45,17 @@ Use one when something must be animated as a group (`sign_band`, `pole_sign`, ea
 `emit_energy`) or needs a surface pattern: 1 pavers, 2 floor tiles, 3 asphalt, 4 wood, 5 concrete blocks,
 6 siding (also used for the roller shutter).
 
-## Three switches
+## Switches and new blocks
 
-`country` (japan, thailand) changes the street, `shop` (konbini, ramen) changes the building in the middle
-on the same footprint, `weather_kind` (rain, snow) changes the weather layer and lays snow. A new subject is a
-new `shop` value with its own builder file exposing `exterior(builder)` and `interior(kit, scene)`, like
-`konbini_ramen.gd`: it registers its door panels (meta `travel`), swaying nodes, and the two animated
-materials `sign_band` and `pole_sign`; the diorama adds its lights in a `_<shop>_lights()` function.
+`layout` picks the whole block: `corner` (the konbini street corner, which `country` turns Thai) or
+`viaduct`. `weather_kind` (rain, snow) changes the weather layer. A new request gets a new layout file like
+`konbini_viaduct.gd`, never a reskin of an old one. A layout file provides `build(kit, scene)` (it may reuse
+the street helpers of `konbini_exterior.gd`: plinth, poles, wires, rails, bikes, signs), `lights(scene)`,
+`reflections(scene)`, `animate(scene, clock)` for its own loops, and the constants `VIEWS` (camera presets),
+`SHELTERS` (roofs the rain or snow skips) and `RAIN_LAMPS`. It registers door panels (meta `travel`),
+swaying nodes, and the animated materials `sign_band` and `pole_sign` with lights named `SignBand` and
+`PoleSign`. Things that move past the base edge (a train) use a material with `clip_x` so they are cut
+cleanly at the edge.
 Japanese text uses `"jp": true` on `k.text` (Noto Sans JP subset); add new characters by re-subsetting the
 font with fontTools from the full Noto Sans JP on raw.githubusercontent.com.
 

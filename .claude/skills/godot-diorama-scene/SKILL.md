@@ -28,8 +28,9 @@ where would this place really be, what makes it special, what gives a strong com
 
 Before writing any scene code:
 
-1. Write the brief (below) and draw 2 or 3 genuinely different top-down plans of the 18 × 18 m base as one
-   image (PIL is enough: coloured shapes with Thai labels in Sarabun, the focal building in a strong colour).
+1. Write the brief (below) and make 2 or 3 genuinely different plans of the 18 × 18 m base. Flat top-down
+   diagrams are hard for the user to picture: show each plan as a quick 3D blockout render (plain boxes in
+   the scene's palette from the default three-quarter camera, labelled), with a small top-down map beside it.
    Mark what crosses each edge of the base (lane, road, canal, wall, nothing) so blocks can be joined later.
 2. Send the image and ask the user to pick one and say what to cut or add. Wait for the answer; do not build
    on a plan the user has not chosen.

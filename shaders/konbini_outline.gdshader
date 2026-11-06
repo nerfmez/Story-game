@@ -7,11 +7,14 @@ render_mode unshaded, cull_front, depth_draw_opaque;
 uniform float width = 0.0011;
 uniform vec3 ink : source_color = vec3(0.06, 0.06, 0.14);
 uniform float tint = 0.35;
+uniform float clip_x = 1000.0;
 
 varying vec3 base_color;
+varying float world_x;
 
 void vertex() {
 	base_color = COLOR.rgb;
+	world_x = (MODEL_MATRIX * vec4(VERTEX, 1.0)).x;
 	if (CUSTOM0.w < 0.001) {
 		VERTEX = vec3(0.0);
 	} else {
@@ -22,5 +25,8 @@ void vertex() {
 }
 
 void fragment() {
+	if (abs(world_x) > clip_x) {
+		discard;
+	}
 	ALBEDO = mix(ink, base_color * 0.28, tint);
 }

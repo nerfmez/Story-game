@@ -50,6 +50,10 @@ func material(name: String, pattern := 0, params := {}) -> ShaderMaterial:
 	for key in params:
 		mat.set_shader_parameter(key, params[key])
 	mat.next_pass = outline
+	if params.has("clip_x"):
+		var cut: ShaderMaterial = outline.duplicate()
+		cut.set_shader_parameter("clip_x", params["clip_x"])
+		mat.next_pass = cut
 	materials[name] = mat
 	return mat
 

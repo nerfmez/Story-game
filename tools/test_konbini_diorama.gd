@@ -82,7 +82,7 @@ func _run() -> void:
 		return _fail("The automatic door never opened")
 	if not changed:
 		return _fail("The traffic light never changed")
-	for preset in scene.VIEWS.size():
+	for preset in scene.views.size():
 		scene.show_view(preset)
 	scene.queue_free()
 	await process_frame
@@ -104,25 +104,28 @@ func _run() -> void:
 	print("thai: %d primitives" % thai.get_meta("primitive_count"))
 	thai.queue_free()
 	await process_frame
-	# the ramen shop on a snowy night: no UI, the door slides, lanterns sway
+	# the ramen shop under the viaduct on a snowy night: no UI, the door slides, lanterns sway, a train passes
 	var ramen: Node3D = load("res://scenes/ramen_diorama.tscn").instantiate()
 	root.add_child(ramen)
 	await process_frame
-	if ramen.shop != "ramen" or ramen.weather_kind != "snow":
-		return _fail("The ramen scene should be a ramen shop in the snow")
+	if ramen.layout != "viaduct" or ramen.weather_kind != "snow":
+		return _fail("The ramen scene should be the viaduct block in the snow")
 	if not ramen.find_children("*", "Control", true, false).is_empty():
 		return _fail("The ramen diorama must not contain UI nodes")
 	var sliding: Node3D = ramen.door_panels[1]
 	var shut := sliding.position.x
 	var lantern: Node3D = ramen.sway_nodes[1]
+	var train: Node3D = ramen.get_meta("train")
 	var slid := false
 	var swung := false
-	for i in 400:
+	var passed := false
+	for i in 600:
 		ramen._process(0.05)
 		slid = slid or absf(sliding.position.x - shut) > 0.5
 		swung = swung or absf(lantern.rotation.z) > 0.02
-	if not slid or not swung:
-		return _fail("The ramen door should slide and its lanterns sway")
+		passed = passed or absf(train.position.x) < 5.0
+	if not slid or not swung or not passed:
+		return _fail("The ramen door should slide, its lanterns sway and a train cross the viaduct")
 	print("ramen: %d primitives" % ramen.get_meta("primitive_count"))
 	ramen.queue_free()
 	await process_frame

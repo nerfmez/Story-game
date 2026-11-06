@@ -2,8 +2,8 @@ extends Node3D
 ## Rainy-night konbini on a street corner, as a small collectible diorama in
 ## cel-shaded "3D that looks 2D" style. Separate from the story; open
 ## scenes/konbini_diorama.tscn (Japan), scenes/konbini_diorama_thai.tscn
-## (Thailand) or scenes/ramen_diorama.tscn (a ramen shop on a snowy night) and
-## press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
+## (Thailand) or scenes/ramen_diorama.tscn (a ramen shop under a railway viaduct on
+## a snowy night) and press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
 ## The model is built from code when the scene loads; afterwards only small loops
 ## run: rain, drips, the auto door, the flickering signs and the traffic signals.
 ##
@@ -14,13 +14,14 @@ const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const Interior := preload("res://scripts/konbini_interior.gd")
 const Weather := preload("res://scripts/konbini_weather.gd")
+const Viaduct := preload("res://scripts/konbini_viaduct.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
 const SKY := preload("res://shaders/konbini_sky.gdshader")
 
 ## look-at point, yaw, pitch, distance
-const VIEWS := [
+const CORNER_VIEWS := [
 	[Vector3(0.0, 0.6, 1.2), -27.0, 29.0, 28.5],    # three-quarter view, the crossing beyond
 	[Vector3(-1.4, 1.4, -0.6), 6.0, 9.0, 10.5],     # straight into the windows
 	[Vector3(-0.2, 0.0, 0.0), 45.0, 58.0, 31.0],    # from above, the whole base
@@ -34,13 +35,17 @@ const DOOR_CYCLE := 9.0
 
 ## "japan" or "thailand": which street corner the builders make.
 @export_enum("japan", "thailand") var country := "japan"
-## The building in the middle of the base (see konbini_ramen.gd for the ramen shop).
-@export_enum("konbini", "ramen") var shop := "konbini"
+## Which block is built: "corner" is the konbini on a street corner; "viaduct" is
+## the row of shops under a railway viaduct (scripts/konbini_viaduct.gd).
+@export_enum("corner", "viaduct") var layout := "corner"
 ## Rain (wet ground, drips, puddles) or snow (white caps, slush, drifting flakes).
 @export_enum("rain", "snow") var weather_kind := "rain"
 
 # filled in by the builders
 var countdowns: Array = []
+var views: Array = CORNER_VIEWS
+var shelters: Array = Weather.SHELTERS
+var plate_text := "HOSHI MART  ·  RAINY NIGHT"
 var sway_nodes: Array[Node3D] = []   # lanterns and curtains that swing a little
 var sign_band_material: ShaderMaterial
 var pole_sign_material: ShaderMaterial
@@ -67,24 +72,29 @@ func _ready() -> void:
 	_flicker_rng.seed = 99
 	_environment()
 	var kit := Kit.new(self)
-	Exterior.build(kit, self)
-	Interior.build(kit, self)
-	if shop == "konbini":
+	if layout == "viaduct":
+		views = Viaduct.VIEWS
+		shelters = Viaduct.SHELTERS
+		Viaduct.build(kit, self)
+	else:
+		Exterior.build(kit, self)
+		Interior.build(kit, self)
 		_doors(kit)
 	kit.finish()
-	if shop == "konbini":
+	if layout == "corner":
 		_shop_glass()
 	_lights()
 	weather = Weather.new()
 	weather.name = "Weather"
 	add_child(weather)
 	weather.snow = weather_kind == "snow"
+	weather.shelters = shelters
 	weather.setup(_rain_lamps())
 	_reflections()
 	rig = CameraRig.new()
 	rig.name = "CameraRig"
 	add_child(rig)
-	var view: Array = VIEWS[0]
+	var view: Array = views[0]
 	rig.set_view(view[0], view[1], view[2], view[3])
 	get_viewport().msaa_3d = Viewport.MSAA_4X
 	set_meta("primitive_count", kit.primitive_count)
@@ -105,7 +115,7 @@ func _read_command_line() -> void:
 		_capture(capture, wait)
 
 func show_view(index: int) -> void:
-	var view: Array = VIEWS[clampi(index, 0, VIEWS.size() - 1)]
+	var view: Array = views[clampi(index, 0, views.size() - 1)]
 	rig.set_view(view[0], view[1], view[2], view[3])
 
 func _capture(path: String, wait: float) -> void:
@@ -248,17 +258,10 @@ func _lights() -> void:
 	moon.rotation_degrees = Vector3(-52, -35, 0)
 	moon.light_cull_mask = Kit.LAYER_OUT
 	add_child(moon)
-	if shop == "ramen":
-		_ramen_lights()
+	if layout == "viaduct":
+		Viaduct.lights(self)
 	else:
 		_konbini_lights()
-	_omni("StreetLamp", Vector3(-6.0, 5.0, 5.95), Color(0.75, 0.88, 1.0), 2.4, 8.0)
-	_omni("Vending", Vector3(3.6, 1.2, -3.9), Color(0.8, 0.92, 1.0), 1.4, 3.6)
-	_omni("Traffic", Vector3(7.7, 4.6, 7.7), Color(0.1, 0.95, 0.75), 1.2, 6.0)
-	_omni("AlleyLamp", Vector3(-6.2, 2.45, -1.0), Color(1.0, 0.75, 0.45), 0.7, 3.2)
-	_omni("BackDoor", Vector3(-1.65, 2.3, -6.0), Color(1.0, 0.82, 0.55), 0.45, 3.0)
-	_omni("Security", Vector3(4.9, 4.6, -7.7), Color(0.82, 1.0, 0.88), 1.1, 5.5)
-	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
 
 func _konbini_lights() -> void:
 	var warm := Color(1.0, 0.74, 0.44)
@@ -270,22 +273,18 @@ func _konbini_lights() -> void:
 	_omni("SideWindow", Vector3(3.1, 1.4, -1.4), warm, 1.0, 3.6, Kit.LAYER_OUT, true)
 	_omni("SignBand", Vector3(-1.3, 3.5, 1.3), Color(0.85, 1.0, 0.96), 0.8, 5.0, Kit.LAYER_OUT, true)
 	_omni("PoleSign", Vector3(3.3, 4.5, 3.3), Color(0.88, 0.97, 1.0), 1.2, 6.0)
-
-## Ramen shop: an orange glow from the steamy window, two red lanterns, the lit
-## standing sign, and spotlit name board. SignBand and PoleSign keep their names
-## so the hum and stutter in _animate_signs drive the lanterns and the stand sign.
-func _ramen_lights() -> void:
-	var inside := Color(1.0, 0.72, 0.42)
-	for p in [Vector3(-3.2, 2.6, -1.6), Vector3(-1.0, 2.6, -3.0), Vector3(0.9, 2.6, -1.8)]:
-		_omni("Shop", p, inside, 0.85, 4.8, Kit.LAYER_IN, true)
-	# snow takes light easily: keep the spill modest so it reads orange, not pink
-	_omni("WindowLeft", Vector3(-2.8, 1.3, 1.1), Color(1.0, 0.62, 0.3), 0.95, 4.2, Kit.LAYER_OUT, true)
-	_omni("WindowRight", Vector3(0.6, 1.3, 1.1), Color(1.0, 0.62, 0.3), 0.75, 3.6, Kit.LAYER_OUT, true)
-	_omni("SignBand", Vector3(0.4, 2.2, 1.0), Color(1.0, 0.42, 0.28), 1.3, 4.2)
-	_omni("PoleSign", Vector3(2.0, 1.2, 1.0), Color(1.0, 0.88, 0.65), 0.7, 2.6, Kit.LAYER_OUT, true)
-	_omni("NameBoard", Vector3(-1.3, 3.4, 0.9), Color(1.0, 0.85, 0.6), 0.6, 2.6, Kit.LAYER_OUT, true)
+	_omni("StreetLamp", Vector3(-6.0, 5.0, 5.95), Color(0.75, 0.88, 1.0), 2.4, 8.0)
+	_omni("Vending", Vector3(3.6, 1.2, -3.9), Color(0.8, 0.92, 1.0), 1.4, 3.6)
+	_omni("Traffic", Vector3(7.7, 4.6, 7.7), Color(0.1, 0.95, 0.75), 1.2, 6.0)
+	_omni("AlleyLamp", Vector3(-6.2, 2.45, -1.0), Color(1.0, 0.75, 0.45), 0.7, 3.2)
+	_omni("BackDoor", Vector3(-1.65, 2.3, -6.0), Color(1.0, 0.82, 0.55), 0.45, 3.0)
+	_omni("Security", Vector3(4.9, 4.6, -7.7), Color(0.82, 1.0, 0.88), 1.1, 5.5)
+	_omni("Neighbour", Vector3(-7.85, 3.9, 3.0), Color(1.0, 0.75, 0.45), 0.7, 3.2, Kit.LAYER_OUT, true)
 
 func _rain_lamps() -> Array:
+	if layout == "viaduct":
+		traffic_lamp_index = -1
+		return Viaduct.RAIN_LAMPS
 	var list := [
 		[Vector3(-6.0, 5.0, 5.95), 4.5, Color(0.45, 0.55, 0.65)],
 		[Vector3(3.3, 4.5, 3.3), 3.4, Color(0.4, 0.5, 0.55)],
@@ -298,14 +297,13 @@ func _rain_lamps() -> Array:
 		[Vector3(7.5, 4.8, 7.5), 3.0, Color(0.05, 0.4, 0.3)],
 	]
 
-	if shop == "ramen":
-		list[1] = [Vector3(0.4, 2.3, 1.0), 2.6, Color(0.55, 0.2, 0.12)]
-		list[2] = [Vector3(-2.4, 1.6, 1.4), 3.4, Color(0.55, 0.35, 0.18)]
-		list[7] = [Vector3(-1.3, 3.3, 0.8), 2.0, Color(0.4, 0.32, 0.2)]
 	traffic_lamp_index = list.size() - 1
 	return list
 
 func _reflections() -> void:
+	if layout == "viaduct":
+		Viaduct.reflections(self)
+		return
 	if weather_kind == "snow":
 		# snow does not mirror; only the wet tyre tracks on the road still catch lamps
 		weather.add_reflection(Vector3(-6.0, 0.0, 5.95), Color(0.75, 0.88, 1.0), 0.6, 5.3, 0.4, 2.0)
@@ -339,6 +337,8 @@ func _process(delta: float) -> void:
 	_animate_door()
 	_animate_signs(delta)
 	_animate_traffic()
+	if layout == "viaduct":
+		Viaduct.animate(self, _clock)
 	for node in sway_nodes:
 		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)
@@ -375,6 +375,8 @@ func _animate_signs(delta: float) -> void:
 	lights["SignBand"].light_energy = lights["SignBand"].get_meta("energy") * _sign_level
 
 func _animate_traffic() -> void:
+	if signal_a.is_empty():
+		return
 	# road A green 8 s, amber 3 s, all red 2 s, then the same for road B
 	var t := fmod(_clock + 5.0, 26.0)
 	var a := _phase(t)

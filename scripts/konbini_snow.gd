@@ -14,10 +14,9 @@ const TRACK := Color(0.6, 0.65, 0.8)
 
 static func cover(b: RefCounted) -> void:
 	var k: Kit = b.k
-	var ramen: bool = b.ramen
 	var snow := {"gloss": 0.1, "line": 0.3}
 	var deep := LOT + 0.045
-	var eave := 1.05 if ramen else 1.45
+	var eave := 1.45
 	# ground: everything raised except under the eaves in front of the shop
 	for area in [
 		[-9.0, 4.0, 5.05, 5.06], [4.0, -9.0, 5.06, 4.0], [-6.6, eave, 4.0, 4.0], [2.4, -9.0, 4.0, 0.0],
@@ -75,9 +74,8 @@ static func cover(b: RefCounted) -> void:
 		[Vector3(6.3, 5.18, 8.45), Vector3(7.5, 5.23, 8.75)],
 		[Vector3(-8.9, 3.08, 2.5), Vector3(-6.85, 3.1, 3.12)],          # balcony floor
 	]
-	if not ramen:
-		caps.append([Vector3(-5.0, 4.18, -5.2), Vector3(2.4, 4.24, 0.0)])      # konbini roof
-		caps.append([Vector3(-5.05, 2.88, 0.0), Vector3(2.45, 2.94, 1.32)])    # awning
+	caps.append([Vector3(-5.0, 4.18, -5.2), Vector3(2.4, 4.24, 0.0)])      # konbini roof
+	caps.append([Vector3(-5.05, 2.88, 0.0), Vector3(2.45, 2.94, 1.32)])    # awning
 	for cap in caps:
 		k.slab(cap[0], cap[1], SNOW, snow)
 	for rail in [[Vector3(-8.9, 0.97, 4.95), Vector3(-3.4, 0.97, 4.95)], [Vector3(4.95, 0.97, -8.9), Vector3(4.95, 0.97, -0.4)]]:
