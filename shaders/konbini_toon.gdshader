@@ -8,13 +8,18 @@ shader_type spatial;
 // Fill lights with light_specular = 0 (light spilling from the windows) add no highlight.
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
-// 0 plain, 1 sidewalk pavers, 2 shop floor tiles, 3 asphalt, 4 wood, 5 concrete blocks, 6 wall siding
+// 0 plain, 1 sidewalk pavers, 2 shop floor tiles, 3 asphalt, 4 wood, 5 concrete blocks, 6 wall siding,
+// 7 terraced rock hill (grass-coloured vertices turn to banded rock where the ground is steep)
 uniform int pattern = 0;
 uniform float emit_energy = 1.6;
 uniform vec3 indoor_light : source_color = vec3(1.0, 0.88, 0.72);
 uniform vec3 sky_sheen : source_color = vec3(0.07, 0.09, 0.18);
 // Parts that move past the edge of the base (a train) are cut off there.
 uniform float clip_x = 1000.0;
+// pattern 7: the rock of the strata and the height of one stratum
+uniform vec3 rock_a : source_color = vec3(0.6, 0.52, 0.45);
+uniform vec3 rock_b : source_color = vec3(0.49, 0.43, 0.4);
+uniform float stratum = 0.42;
 
 varying vec3 world_pos;
 
@@ -68,6 +73,15 @@ void fragment() {
 		albedo *= 0.86 + grain * 0.24;
 	} else if (pattern == 5 && !top) {
 		albedo *= mix(1.0, 0.74, joints(face, vec2(0.4, 0.2), 0.5, 0.01)) * (0.95 + 0.08 * hash(floor(face / vec2(0.4, 0.2))));
+	} else if (pattern == 7 && COLOR.g > COLOR.r + 0.12) {
+		// decided per pixel, not per vertex, so the grass edge and the rock strata are
+		// clean lines instead of the zigzags vertex colours make on a height field
+		float wob = (noise(world_pos.xz * 1.7) - 0.5) * 0.12;
+		float steep = 1.0 - smoothstep(0.62, 0.78, wn.y + wob);
+		float band = mod(floor((world_pos.y + (noise(world_pos.xz * 0.9) - 0.5) * 0.18) / stratum), 2.0);
+		vec3 rock = band < 1.0 ? rock_a : rock_b;
+		rock *= 0.92 + 0.12 * noise(vec2(world_pos.x + world_pos.z, world_pos.y * 6.0) * 2.0);
+		albedo = mix(albedo, rock, step(0.5, steep));
 	} else if (pattern == 6 && !top) {
 		albedo *= mix(1.0, 0.86, step(0.9, fract(face.y / 0.18)));
 	}

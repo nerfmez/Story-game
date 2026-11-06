@@ -60,3 +60,15 @@
   drawn-down level but restarted at the still-water line with new random values, so the water edge
   and the wet sand jumped as each wave began. Make per-cycle randomness fade to zero at both ends of
   the cycle, and let effects left behind (wet sand) grow with the motion instead of switching on.
+
+## Joining a new block to an existing one (the headland left of the beach)
+
+- Make the seam exact, not approximate: the new block evaluates the old block's shore and ground
+  functions with its offset (`Beach.shore(x - 18)`), the sea and swash shaders take `shore_offset`, and the
+  test compares ground heights across the seam. Anything that only "looks" continuous drifts.
+- A height-field hill with steep terraces turns into saw teeth on the grid, and vertex colours by height or
+  slope zigzag too. Keep the shape soft and draw strata and the grass/rock split per pixel in the shader.
+- Fallback shapes (a shelf that drops off outside its outline) must fall well below everything else, or
+  they lift the ground far from where they belong.
+- Camera presets inside or right against props (a bench filling the frame, the lighthouse gallery) happen
+  easily on a hill: render every view after placing things.

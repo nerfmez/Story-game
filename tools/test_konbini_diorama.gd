@@ -146,5 +146,22 @@ func _run() -> void:
 	print("beach: %d primitives" % beach.get_meta("primitive_count"))
 	beach.queue_free()
 	await process_frame
-	print("PASS: konbini (Japan, Thailand), ramen and beach dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
+	# the headland left of the beach: the same clear day, and its right edge must meet
+	# the beach's left edge (same waterline and the same height of sand at the seam)
+	var head: Node3D = load("res://scenes/headland_diorama.tscn").instantiate()
+	root.add_child(head)
+	await process_frame
+	if head.layout != "headland" or head.weather.rain_material != null:
+		return _fail("The headland should be a clear day with no rain")
+	if not head.find_children("*", "Control", true, false).is_empty():
+		return _fail("The headland diorama must not contain UI nodes")
+	var Head := load("res://scripts/konbini_headland.gd")
+	var BeachScript := load("res://scripts/konbini_beach.gd")
+	for z in [-6.0, -2.0, 1.0, 2.5, 3.5, 5.0, 8.0]:
+		if absf(Head.ground(9.0, z) - BeachScript.ground(-9.0, z)) > 0.01:
+			return _fail("The headland and the beach do not meet at z = %.1f" % z)
+	print("headland: %d primitives" % head.get_meta("primitive_count"))
+	head.queue_free()
+	await process_frame
+	print("PASS: konbini (Japan, Thailand), ramen, beach and headland dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
 	quit(0)

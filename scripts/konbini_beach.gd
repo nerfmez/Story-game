@@ -128,6 +128,9 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	plane.subdivide_depth = 58
 	var mat := ShaderMaterial.new()
 	mat.shader = SEA
+	# the outcrop's three rocks at the waterline, for the surf around them
+	mat.set_shader_parameter("rocks", [Vector4(7.0, 6.0, 0.8, 0.7), Vector4(7.7, 6.5, 0.6, 0.55), Vector4(6.4, 6.6, 0.43, 0.38)])
+	mat.set_shader_parameter("rock_count", 3)
 	var sea := MeshInstance3D.new()
 	sea.name = "Sea"
 	sea.mesh = plane

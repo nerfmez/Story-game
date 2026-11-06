@@ -7,9 +7,11 @@ on:
       - 'scenes/konbini_diorama.tscn'
       - 'scripts/konbini_*.gd'
       - 'shaders/konbini_*.gdshader'
+      - 'shaders/konbini_*.gdshaderinc'
       - 'tools/*konbini*'
       - 'scenes/ramen_diorama.tscn'
       - 'scenes/beach_diorama.tscn'
+      - 'scenes/headland_diorama.tscn'
       - 'assets/fonts/NotoSansJP-*'
       - 'docs/konbini-diorama/**'
       - '.github/workflows/konbini-preview.yml'
@@ -80,6 +82,17 @@ jobs:
           for view in 0 1 3; do
             xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy -- --view=$view --capture "$PWD/build/konbini/beach-view-$((view+1)).png"
             test -s "build/konbini/beach-view-$((view+1)).png"
+          done
+      - name: Render the rocky headland left of the beach
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python3 tools/package_konbini.py --headland --output build/konbini-headland
+          project="$PWD/build/konbini-headland/Konbini-Diorama-Godot43"
+          Godot_v4.3-stable_linux.x86_64 --headless --editor --path "$project" --import --quit
+          for view in 0 1 3; do
+            xvfb-run -a -s "-screen 0 1280x720x24" Godot_v4.3-stable_linux.x86_64 --path "$project" --rendering-method gl_compatibility --audio-driver Dummy -- --view=$view --capture "$PWD/build/konbini/headland-view-$((view+1)).png"
+            test -s "build/konbini/headland-view-$((view+1)).png"
           done
       - name: Archive the exact tested Godot project
         run: python3 tools/package_konbini.py --output build/konbini --zip-only

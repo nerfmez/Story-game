@@ -6,7 +6,7 @@ under a .wasm name, the scene pack also gets a .wasm name, and the page patches
 fetch() to undo both. Everything to publish is in <out>/publish, with the page
 as index.html (a complete HTML document).
 
-usage: python3 export_web.py --godot PATH --out DIR [--thai | --ramen | --beach] [--title "Name"]
+usage: python3 export_web.py --godot PATH --out DIR [--thai | --ramen | --beach | --headland] [--title "Name"]
 """
 from pathlib import Path
 import argparse
@@ -101,12 +101,13 @@ def main():
     parser.add_argument("--thai", action="store_true")
     parser.add_argument("--ramen", action="store_true")
     parser.add_argument("--beach", action="store_true")
+    parser.add_argument("--headland", action="store_true")
     parser.add_argument("--title", default="Rainy Night Konbini")
     args = parser.parse_args()
     out = args.out.resolve()
     stage = out / "stage"
     shutil.rmtree(stage, ignore_errors=True)
-    package = [ "python3", str(REPO / "tools/package_konbini.py"), "--output", str(stage)] + (["--thai"] if args.thai else []) + (["--ramen"] if args.ramen else []) + (["--beach"] if args.beach else [])
+    package = [ "python3", str(REPO / "tools/package_konbini.py"), "--output", str(stage)] + (["--thai"] if args.thai else []) + (["--ramen"] if args.ramen else []) + (["--beach"] if args.beach else []) + (["--headland"] if args.headland else [])
     subprocess.run(package, check=True, stdout=subprocess.DEVNULL)
     project = stage / "Konbini-Diorama-Godot43"
     (project / "export_presets.cfg").write_text(PRESET, encoding="utf-8")

@@ -83,13 +83,40 @@ float glints(vec2 xz, float t) {
 	return smoothstep(0.92, 0.95, g);
 }
 
-// The rocky outcrop (scripts/konbini_beach.gd _sea): its outline at the waterline as
-// three ellipses. Returns roughly how many metres out from the rock a point is.
+// Rocks standing in the surf, set by the block's builder: each is an ellipse at the
+// waterline (centre x, z and radii x, z). rock_dist returns roughly how many metres
+// out from the nearest rock a point is, and rock_centre that rock's centre.
+uniform vec4 rocks[10];
+uniform int rock_count = 0;
+
 float rock_dist(vec2 xz) {
-	float a = (length((xz - vec2(7.0, 6.0)) / vec2(0.8, 0.7)) - 1.0) * 0.72;
-	float b = (length((xz - vec2(7.7, 6.5)) / vec2(0.6, 0.55)) - 1.0) * 0.56;
-	float c = (length((xz - vec2(6.4, 6.6)) / vec2(0.43, 0.38)) - 1.0) * 0.4;
-	return min(a, min(b, c));
+	float best = 100.0;
+	for (int i = 0; i < 10; i++) {
+		if (i >= rock_count) {
+			break;
+		}
+		vec4 r = rocks[i];
+		float dd = (length((xz - r.xy) / r.zw) - 1.0) * min(r.z, r.w);
+		best = min(best, dd);
+	}
+	return best;
+}
+
+vec2 rock_centre(vec2 xz) {
+	float best = 100.0;
+	vec2 c = vec2(0.0);
+	for (int i = 0; i < 10; i++) {
+		if (i >= rock_count) {
+			break;
+		}
+		vec4 r = rocks[i];
+		float dd = (length((xz - r.xy) / r.zw) - 1.0) * min(r.z, r.w);
+		if (dd < best) {
+			best = dd;
+			c = r.xy;
+		}
+	}
+	return c;
 }
 
 // Seconds since the last wave crest went past this point.
@@ -155,7 +182,8 @@ void fragment() {
 	// hits, white water bursts against them, spreads out and breaks up into patches
 	float rd = rock_dist(world_pos.xz);
 	float since_r = since_crest(world_pos.x, d, TIME);
-	float ang = atan(world_pos.z - 6.2, world_pos.x - 7.1);
+	vec2 rc = rock_centre(world_pos.xz);
+	float ang = atan(world_pos.z - rc.y, world_pos.x - rc.x);
 	float lap_w = 0.05 + 0.04 * sin(TIME * 1.1 + ang * 3.0) + 0.03 * beach_noise(world_pos.xz * 6.0 + TIME * 0.3);
 	float lap = 1.0 - smoothstep(lap_w * 0.6, lap_w, rd);
 	float reach_r = 0.12 + 0.9 * (1.0 - exp(-since_r * 1.4));

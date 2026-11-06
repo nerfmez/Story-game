@@ -18,7 +18,13 @@ float beach_noise(vec2 p) {
 	return mix(mix(beach_hash(i), beach_hash(i + vec2(1.0, 0.0)), f.x), mix(beach_hash(i + vec2(0.0, 1.0)), beach_hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
+// Blocks that continue the beach sideways set this to their offset from the beach
+// block (-18 for the block on its left), so the waterline and the wave timing run on
+// across the seam.
+uniform float shore_offset = 0.0;
+
 float shore(float x) {
+	x += shore_offset;
 	return 3.0 + 0.45 * sin(x * 0.35 + 0.6) + 0.25 * sin(x * 0.93 + 2.0);
 }
 
@@ -41,6 +47,7 @@ float ground_u(float u) {
 // point at once. Kept small and wiggly: a large smooth offset reads as the breaker
 // sliding sideways along the shore instead of rolling in toward it.
 float wave_lag(float x) {
+	x += shore_offset;
 	return 0.12 * sin(x * 0.9 + 1.0) + 0.08 * sin(x * 0.37 + 2.0);
 }
 

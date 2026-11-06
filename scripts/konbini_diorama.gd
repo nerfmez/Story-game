@@ -3,7 +3,7 @@ extends Node3D
 ## cel-shaded "3D that looks 2D" style. Separate from the story; open
 ## scenes/konbini_diorama.tscn (Japan), scenes/konbini_diorama_thai.tscn
 ## (Thailand), scenes/ramen_diorama.tscn (a ramen shop under a railway viaduct on
-## a snowy night) or scenes/beach_diorama.tscn (a beach on a summer afternoon) and press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
+## a snowy night) or scenes/beach_diorama.tscn (a beach on a summer afternoon) or scenes/headland_diorama.tscn (the rocky headland with the lighthouse, left of the beach) and press F6. No UI: drag, pinch and scroll to look around (see scripts/konbini_camera.gd).
 ## The model is built from code when the scene loads; afterwards only small loops
 ## run: rain, drips, the auto door, the flickering signs and the traffic signals.
 ##
@@ -16,6 +16,7 @@ const Interior := preload("res://scripts/konbini_interior.gd")
 const Weather := preload("res://scripts/konbini_weather.gd")
 const Viaduct := preload("res://scripts/konbini_viaduct.gd")
 const Beach := preload("res://scripts/konbini_beach.gd")
+const Headland := preload("res://scripts/konbini_headland.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -38,7 +39,7 @@ const DOOR_CYCLE := 9.0
 @export_enum("japan", "thailand") var country := "japan"
 ## Which block is built: "corner" is the konbini on a street corner; "viaduct" is
 ## the row of shops under a railway viaduct (scripts/konbini_viaduct.gd).
-@export_enum("corner", "viaduct", "beach") var layout := "corner"
+@export_enum("corner", "viaduct", "beach", "headland") var layout := "corner"
 ## Night (lamps, moon) or day (sun with shadows, bright sky).
 @export_enum("night", "day") var time_of_day := "night"
 ## Rain (wet ground, drips, puddles), snow (white caps, slush, drifting flakes) or clear.
@@ -84,6 +85,10 @@ func _ready() -> void:
 		views = Beach.VIEWS
 		shelters = []
 		Beach.build(kit, self)
+	elif layout == "headland":
+		views = Headland.VIEWS
+		shelters = []
+		Headland.build(kit, self)
 	else:
 		Exterior.build(kit, self)
 		Interior.build(kit, self)
@@ -288,6 +293,8 @@ func _lights() -> void:
 	add_child(moon)
 	if layout == "beach":
 		Beach.lights(self)
+	elif layout == "headland":
+		Headland.lights(self)
 	elif layout == "viaduct":
 		Viaduct.lights(self)
 	else:
@@ -334,7 +341,7 @@ func _reflections() -> void:
 	if layout == "viaduct":
 		Viaduct.reflections(self)
 		return
-	if layout == "beach":
+	if layout == "beach" or layout == "headland":
 		return
 	if weather_kind == "snow":
 		# snow does not mirror; only the wet tyre tracks on the road still catch lamps
@@ -373,6 +380,8 @@ func _process(delta: float) -> void:
 		Viaduct.animate(self, _clock)
 	elif layout == "beach":
 		Beach.animate(self, _clock)
+	elif layout == "headland":
+		Headland.animate(self, _clock)
 	for node in sway_nodes:
 		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)
