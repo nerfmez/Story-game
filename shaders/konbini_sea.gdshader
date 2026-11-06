@@ -57,11 +57,11 @@ float cell_edge(vec2 p, float t) {
 // Sunlight focused by the ripples into a shifting net of bright lines on the sand of
 // the shallows (caustics), drawn as crisp cel lines, wobbling as the surface moves.
 float caustics(vec2 xz, float t) {
-	vec2 warp = vec2(beach_noise(xz * 1.3 + t * 0.2), beach_noise(xz * 1.3 + vec2(4.0, 1.0) - t * 0.2)) - 0.5;
+	vec2 warp = vec2(beach_noise(xz * 1.3 + t * 0.07), beach_noise(xz * 1.3 + vec2(4.0, 1.0) - t * 0.07)) - 0.5;
 	vec2 p = xz * 1.15 + warp * 0.7;
-	float a = 1.0 - smoothstep(0.025, 0.06, cell_edge(p, t * 0.8));
+	float a = 1.0 - smoothstep(0.025, 0.06, cell_edge(p, t * 0.3));
 	// in drifting patches rather than everywhere, so it stays a quiet detail
-	float patch = smoothstep(0.4, 0.7, beach_noise(xz * 0.45 + vec2(t * 0.05, -t * 0.03)));
+	float patch = smoothstep(0.4, 0.7, beach_noise(xz * 0.45 + vec2(t * 0.02, -t * 0.012)));
 	return a * patch;
 }
 
@@ -79,6 +79,20 @@ float glints(vec2 xz, float t) {
 	return smoothstep(0.92, 0.95, g);
 }
 
+// The rocky outcrop (scripts/konbini_beach.gd _sea): its outline at the waterline as
+// three ellipses. Returns roughly how many metres out from the rock a point is.
+float rock_dist(vec2 xz) {
+	float a = (length((xz - vec2(7.0, 6.0)) / vec2(0.8, 0.7)) - 1.0) * 0.72;
+	float b = (length((xz - vec2(7.7, 6.5)) / vec2(0.6, 0.55)) - 1.0) * 0.56;
+	float c = (length((xz - vec2(6.4, 6.6)) / vec2(0.43, 0.38)) - 1.0) * 0.4;
+	return min(a, min(b, c));
+}
+
+// Seconds since the last wave crest went past this point.
+float since_crest(float x, float d, float t) {
+	return fract((t + wave_lag(x)) / PERIOD + d / (SPEED * PERIOD)) * PERIOD;
+}
+
 // The water surface: the open-sea waves, and near the shore a sheet whose edge sits
 // exactly on the sand at the swash front, sloping gently down toward the sea.
 float surface(float x, float d, float t, out float c) {
@@ -90,7 +104,12 @@ float surface(float x, float d, float t, out float c) {
 	float front = swash_front(x, t, s, reach, fall, rise);
 	float sheet = ground_u(-front) + 0.002 - 0.014 * (d + front);
 	float near = 1.0 - smoothstep(0.5, 1.8, d);
-	return mix(open_sea, sheet, near);
+	float h = mix(open_sea, sheet, near);
+	// a wave hitting the rocks heaps up against them and drains back off
+	float rd = max(rock_dist(vec2(x, d + shore(x))), 0.0);
+	float since = since_crest(x, d, t);
+	h += 0.07 * exp(-rd * 3.5) * smoothstep(0.0, 0.25, since) * exp(-since * 1.6);
+	return h;
 }
 
 void vertex() {
@@ -128,17 +147,30 @@ void fragment() {
 	float thin = mix(0.32, 0.9, clamp(since / 3.2, 0.0, 1.0));
 	float spent = smoothstep(thin, thin + 0.08, patches) * zone * (1.0 - smoothstep(2.6, 3.4, since)) * step(0.05, since);
 	cap = max(cap, spent * 0.9);
+	// around the rocks: a gentle lap of foam always at their foot, and when a crest
+	// hits, white water bursts against them, spreads out and breaks up into patches
+	float rd = rock_dist(world_pos.xz);
+	float since_r = since_crest(world_pos.x, d, TIME);
+	float ang = atan(world_pos.z - 6.2, world_pos.x - 7.1);
+	float lap_w = 0.05 + 0.04 * sin(TIME * 1.1 + ang * 3.0) + 0.03 * beach_noise(world_pos.xz * 6.0 + TIME * 0.3);
+	float lap = 1.0 - smoothstep(lap_w * 0.6, lap_w, rd);
+	float reach_r = 0.12 + 0.9 * (1.0 - exp(-since_r * 1.4));
+	float spread = (1.0 - smoothstep(reach_r * 0.7, reach_r, rd)) * (1.0 - smoothstep(0.6, 3.2, since_r));
+	float bits = beach_noise(world_pos.xz * 5.0 + vec2(0.0, since_r * 0.4)) * 0.7 + beach_noise(world_pos.xz * 13.0) * 0.3;
+	float breakup = mix(0.2, 0.85, clamp(since_r / 2.8, 0.0, 1.0));
+	float wash = spread * smoothstep(breakup, breakup + 0.07, bits);
+	cap = max(cap, max(lap, wash) * step(-0.02, rd));
 	col = mix(col, foam, cap);
 	// sun glints on the open water
 	float glint = glints(world_pos.xz, TIME) * far;
 	// the net of light on the sand, only where the water is shallow and clear
 	// (not in the swash at the edge of the beach: only out where the water is a little deeper)
 	float net = caustics(world_pos.xz, TIME) * smoothstep(0.9, 1.7, d) * (1.0 - smoothstep(2.8, 4.2, d)) * smoothstep(0.06, 0.12, depth) * (1.0 - cap);
-	col = mix(col, vec3(0.88, 1.0, 0.97), net * 0.4);
+	col = mix(col, vec3(0.62, 1.0, 0.86), net * 0.28);
 	ALBEDO = col;
 	EMISSION = foam * glint * 1.4 + col * 0.06;
 	// clear where shallow: the sand shows through and the edge fades out to nothing
-	ALPHA = max(max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap), net * 0.35);
+	ALPHA = max(max(mix(0.05, 0.92, smoothstep(0.0, 0.32, depth)), cap), net * 0.2);
 	ROUGHNESS = 0.2;
 	SPECULAR = 0.0;
 }
