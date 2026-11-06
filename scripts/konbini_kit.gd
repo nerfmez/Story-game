@@ -131,6 +131,38 @@ static func aim(dir: Vector3) -> Basis:
 	var x := y.cross(helper).normalized()
 	return Basis(x, y, x.cross(y))
 
+## A height field over the rectangle (x0, z0)-(x1, z1) in nx by nz cells: height(x, z)
+## gives y, color(x, z, y) the vertex colour. For ground that is not flat (a beach
+## sloping into the sea). Options: mat, gloss. No ink line.
+func grid(x0: float, z0: float, x1: float, z1: float, nx: int, nz: int, height: Callable, color: Callable, opts := {}) -> void:
+	var mat_name: String = opts.get("mat", "toon")
+	var b := Batch.new()
+	b.node = root
+	b.material = material(mat_name)
+	b.mat_name = mat_name
+	_batches["grid|%s|%d" % [mat_name, primitive_count]] = b
+	var uv := Vector2(opts.get("gloss", 0.0), 0.0)
+	var e := 0.05
+	for j in nz + 1:
+		for i in nx + 1:
+			var x := lerpf(x0, x1, float(i) / nx)
+			var z := lerpf(z0, z1, float(j) / nz)
+			var y: float = height.call(x, z)
+			var dx: float = height.call(x + e, z) - height.call(x - e, z)
+			var dz: float = height.call(x, z + e) - height.call(x, z - e)
+			b.verts.append(Vector3(x, y, z))
+			b.normals.append(Vector3(-dx / (2.0 * e), 1.0, -dz / (2.0 * e)).normalized())
+			var c: Color = color.call(x, z, y)
+			b.colors.append(Color(c.r, c.g, c.b, 0.0))
+			b.uv2.append(uv)
+			b.push.append_array([0.0, 0.0, 0.0, 0.0])
+	for j in nz:
+		for i in nx:
+			var a := j * (nx + 1) + i
+			var c := a + nx + 1
+			b.indices.append_array([a, a + 1, c, a + 1, c + 1, c])
+	primitive_count += 1
+
 func _xf(center: Vector3, scale: Vector3, opts: Dictionary) -> Transform3D:
 	var basis := Basis.IDENTITY
 	if opts.has("basis"):

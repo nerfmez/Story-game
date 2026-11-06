@@ -1,70 +1,49 @@
 shader_type spatial;
-// The swash on the beach (scripts/konbini_beach.gd): after each wave breaks, a thin
-// sheet of water runs up the sand with a line of foam at its front, slows, and
-// slides back, leaving the sand dark and wet where it reached until it dries.
-// Lies just above the sand from below the waterline up the beach. Timing and
-// shore() match shaders/konbini_sea.gdshader.
+// What the swash leaves on the sand of the beach (scripts/konbini_beach.gd): a broken
+// fringe of bubbles riding the front of the water as it runs up the slope and draws
+// back, and sand that stays dark and wet where the water reached until it dries.
+// The water itself is the sea surface (shaders/konbini_sea.gdshader); this sheet lies
+// on the sand just under it, drawn first, and shares its timing through the include.
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
-uniform vec3 water : source_color = vec3(0.22, 0.74, 0.8);
+#include "res://shaders/konbini_beach.gdshaderinc"
+
 uniform vec3 foam : source_color = vec3(0.98, 0.99, 1.0);
 uniform vec3 wet : source_color = vec3(0.5, 0.38, 0.26);
-uniform float period = 7.0;
-uniform float speed = 1.5;
 
 varying vec3 world_pos;
 
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-
-float shore(float x) {
-	return 3.0 + 0.45 * sin(x * 0.35 + 0.6) + 0.25 * sin(x * 0.93 + 2.0);
-}
-
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float h = ground_u(world_pos.z - shore(world_pos.x)) + 0.006;
+	VERTEX.y += h - world_pos.y;
+	world_pos.y = h;
 }
 
 void fragment() {
 	float x = world_pos.x;
-	float up = shore(x) - world_pos.z;   // metres up the beach from the waterline
-	if (up < -0.15) {
-		discard;
-	}
-	// seconds since this stretch of beach was hit by the last wave (the sea's crest
-	// reaches the shoreline when its phase wraps)
-	float lag = sin(x * 0.25) * 0.6;
-	float cycle = (TIME + lag) / period;
-	float s = fract(cycle) * period;
-	float wave_no = floor(cycle);
-	float reach = (1.25 + 0.45 * noise(vec2(x * 0.5, wave_no * 3.7))) * (0.85 + 0.15 * sin(x * 0.7 + wave_no));
-	float rise = 1.0 - pow(1.0 - clamp(s / 1.3, 0.0, 1.0), 2.0);
-	float fall = smoothstep(1.3, 4.6, s);
-	float front = reach * rise * (1.0 - fall) - 0.25 * fall;
-	front += (noise(vec2(x * 3.0, wave_no)) - 0.5) * 0.12;
+	float up = shore(x) - world_pos.z;   // metres up the beach from the still-water line
+	float s;
+	float reach;
+	float fall;
+	float front = swash_front(x, TIME, s, reach, fall);
 	vec4 out_col = vec4(0.0);
-	if (up < front) {
-		float thin = 1.0 - smoothstep(front - 0.7, front, up);
-		// clear and thin at the front, deeper turquoise back toward the sea
-		out_col = vec4(mix(water, water * 0.85 + vec3(0.0, 0.05, 0.08), smoothstep(0.0, -0.15, up)), mix(0.35, 0.8, 1.0 - thin * 0.75));
-		float lace = noise(vec2(x * 6.0, up * 6.0 - s * 2.0));
-		float line = (1.0 - smoothstep(0.04, 0.16 + 0.12 * (1.0 - fall), front - up)) * (1.0 - smoothstep(0.6, 1.0, fall));
-		float bubbles = smoothstep(0.62, 0.7, lace) * (1.0 - smoothstep(0.0, 0.5, front - up));
-		out_col = mix(out_col, vec4(foam, 0.95), clamp(line + bubbles, 0.0, 1.0));
-	} else if (up < reach) {
-		// sand the water has just left stays dark until it dries
-		float dry = smoothstep(1.3, period * 0.95, s);
-		out_col = vec4(wet, 0.45 * (1.0 - dry));
-	}
-	if (out_col.a <= 0.001) {
+	// sand under the water and where it has just been is darker, drying from the top
+	float dry = smoothstep(1.4, PERIOD * 0.95, s) * smoothstep(front, front + 0.6, up);
+	float soaked = 1.0 - smoothstep(reach - 0.1, reach + 0.05, up);
+	out_col = vec4(wet, 0.4 * soaked * (1.0 - dry));
+	// the fringe of bubbles at the front of the water: lacy, never a solid line,
+	// thinning out as the water slows and slides back
+	float ahead = front - up;
+	float lace = beach_noise(vec2(x * 5.0, up * 7.0 - s * 1.5));
+	float band = 1.0 - smoothstep(0.0, 0.08 + 0.18 * (1.0 - fall), abs(ahead - 0.04));
+	float holes = smoothstep(0.38, 0.62, lace);
+	float fringe = band * holes * (1.0 - smoothstep(0.3, 0.9, fall)) * step(-0.02, ahead);
+	// bubbles left behind in the water on the way up
+	float trail = smoothstep(0.66, 0.74, lace) * (1.0 - smoothstep(0.0, 0.5, ahead)) * step(0.0, ahead) * (1.0 - fall);
+	float f = clamp(fringe + trail, 0.0, 1.0);
+	out_col = mix(out_col, vec4(foam, 0.9), f);
+	if (out_col.a <= 0.002) {
 		discard;
 	}
 	ALBEDO = out_col.rgb;

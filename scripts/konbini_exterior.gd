@@ -70,8 +70,9 @@ func _base() -> void:
 	k.slab(Vector3(-9.45, -1.0, -9.45), Vector3(9.45, -0.92, 9.45), Color(0.18, 0.11, 0.08), {"mat": "wood"})
 	k.slab(Vector3(-9.38, -0.92, -9.38), Vector3(9.38, -0.25, 9.38), WOOD, {"mat": "wood", "gloss": 0.25})
 	k.slab(Vector3(-9.41, -0.33, -9.41), Vector3(9.41, -0.29, 9.41), BRASS, {"gloss": 0.7, "line": 0.5})
-	k.slab(Vector3(-9.0, -0.25, -9.0), Vector3(9.0, -0.06, 9.0), SOIL)
-	k.slab(Vector3(-9.0, -0.06, -9.0), Vector3(9.0, -0.02, 9.0), Color(0.42, 0.42, 0.47), {"line": 0.4})
+	if scene.layout != "beach":   # the beach shapes its own ground down into the sea
+		k.slab(Vector3(-9.0, -0.25, -9.0), Vector3(9.0, -0.06, 9.0), SOIL)
+		k.slab(Vector3(-9.0, -0.06, -9.0), Vector3(9.0, -0.02, 9.0), Color(0.42, 0.42, 0.47), {"line": 0.4})
 	# name plate on the front of the plinth
 	k.box(Vector3(0, -0.6, 9.4), Vector3(2.6, 0.32, 0.04), BRASS, {"gloss": 0.8})
 	var plate: String = scene.plate_text

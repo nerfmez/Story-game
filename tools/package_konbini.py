@@ -44,7 +44,7 @@ def main():
         return
     paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "scenes/beach_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "scripts").glob("konbini_*.gd"))]
-    paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader"))]
+    paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader*"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "tools").glob("*konbini*.gd"))]
     for name in paths:
         dest = project_dir / name

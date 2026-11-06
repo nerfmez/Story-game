@@ -46,3 +46,8 @@
   two-tone pads), never one stick through three balls.
 - Anything climbable or standing must connect: ladder rungs are placed along the rail line (lerp between
   the rail ends), legs reach the ground, parasol poles start on something. Zoom in on every structure.
+- Second try still failed: a flat sand slab with a flat sea plane beside it always shows a drawn
+  waterline, however the foam is animated. Model the shore as it is: sand that slopes down under the
+  water (a height field, `kit.grid`), water that is clear where shallow (alpha from water depth over
+  the sand), and a surface that rises and falls on the slope so the edge moves by itself. Keep the
+  beach shape and wave timing in one shader include mirrored in GDScript.

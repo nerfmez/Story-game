@@ -12,8 +12,10 @@ const SEA := preload("res://shaders/konbini_sea.gdshader")
 const SWASH := preload("res://shaders/konbini_swash.gdshader")
 
 const SAND_Y := 0.12
+const SEA_Y := 0.08
 const SAND := Color(0.9, 0.76, 0.52)
 const WET_SAND := Color(0.72, 0.58, 0.42)
+const SAND_CUT := Color(0.66, 0.52, 0.36)
 const WOOD := Color(0.72, 0.52, 0.34)
 const WOOD_DARK := Color(0.45, 0.3, 0.2)
 const WHITE := Color(0.97, 0.97, 0.95)
@@ -32,9 +34,24 @@ const VIEWS := [
 	[Vector3(0.0, 0.8, 2.5), 180.0, 14.0, 12.5],      # from the road, out to sea
 ]
 
-## The waterline; must match shore() in shaders/konbini_sea.gdshader.
+## The still-water line; shore() and ground_u() must match
+## shaders/konbini_beach.gdshaderinc, which the sea and swash shaders share.
 static func shore(x: float) -> float:
 	return 3.0 + 0.45 * sin(x * 0.35 + 0.6) + 0.25 * sin(x * 0.93 + 2.0)
+
+## Height of the sand u metres seaward of the still-water line: the flat dry beach,
+## a gentle slope down to the water, then a steeper shelf under the sea.
+static func ground_u(u: float) -> float:
+	if u < -1.0:
+		return SAND_Y
+	if u < 0.0:
+		return SEA_Y - u * 0.04
+	if u < 2.0:
+		return SEA_Y - u * 0.1
+	return maxf(SEA_Y - 0.2 - (u - 2.0) * 0.03, -0.23)
+
+static func ground(x: float, z: float) -> float:
+	return ground_u(z - shore(x))
 
 static func build(kit: Kit, scene: Node3D) -> void:
 	scene.plate_text = "海の家なぎさ  ·  夏の午後"
@@ -54,23 +71,36 @@ static func build(kit: Kit, scene: Node3D) -> void:
 static func _ground(k: Kit, b: RefCounted) -> void:
 	k.material("asphalt", 3)
 	k.material("sand", 3)
-	k.material("wet_sand")
 	k.flat_materials["sand"] = true
-	k.flat_materials["wet_sand"] = true
 	k.material("siding", 6)
 	k.slab(Vector3(-9, -0.02, -9), Vector3(9, 0.0, -7.3), Color(0.36, 0.38, 0.45), {"mat": "asphalt", "gloss": 0.1})
 	k.quad(Vector3(0, 0.004, -8.15), Vector2(18, 0.1), Color(0.95, 0.95, 0.9))
 	k.slab(Vector3(-9, -0.02, -7.3), Vector3(9, 0.55, -6.9), Color(0.78, 0.78, 0.8))
 	b._rail_run(Vector3(-8.8, 0.55, -7.1), Vector3(-1.4, 0.55, -7.1))
 	b._rail_run(Vector3(0.6, 0.55, -7.1), Vector3(8.8, 0.55, -7.1))
-	# sand in narrow strips so its edge can follow the curved waterline
-	var w := 0.1
-	var x := -9.0
-	while x < 9.0 - 0.001:
-		var line := shore(x + w * 0.5)
-		k.slab(Vector3(x, -0.02, -6.9), Vector3(x + w, SAND_Y, line + 0.3), SAND, {"mat": "sand", "line": 0.0})
-		k.slab(Vector3(x, SAND_Y, line - 0.35), Vector3(x + w, SAND_Y + 0.004, line + 0.3), WET_SAND, {"mat": "wet_sand", "gloss": 0.35, "line": 0.0})
-		x += w
+	# the ground under the road, the flat dry beach, then a height field that slopes
+	# down under the sea so the water's edge is wherever the water meets the sand
+	k.slab(Vector3(-9, -0.25, -9), Vector3(9, -0.02, -6.9), Color(0.42, 0.42, 0.47), {"line": 0.4})
+	k.slab(Vector3(-9, -0.25, -6.9), Vector3(9, -0.06, 0.0), SAND_CUT, {"line": 0.4})
+	k.slab(Vector3(-9, -0.06, -6.9), Vector3(9, SAND_Y, 0.0), SAND, {"mat": "sand", "line": 0.0})
+	k.grid(-9.0, 0.0, 9.0, 9.0, 90, 60, ground, _sand_color, {"mat": "sand"})
+	# the cut through the beach and the sea at the sides and front of the base
+	var cuts: Array = []
+	for i in 180:
+		cuts.append([Vector3(-9.0 + i * 0.1, 0, 9.0), Vector3(-9.0 + (i + 1) * 0.1, 0, 9.0)])
+	for i in 90:
+		for side in [-9.0, 9.0]:
+			cuts.append([Vector3(side, 0, i * 0.1), Vector3(side, 0, (i + 1) * 0.1)])
+	for c in cuts:
+		var a: Vector3 = c[0]
+		var e: Vector3 = c[1]
+		var mid := (a + e) * 0.5
+		var g := ground(mid.x, mid.z)
+		var lo := Vector3(minf(a.x, e.x) - 0.005, -0.25, minf(a.z, e.z) - 0.005)
+		var hi := Vector3(maxf(a.x, e.x) + 0.005, 0.0, maxf(a.z, e.z) + 0.005)
+		k.slab(Vector3(lo.x, -0.25, lo.z), Vector3(hi.x, g, hi.z), SAND_CUT, {"line": 0.0})
+		if g < SEA_Y - 0.01:
+			k.slab(Vector3(lo.x, g, lo.z), Vector3(hi.x, SEA_Y - 0.01, hi.z), Color(0.16, 0.5, 0.72).lerp(Color(0.08, 0.3, 0.58), clampf((SEA_Y - g) / 0.3, 0.0, 1.0)), {"line": 0.0})
 	# footprints wandering from the boardwalk to the parasols and the water
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4
@@ -79,48 +109,54 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 		var c: Vector3 = trail[1]
 		var steps := int(a.distance_to(c) / 0.3)
 		for i in steps:
-			var p := a.lerp(c, float(i) / steps) + Vector3(0, SAND_Y + 0.003, 0.07 if i % 2 == 0 else -0.07)
+			var p := a.lerp(c, float(i) / steps) + Vector3(0, 0.003, 0.07 if i % 2 == 0 else -0.07)
+			p.y += ground(p.x, p.z)
 			k.quad(p, Vector2(0.09, 0.2), SAND * 0.86, {"rot": Vector3(0, rad_to_deg(atan2(c.x - a.x, c.z - a.z)) + rng.randf_range(-8, 8), 0)})
 
+## Dry sand up the beach, darker damp sand near the water, and under the water the
+## sand turns wetter and a little green as it gets deeper.
+static func _sand_color(x: float, z: float, y: float) -> Color:
+	var u := z - shore(x)
+	var damp := smoothstep(-0.9, 0.0, u)
+	var c := SAND.lerp(WET_SAND, damp * 0.6)
+	return c.lerp(Color(0.5, 0.55, 0.45), clampf((SEA_Y - y) / 0.25, 0.0, 1.0) * 0.7)
+
 static func _sea(k: Kit, scene: Node3D) -> void:
-	# the cut through the sea at the edge of the base shows as deep blue layers
-	# (a hair wider than the soil block of the plinth so the two faces do not fight)
-	k.slab(Vector3(-9.005, -0.25, 1.8), Vector3(9.005, -0.08, 9.005), Color(0.06, 0.26, 0.5), {"line": 0.4})
-	k.slab(Vector3(-9.005, -0.08, 1.8), Vector3(9.005, 0.02, 9.005), Color(0.12, 0.42, 0.68), {"line": 0.0})
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(18, 7.2)
-	plane.subdivide_width = 72
-	plane.subdivide_depth = 28
+	plane.size = Vector2(18, 8.7)
+	plane.subdivide_width = 90
+	plane.subdivide_depth = 58
 	var mat := ShaderMaterial.new()
 	mat.shader = SEA
 	var sea := MeshInstance3D.new()
 	sea.name = "Sea"
 	sea.mesh = plane
 	sea.material_override = mat
-	sea.position = Vector3(0, 0.105, 5.4)
+	sea.position = Vector3(0, 0.0, 4.65)
 	sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(sea)
 	# the swash: a sheet of water that runs up the sand after each wave and slides back
 	var swash_plane := PlaneMesh.new()
-	swash_plane.size = Vector2(18, 3.9)
-	swash_plane.subdivide_width = 36
-	swash_plane.subdivide_depth = 8
+	swash_plane.size = Vector2(18, 3.6)
+	swash_plane.subdivide_width = 90
+	swash_plane.subdivide_depth = 24
 	var swash_mat := ShaderMaterial.new()
 	swash_mat.shader = SWASH
+	swash_mat.render_priority = -1
 	var swash := MeshInstance3D.new()
 	swash.name = "Swash"
 	swash.mesh = swash_plane
 	swash.material_override = swash_mat
-	swash.position = Vector3(0, SAND_Y + 0.008, 2.0)
+	swash.position = Vector3(0, 0.0, 2.7)
 	swash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(swash)
 	# a line of swimming-area floats and a rocky outcrop with surf around it
 	for i in 15:
-		k.ball(Vector3(-7.0 + i * 1.0, 0.16, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
-	k.rod(Vector3(-7.2, 0.17, 7.3), Vector3(7.2, 0.17, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
+		k.ball(Vector3(-7.0 + i * 1.0, SEA_Y + 0.04, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
+	k.rod(Vector3(-7.2, SEA_Y + 0.05, 7.3), Vector3(7.2, SEA_Y + 0.05, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
 	for r in [[Vector3(7.0, 0.1, 6.0), Vector3(0.8, 0.55, 0.7)], [Vector3(7.7, 0.05, 6.5), Vector3(0.6, 0.4, 0.55)], [Vector3(6.4, 0.0, 6.6), Vector3(0.45, 0.3, 0.4)]]:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
-	k.torus(Vector3(7.0, 0.13, 6.2), 1.05, 0.05, Color(0.97, 0.99, 1.0), {"line": 0.0})
+	k.torus(Vector3(7.0, SEA_Y + 0.02, 6.2), 1.05, 0.05, Color(0.97, 0.99, 1.0), {"line": 0.0})
 
 ## Japanese black pines along the back of the beach: a dark trunk that leans toward
 ## the sea and bends as it climbs, a few long branches, and flat two-tone pads of
@@ -131,7 +167,7 @@ static func _pines(k: Kit) -> void:
 	var light := Color(0.24, 0.5, 0.34)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
-	for base in [Vector3(-8.3, SAND_Y, -6.5), Vector3(-6.0, SAND_Y, -6.6), Vector3(-3.4, SAND_Y, -6.5), Vector3(1.6, SAND_Y, -6.4), Vector3(5.6, SAND_Y, -6.5), Vector3(8.2, SAND_Y, -6.3)]:
+	for base in [Vector3(-8.3, SAND_Y, -6.5), Vector3(-6.0, SAND_Y, -6.6), Vector3(-3.4, SAND_Y, -6.5), Vector3(2.3, SAND_Y, -6.45), Vector3(5.6, SAND_Y, -6.5), Vector3(8.2, SAND_Y, -6.3)]:
 		var lean_x := rng.randf_range(-0.5, 0.5)
 		var height := rng.randf_range(4.2, 5.0)
 		# trunk: five bends, thinning as it rises
@@ -261,7 +297,7 @@ static func _parasol(k: Kit, scene: Node3D, at: Vector3, color: Color) -> void:
 	k.ball(top + Vector3(0, 0.1, 0), Vector3.ONE * 0.06, WHITE, {"seg": 8})
 
 static func _beach_life(k: Kit, scene: Node3D) -> void:
-	var spots := [[Vector3(2.2, SAND_Y, 0.6), Color(0.92, 0.32, 0.38)], [Vector3(4.6, SAND_Y, -0.6), Color(0.98, 0.78, 0.25)], [Vector3(-4.9, SAND_Y, 1.7), Color(0.3, 0.6, 0.92)], [Vector3(5.4, SAND_Y, 1.9), Color(0.4, 0.8, 0.55)]]
+	var spots := [[Vector3(2.2, SAND_Y, 0.6), Color(0.92, 0.32, 0.38)], [Vector3(4.6, SAND_Y, -0.6), Color(0.98, 0.78, 0.25)], [Vector3(-4.9, SAND_Y, 1.0), Color(0.3, 0.6, 0.92)], [Vector3(5.4, SAND_Y, 1.9), Color(0.4, 0.8, 0.55)]]
 	for s in spots:
 		var at: Vector3 = s[0]
 		_parasol(k, scene, at, s[1])
@@ -281,13 +317,13 @@ static func _beach_life(k: Kit, scene: Node3D) -> void:
 	k.cyl(castle + Vector3(0, 0.4, 0), 0.12, 0.3, SAND * 0.9, {"seg": 8, "top": 0.2})
 	k.cyl(castle + Vector3(0.55, 0.12, 0.2), 0.12, 0.22, Color(0.95, 0.3, 0.3), {"top": 1.3, "seg": 10, "gloss": 0.5})
 	k.rod(castle + Vector3(-0.5, 0.0, 0.1), castle + Vector3(-0.3, 0.25, 0.25), 0.015, Color(0.98, 0.8, 0.2))
-	var ball := Vector3(1.6, SAND_Y + 0.22, 2.5)
+	var ball := Vector3(1.6, ground(1.6, 2.3) + 0.21, 2.3)
 	k.ball(ball, Vector3.ONE * 0.22, WHITE, {"seg": 10, "gloss": 0.5})
 	k.ball(ball + Vector3(0, 0.003, 0), Vector3(0.223, 0.223, 0.12), Color(0.95, 0.3, 0.35), {"seg": 10, "line": 0.0})
 	k.ball(ball + Vector3(0, 0.003, 0), Vector3(0.12, 0.223, 0.223), Color(0.3, 0.6, 0.95), {"seg": 10, "line": 0.0})
 	# a surfboard lying where the boardwalk ends
-	k.box(Vector3(-1.2, SAND_Y + 0.04, 2.5), Vector3(0.5, 0.06, 1.9), Color(0.98, 0.95, 0.9), {"rot": Vector3(0, 35, 0), "gloss": 0.6})
-	k.box(Vector3(-1.2, SAND_Y + 0.075, 2.5), Vector3(0.08, 0.01, 1.8), RED, {"rot": Vector3(0, 35, 0), "line": 0.0})
+	k.box(Vector3(-1.2, SAND_Y + 0.04, 2.0), Vector3(0.5, 0.06, 1.9), Color(0.98, 0.95, 0.9), {"rot": Vector3(0, 35, 0), "gloss": 0.6})
+	k.box(Vector3(-1.2, SAND_Y + 0.075, 2.0), Vector3(0.08, 0.01, 1.8), RED, {"rot": Vector3(0, 35, 0), "line": 0.0})
 
 ## A white lifeguard tower: four splayed legs braced on the sand, a platform with a
 ## rail, a chair under a yellow parasol, a ladder whose rails run from the sand to
