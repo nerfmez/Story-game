@@ -37,7 +37,16 @@ balls (the first beach pines) reads as a toy, not as anime.
    of the same hue (no black ink on foliage). The trunk and branches keep the toon kit's ink line.
 5. **Glow.** Brighten the rim on the side facing away from the sun, as if light comes through the leaves.
    It is subtle.
-6. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.
+6. **Trunk and limbs** (`trunk`, `branch`, `limb`).
+   - The trunk bends gently through a few points, tapering (the `top` ratio of each rod), with a round joint
+     ball a hair fatter than the limbs at every bend, so it curves without kinks or cap seams.
+   - The foot flares out, and 4 to 5 surface roots run out into the ground.
+   - Add one knot and a few thin darker bark strokes.
+   - Limbs rise and then reach out in two segments, each with a small twig, and end in a clump. Pine limbs
+     dip and then lift toward their pad.
+   - The bark is a warm brown (pine is greyer) with a little fill light (`lit` 0.3), so the part in the
+     crown's shade stays a readable dark brown instead of black. The bark keeps the ink line.
+7. **Wind.** Sway slowly in the vertex shader, more toward the top and the outside of the crown.
 
 ## Notes
 
