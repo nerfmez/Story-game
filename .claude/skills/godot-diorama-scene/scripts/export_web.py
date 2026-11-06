@@ -3,8 +3,8 @@
 Artifacts serve only some file types and at most 15 MB per binary file, while
 Godot's engine binary is 35 MB. So the engine is gzip-compressed and published
 under a .wasm name, the scene pack also gets a .wasm name, and the page patches
-fetch() to undo both. The output folder is ready for the Artifact tool:
-publish <out>/<name>.html with the other files in `files`.
+fetch() to undo both. Everything to publish is in <out>/publish, with the page
+as index.html (a complete HTML document).
 
 usage: python3 export_web.py --godot PATH --out DIR [--thai | --ramen] [--title "Name"]
 """
@@ -129,10 +129,10 @@ def main():
     config = json.loads(re.search(r"const GODOT_CONFIG = (\{.*?\});", body).group(1))
     config["ensureCrossOriginIsolationHeaders"] = False
     body = re.sub(r"const GODOT_CONFIG = \{.*?\};", "const GODOT_CONFIG = " + json.dumps(config) + ";", body)
-    page = f'<title>{args.title}</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n{style}\n<style>html,body{{height:100%}}</style>\n{FETCH_PATCH}\n{body}'
-    page_name = ("ramen" if args.ramen else "konbini-thai" if args.thai else "konbini") + ".html"
-    (pub / page_name).write_text(page, encoding="utf-8")
-    print(pub / page_name)
+    head = f'<meta charset="utf-8">\n<title>{args.title}</title>\n<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">\n{style}\n<style>html,body{{height:100%}}</style>\n{FETCH_PATCH}'
+    page = f"<!DOCTYPE html>\n<html>\n<head>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>\n"
+    (pub / "index.html").write_text(page, encoding="utf-8")
+    print(pub / "index.html")
 
 
 if __name__ == "__main__":

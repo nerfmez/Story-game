@@ -71,10 +71,12 @@ python3 .claude/skills/godot-diorama-scene/scripts/export_web.py --godot <godot-
     --out <scratchpad>/web [--thai] --title "Rainy Night Konbini"
 ```
 
-It stages the project, fetches only the web template it needs (range requests into the 1 GB archive), exports,
-gzips the engine to `engine.gz.wasm`, renames the pack to `scene.pck.wasm` and writes a page that undoes both
-in the browser. Publish `<out>/publish/<name>.html` with the Artifact tool, passing the other files in `files`
-and `root` set to the publish folder; the files must sit under the working directory or the scratchpad. To
-update an existing link, publish the same page path again. Test it first with a local `python3 -m http.server`
+It stages the project (`--thai` or `--ramen` picks the scene), fetches only the web template it needs (range
+requests into the 1 GB archive), exports, gzips the engine to `engine.gz.wasm`, renames the pack to
+`scene.pck.wasm` and writes `index.html`, a complete page that undoes both in the browser. Publish every file
+in `<out>/publish` with whichever artifact tool the session has: `publish_files` (each file `as` its own name)
+or the Artifact tool (`index.html` as the page, the rest in `files`, `root` set to the publish folder). The
+files must sit under the working directory or the scratchpad. To update a link, republish to the same
+artifact. Test it first with a local `python3 -m http.server`
 and Playwright (Chromium at `/opt/pw-browsers/chromium`, flags `--use-gl=angle --use-angle=swiftshader`): the
 console should print the Godot and WebGL lines and the screenshot should show the scene.
