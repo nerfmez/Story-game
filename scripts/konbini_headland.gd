@@ -38,7 +38,7 @@ const STAIR_TO := Vector2(-4.0, -2.9)
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
 	[Vector3(-1.0, 1.0, 0.5), -28.0, 30.0, 28.0],      # the whole headland, the sea in front
-	[Vector3(-6.0, 3.6, -2.6), 35.0, 12.0, 9.0],       # the lighthouse
+	[Vector3(-6.0, 4.8, -2.6), 35.0, 12.0, 13.0],      # the lighthouse
 	[Vector3(0.0, 0.0, 0.0), 30.0, 62.0, 30.0],        # from above
 	[Vector3(-4.8, 0.3, 4.2), -12.0, 28.0, 7.5],       # the tide pools
 	[Vector3(-2.4, 1.3, -3.7), 62.0, 16.0, 9.0],       # the steps up the hill
@@ -319,26 +319,37 @@ static func _arch_top(z: float) -> float:
 
 ## A white lighthouse with a gallery, a lantern room and a red dome, on the hill top.
 static func _lighthouse(k: Kit) -> void:
+	# built at 1.6 x its first size: it is the landmark of the coast and has to read
+	# from across the whole diorama
+	var S := 1.6
 	var base := Vector3(LIGHTHOUSE.x, ground(LIGHTHOUSE.x, LIGHTHOUSE.y), LIGHTHOUSE.y)
-	k.cyl(base + Vector3(0, -0.15, 0), 0.95, 0.4, Color(0.7, 0.69, 0.66), {"seg": 16})
-	var h := 2.6
-	k.cyl(base + Vector3(0, h * 0.5, 0), 0.5, h, WHITE, {"top": 0.76, "seg": 16, "gloss": 0.2})
+	var iron := Color(0.2, 0.22, 0.25)
+	k.cyl(base + Vector3(0, -0.15, 0), 0.95 * S, 0.4, Color(0.7, 0.69, 0.66), {"seg": 18})
+	var h := 2.6 * S
+	k.cyl(base + Vector3(0, h * 0.5, 0), 0.5 * S, h, WHITE, {"top": 0.76, "seg": 18, "gloss": 0.2})
+	# a red band round the tower, as on many Japanese lighthouses
+	k.cyl(base + Vector3(0, h * 0.62, 0), 0.5 * S * 0.86 + 0.01, 0.35 * S, Color(0.82, 0.26, 0.22), {"top": 0.97, "seg": 18, "line": 0.0})
 	var top := base + Vector3(0, h, 0)
-	k.cyl(top + Vector3(0, 0.05, 0), 0.62, 0.1, WHITE, {"seg": 16})
-	for i in 12:
-		var a := i * TAU / 12.0
-		k.rod(top + Vector3(cos(a) * 0.58, 0.1, sin(a) * 0.58), top + Vector3(cos(a) * 0.58, 0.42, sin(a) * 0.58), 0.012, Color(0.2, 0.22, 0.25), {"line": 0.0})
-	k.torus(top + Vector3(0, 0.42, 0), 0.58, 0.02, Color(0.2, 0.22, 0.25), {"line": 0.0})
-	k.cyl(top + Vector3(0, 0.38, 0), 0.34, 0.56, Color(0.85, 0.95, 1.0), {"seg": 16, "gloss": 0.9, "emit": 0.25, "line": 0.5})
-	k.cyl(top + Vector3(0, 0.38, 0), 0.14, 0.3, Color(1.0, 0.92, 0.6), {"seg": 10, "emit": 0.8, "line": 0.0})
-	k.cyl(top + Vector3(0, 0.71, 0), 0.4, 0.1, Color(0.22, 0.24, 0.28), {"seg": 16})
-	k.ball(top + Vector3(0, 0.78, 0), Vector3(0.38, 0.3, 0.38), Color(0.82, 0.26, 0.22), {"seg": 12, "gloss": 0.4})
-	k.cyl(top + Vector3(0, 1.12, 0), 0.03, 0.16, Color(0.22, 0.24, 0.28), {"seg": 6})
-	k.ball(top + Vector3(0, 1.22, 0), Vector3.ONE * 0.05, Color(0.22, 0.24, 0.28), {"seg": 6})
-	# a door and small windows facing the steps
-	k.box(base + Vector3(0.47, 0.42, 0.12), Vector3(0.06, 0.8, 0.4), Color(0.22, 0.32, 0.5), {"rot": Vector3(0, -12, 0)})
-	for y in [1.2, 1.9]:
-		k.box(base + Vector3(0.42 - y * 0.03, y, 0.08), Vector3(0.05, 0.22, 0.14), Color(0.2, 0.25, 0.35), {"rot": Vector3(0, -12, 0), "line": 0.0})
+	k.cyl(top + Vector3(0, 0.05 * S, 0), 0.62 * S, 0.1 * S, WHITE, {"seg": 18})
+	for i in 14:
+		var a := i * TAU / 14.0
+		var r := 0.58 * S
+		k.rod(top + Vector3(cos(a) * r, 0.1 * S, sin(a) * r), top + Vector3(cos(a) * r, 0.42 * S, sin(a) * r), 0.016, iron, {"line": 0.0})
+	k.torus(top + Vector3(0, 0.42 * S, 0), 0.58 * S, 0.025, iron, {"line": 0.0})
+	k.cyl(top + Vector3(0, 0.38 * S, 0), 0.34 * S, 0.56 * S, Color(0.85, 0.95, 1.0), {"seg": 18, "gloss": 0.9, "emit": 0.25, "line": 0.5})
+	k.cyl(top + Vector3(0, 0.38 * S, 0), 0.14 * S, 0.3 * S, Color(1.0, 0.92, 0.6), {"seg": 10, "emit": 0.8, "line": 0.0})
+	k.cyl(top + Vector3(0, 0.71 * S, 0), 0.4 * S, 0.1 * S, iron, {"seg": 18})
+	k.ball(top + Vector3(0, 0.78 * S, 0), Vector3(0.38, 0.3, 0.38) * S, Color(0.82, 0.26, 0.22), {"seg": 14, "gloss": 0.4})
+	k.cyl(top + Vector3(0, 1.12 * S, 0), 0.03 * S, 0.16 * S, iron, {"seg": 6})
+	k.ball(top + Vector3(0, 1.22 * S, 0), Vector3.ONE * 0.05 * S, iron, {"seg": 6})
+	# a door and small windows facing the steps, on the surface of the tapering tower
+	var face := Basis(Vector3.UP, deg_to_rad(-12))
+	var out := face * Vector3(1, 0, 0)
+	var r0 := 0.5 * S
+	k.box(base + out * (r0 - 0.01) + Vector3(0, 0.45 * S, 0), Vector3(0.06, 0.8 * S, 0.4 * S), Color(0.22, 0.32, 0.5), {"basis": face})
+	for y in [1.25, 1.95]:
+		var ry := r0 * lerpf(1.0, 0.76, y * S / h)
+		k.box(base + out * (ry - 0.005) + Vector3(0, y * S, 0), Vector3(0.05, 0.22 * S, 0.14 * S), Color(0.2, 0.25, 0.35), {"basis": face, "line": 0.0})
 
 ## A flight of stone steps from the sand to the hill top, set into a cut in the hill
 ## between two low retaining walls, each tread level and each riser the same height,

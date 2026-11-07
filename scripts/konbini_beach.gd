@@ -61,7 +61,7 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	if not scene.get_meta("joined", false):
 		b._base()
 	_ground(kit, b, scene.get_meta("joined", false))
-	_sea(kit, scene, not scene.get_meta("joined", false))
+	_sea(kit, scene, not scene.get_meta("joined", false), not scene.get_meta("joined", false))
 	_pines(kit, scene)
 	_beach_hut(kit, scene)
 	_boardwalk_and_huts(kit)
@@ -130,10 +130,18 @@ static func surf_rocks() -> Array:
 	return [Vector4(7.0, 6.0, 0.8, 0.7), Vector4(7.7, 6.5, 0.6, 0.55), Vector4(6.4, 6.6, 0.43, 0.38)]
 
 ## planes: false when the coast scene lays one sea over both blocks instead.
-static func _sea(k: Kit, scene: Node3D, planes := true) -> void:
+## floats: false when the coast scene strings one line of floats along its whole length.
+static func _sea(k: Kit, scene: Node3D, planes := true, floats := true) -> void:
 	if planes:
 		_sea_planes(scene)
-	_sea_props(k)
+	_sea_props(k, floats)
+
+## A line of swimming-area floats from x0 to x1 on a rope, at z.
+static func float_line(k: Kit, x0: float, x1: float, z: float) -> void:
+	var n := int(roundf(x1 - x0))
+	for i in n + 1:
+		k.ball(Vector3(lerpf(x0, x1, float(i) / n), SEA_Y + 0.04, z), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
+	k.rod(Vector3(x0 - 0.2, SEA_Y + 0.05, z), Vector3(x1 + 0.2, SEA_Y + 0.05, z), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
 
 static func _sea_planes(scene: Node3D) -> void:
 	var plane := PlaneMesh.new()
@@ -168,11 +176,10 @@ static func _sea_planes(scene: Node3D) -> void:
 	swash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(swash)
 
-static func _sea_props(k: Kit) -> void:
+static func _sea_props(k: Kit, floats := true) -> void:
 	# a line of swimming-area floats and a rocky outcrop with surf around it
-	for i in 15:
-		k.ball(Vector3(-7.0 + i * 1.0, SEA_Y + 0.04, 7.3), Vector3.ONE * 0.09, Color(1.0, 0.55, 0.15), {"seg": 8, "line": 0.4})
-	k.rod(Vector3(-7.2, SEA_Y + 0.05, 7.3), Vector3(7.2, SEA_Y + 0.05, 7.3), 0.01, Color(0.95, 0.95, 0.9), {"line": 0.0})
+	if floats:
+		float_line(k, -7.0, 7.0, 7.3)
 	for r in [[Vector3(7.0, 0.1, 6.0), Vector3(0.8, 0.55, 0.7)], [Vector3(7.7, 0.05, 6.5), Vector3(0.6, 0.4, 0.55)], [Vector3(6.4, 0.0, 6.6), Vector3(0.45, 0.3, 0.4)]]:
 		k.ball(r[0], r[1], Color(0.48, 0.46, 0.48), {"seg": 9, "gloss": 0.3})
 

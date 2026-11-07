@@ -21,7 +21,7 @@ const BEACH_X := 9.0           # where the beach block sits
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
 	[Vector3(0.0, 0.6, 0.8), -18.0, 30.0, 46.0],       # the whole coast
-	[Vector3(-15.0, 3.6, -2.6), 35.0, 12.0, 9.0],      # the lighthouse
+	[Vector3(-15.0, 4.8, -2.6), 35.0, 12.0, 13.0],     # the lighthouse
 	[Vector3(0.0, 0.0, 0.0), 20.0, 62.0, 48.0],        # from above
 	[Vector3(-2.5, 0.6, 2.5), -12.0, 26.0, 13.0],      # where the headland meets the beach
 	[Vector3(3.9, 1.5, -3.0), 14.0, 9.0, 9.5],         # the beach hut
@@ -39,6 +39,8 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	_block(scene, "Headland", HEAD_X, Headland)
 	_block(scene, "Beach", BEACH_X, Beach)
 	_sea(scene)
+	# one line of floats strung along the whole coast, clear of the boulders at the far left
+	Beach.float_line(kit, -15.0, HALF - 2.0, 7.3)
 
 ## A plinth twice the usual length, in the same wood and brass as the single blocks.
 static func _base(k: Kit, scene: Node3D) -> void:
