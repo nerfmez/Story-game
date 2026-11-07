@@ -96,3 +96,9 @@ version follows:
   strokes as noise stretched along the slope that also break the light/shade line into a dry-brush edge,
   each stroke a touch lighter/darker and warmer/cooler, a feathered skyline, mist laid in stepped
   horizontal dabs, strokes curling round cloud puffs, and a fine paper grain under everything.
+
+Painted images can replace any flat: a transparent PNG at `assets/backdrop/<name>.png` (names in `PAINTED`
+in `konbini_backdrop.gd`) is used instead of the procedural painting, repeated across the board. Claude
+cannot make images; when the user wants painted art, hand off with a brief like
+`docs/konbini-diorama/chatgpt-backdrop-brief.md` (reference renders, a style message, one prompt per layer
+with size, transparency, seamless edges, light direction and palette, and fixes for common misses).

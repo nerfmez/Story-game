@@ -12,7 +12,8 @@ shader_type spatial;
 //    edges where the tones meet, a feathered skyline, mist laid in dabs, and a fine
 //    paper grain over everything (as anime backgrounds are painted)
 // The back of every board is plain plywood.
-//   kind 1 a range (mountains or wooded hills), 4 a summer cloud
+//   kind 1 a range (mountains or wooded hills), 4 a summer cloud, 5 a painted image
+//   (a transparent PNG repeated `tiles` times across the board)
 render_mode unshaded, cull_disabled, depth_draw_opaque, shadows_disabled;
 
 uniform int kind = 1;
@@ -26,6 +27,8 @@ uniform vec3 lit : source_color = vec3(0.5, 0.6, 0.75);
 uniform vec3 shade : source_color = vec3(0.36, 0.45, 0.66);
 uniform vec3 sky : source_color = vec3(0.78, 0.89, 0.98);
 uniform vec3 mist : source_color = vec3(0.9, 0.94, 0.97);
+uniform sampler2D painting : source_color, filter_linear_mipmap, repeat_enable;
+uniform float tiles = 1.0;
 
 float h1(float x) {
 	return fract(sin(x * 127.1 + seed * 31.7) * 43758.5453);
@@ -160,7 +163,17 @@ void fragment() {
 		vec3 ply = vec3(0.66, 0.56, 0.44) * (0.92 + 0.08 * vnoise(vec2(p.x * 3.0, 0.0)));
 		ALBEDO = p.y < 0.12 ? ply * 0.75 : ply;
 	} else {
-		vec4 c = kind == 4 ? cloud_color(p) : range_color(p);
+		vec4 c;
+		if (kind == 5) {
+			// an image painted for this layer: cut out by its alpha, and only a light
+			// touch of haze (the painting carries its own atmosphere)
+			// (repeat only across: clamp the height so the bottom row never bleeds onto the top)
+			vec4 t = texture(painting, vec2(UV.x * tiles, clamp(UV.y, 0.004, 0.996)));
+			t.a *= smoothstep(0.0, 0.01, UV.y);
+			c = vec4(mix(t.rgb, sky, haze * 0.25), t.a);
+		} else {
+			c = kind == 4 ? cloud_color(p) : range_color(p);
+		}
 		if (c.a < 0.5) {
 			discard;
 		}

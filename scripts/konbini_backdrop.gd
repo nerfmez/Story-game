@@ -5,7 +5,7 @@ extends RefCounted
 ## clouds read as a landscape kilometres deep against the real sky; they stand only centimetres apart,
 ## each one shorter, hazier and closer to the sky colour than the one in front
 ## (forced perspective). From the side or above you see they are only boards.
-## Painted by shaders/konbini_flat.gdshader.
+## Painted by shaders/konbini_flat.gdshader, or by images in assets/backdrop/ (see PAINTED).
 
 const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
@@ -64,7 +64,23 @@ static func _house_front(k: Kit, at: Vector3, rng: RandomNumberGenerator) -> voi
 	for s in [-0.22, 0.22]:
 		k.box(at + Vector3(s * wdt, wall * 0.6, 0.152), Vector3(0.14, 0.16, 0.01), Color(0.3, 0.42, 0.55), {"line": 0.0})
 
+## Painted images can replace the procedural painting of any flat: put a PNG with a
+## transparent background at assets/backdrop/<file>.png (names in PAINTED, made for
+## example with the brief in docs/konbini-diorama/chatgpt-backdrop-brief.md). The image is
+## repeated across the board `tiles` times, so it must join left to right.
+const PAINTED := {
+	"FarPeaks": ["far_peaks", 3.0], "Mountains": ["mountains", 3.0], "Hills": ["hills", 5.0],
+	"Cloud": ["cloud", 1.0], "Cloud2": ["cloud_small", 1.0],
+}
+
 static func _flat(scene: Node3D, name: String, kind: int, foot: Vector3, size: Vector2, params: Dictionary, sun: Vector3) -> void:
+	if PAINTED.has(name):
+		var path := "res://assets/backdrop/%s.png" % PAINTED[name][0]
+		if ResourceLoader.exists(path):
+			kind = 5
+			params = params.duplicate()
+			params["painting"] = load(path)
+			params["tiles"] = PAINTED[name][1]
 	var quad := QuadMesh.new()
 	quad.size = size
 	var mat := ShaderMaterial.new()

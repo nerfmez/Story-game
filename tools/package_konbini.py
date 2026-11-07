@@ -49,6 +49,8 @@ def main():
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "scripts").glob("konbini_*.gd"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader*"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "tools").glob("*konbini*.gd"))]
+    # painted backdrop images, if any have been added (with their import files)
+    paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "assets/backdrop").glob("*.png*"))]
     for name in paths:
         dest = project_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
