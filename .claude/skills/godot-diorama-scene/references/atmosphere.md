@@ -46,19 +46,15 @@ so the interior can be checked. A new important area gets its own preset so the 
 
 ## A clear summer day: what moves instead of rain
 
-Rain and snow fill the whole frame with motion; a clear day needs its own layer, or it looks frozen.
-`scripts/konbini_summer.gd` is turned on for any `time_of_day = "day"` with `weather_kind = "clear"` and
-placed by the layout's `SUMMER` dictionary (area, heat ribbons, dragonfly spots):
+Rain and snow fill the frame with motion; a clear day needs its own layer. `scripts/konbini_summer.gd`
+turns on for any `time_of_day = "day"` with `weather_kind = "clear"`, placed by the layout's `SUMMER`
+dictionary:
 
-- **Cloud shadows** (the strongest one): soft blobs several metres across drifting over everything. One
-  include, `shaders/konbini_clouds.gdshaderinc`, with a global shader uniform `cloud_shadow` (declared under
-  `[shader_globals]` in project.godot and the packaged project) that the toon shader reads in `light()`
-  for the sun, and the painted shaders (sea, foliage, bark, swash) use to step down a tone. Every new lit
-  shader should include it.
-- **Heat haze**: standing ribbons over the road and hot sand that refract the screen a little, fading to
-  nothing at their edges.
-- **Motes**: a MultiMesh of soft additive dots drifting and twinkling in the sun.
-- **Dragonflies**: hover, turn and dart every few seconds, with shimmering wings.
-- **Sound**: synthesised live in an `AudioStreamGenerator` (no sound files). Cicadas are band-limited
-  noise chopped by a fast buzz and sung in swelling phrases; near the sea, a low rush swells with each wave
-  on the sea shader's 7 s beat, with a hiss of foam. In the browser, sound starts after the first touch.
+- **Heat haze**: standing ribbons over the road and hot sand that refract the screen a little and fade to
+  nothing at their edges (`shaders/konbini_heat.gdshader`).
+- **Sound**: cicadas, and the waves by the sea, synthesised once at load into looping `AudioStreamWAV`
+  clips (no sound files). The wave clip is exactly one 7 s wave and starts in step with the sea shader.
+  Do not feed an `AudioStreamGenerator` from script: the web build plays nothing from it. In a browser,
+  sound starts after the first touch.
+- The user removed these, do not bring them back: drifting cloud shadows, dust/pollen motes and
+  dragonflies (they read as bugs flying about). Keep the clear-day layer quiet; the sea already moves.

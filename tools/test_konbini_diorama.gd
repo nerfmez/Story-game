@@ -173,15 +173,15 @@ func _run() -> void:
 		return _fail("The coast should have exactly one sea surface across both halves")
 	if coast.get_node_or_null("Headland") == null or coast.get_node_or_null("Beach") == null:
 		return _fail("The coast should hold the headland and the beach")
-	# a clear day: the summer air is on and the dragonflies move
-	if not coast.summer or not coast.has_meta("summer_sound"):
-		return _fail("A clear day should have the summer air (clouds, haze, motes, dragonflies, sound)")
-	var fly: Node3D = coast.get_meta("dragonflies")[0]
-	var fly_start := fly.position
-	for i in 40:
+	# a clear day: the summer air is on, with looping cicada and wave sounds
+	var cicadas: AudioStreamPlayer = coast.get_node_or_null("Cicadas")
+	var waves: AudioStreamPlayer = coast.get_node_or_null("Waves")
+	if not coast.summer or cicadas == null or waves == null:
+		return _fail("A clear day by the sea should have the summer air (heat haze, cicadas, waves)")
+	if (cicadas.stream as AudioStreamWAV).loop_mode != AudioStreamWAV.LOOP_FORWARD or (waves.stream as AudioStreamWAV).get_length() < 6.9:
+		return _fail("The summer sounds should be looping clips, the waves one 7 s wave long")
+	for i in 5:
 		coast._process(0.05)
-	if fly.position.distance_to(fly_start) < 0.05:
-		return _fail("The dragonflies should fly")
 	print("coast: %d + %d primitives" % [coast.get_meta("primitive_count_Headland"), coast.get_meta("primitive_count_Beach")])
 	coast.queue_free()
 	await process_frame

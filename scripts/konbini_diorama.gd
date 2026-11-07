@@ -100,14 +100,12 @@ func _ready() -> void:
 		Exterior.build(kit, self)
 		Interior.build(kit, self)
 		_doors(kit)
-	# a clear day gets the summer air (cloud shadows, heat haze, motes, dragonflies,
-	# cicadas and waves), the daytime counterpart of rain and snow
+	# a clear day gets the summer air (heat haze, cicadas and waves), the daytime
+	# counterpart of rain and snow
 	summer = time_of_day == "day" and weather_kind == "clear"
 	if summer:
 		var spec: Dictionary = {"beach": Beach.SUMMER, "headland": Headland.SUMMER, "coast": Coast.SUMMER}.get(layout, {})
-		Summer.build(kit, self, spec)
-	else:
-		Summer.clear()
+		Summer.build(self, spec)
 	kit.finish()
 	if layout == "corner":
 		_shop_glass()
@@ -404,8 +402,6 @@ func _process(delta: float) -> void:
 		Headland.animate(self, _clock)
 	elif layout == "coast":
 		Coast.animate(self, _clock)
-	if summer:
-		Summer.animate(self, _clock)
 	for node in sway_nodes:
 		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)
