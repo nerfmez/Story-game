@@ -71,14 +71,24 @@ dictionary:
 
 For a far view behind a diorama, do not model distance: stand thin painted flats on a shelf added to the
 back of the plinth (`scripts/konbini_backdrop.gd`, `shaders/konbini_flat.gdshader`), like a stage or a model
-railway backscene. Back to front: summer clouds hung on rods, mountains, wooded hills, a town. They stand
-only 0.35 m apart; the farther back, the more each fades toward the sky colour (`haze`). The backs are plain
-plywood with struts, so the trick shows from the side, which the user liked as a concept.
+railway backscene. The backs are plain plywood with struts, so the trick shows from the side; the user
+liked that concept. Two versions were rejected before this one ("quality not there, doesn't match the
+style", then "still not it, research how people do it"). What people actually do, and what the approved
+version follows:
 
-The first version was rejected: "the concept is cool but the quality isn't there and it doesn't match the
-style". It used flat 2D silhouettes (a gradient sky board with a hard top edge, smooth ridgelines, boxes
-for houses, a cloud as one blob). What fixed it: paint every flat out of round masses with their own
-normals (cloud puffs, tree clumps, rounded mountain faces with gullies), light them with the scene's own sun
-(`sun_dir`) in the same four flat tones as the trees, mark overlaps with a darker band of the same hue
-instead of black ink, and let the real sky show behind (no sky board). Mountain peaks need rounded summits,
-uneven slopes and notched skylines, or they read as cones.
+- **Few layers, value grouping.** Far peaks, mountains, wooded hills: each a simple silhouette in two tones
+  only (lit and shade from the scene's sun), not lots of small painted detail. Busy flats (painted towns,
+  stacked puffs, gullies everywhere) read as noise.
+- **Atmospheric perspective.** The farther the layer, the lower its contrast, until the two tones nearly
+  meet; both slide toward the sky colour, shadows toward blue. Use a haze/mist colour a little brighter and
+  warmer than the sky, not the sky colour itself.
+- **Layered valley mist.** Every range fades into a bright band of mist at its foot, which separates the
+  layers and hides each board's bottom edge.
+- **No ink on far things.** The skyline is the drawing; a faint lighter rim catches the sun on lit ridges.
+  Rounded peaks of varied width with small notches; straight cones look fake.
+- **Blend 3D into 2D at the join.** A row of real low-relief objects (small anime trees, house fronts 0.3 m
+  deep) stands in front of the flats on the shelf and hides where the painting meets the model, as model
+  railway layouts do with low-relief buildings and trees.
+- **Let the real sky be the sky** (no sky board with an edge). Summer clouds can be flats hung on rods:
+  puffs on a flat base, bright on top, blue-grey underneath.
+- Keep the horizon roughly at the eye height of the main camera views.
