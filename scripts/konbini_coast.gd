@@ -137,6 +137,71 @@ static func _sea(scene: Node3D) -> void:
 	swash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(swash)
 
+# --- walking around (scripts/konbini_walker.gd) --------------------------------------
+
+## Height of the ground a character walks on, in world coordinates.
+static func walk_ground(x: float, z: float) -> float:
+	var bx := x - BEACH_X
+	if z < -6.8 and z > -7.4 and bx > -1.1 and bx < 0.3:
+		return lerpf(0.0, Beach.SAND_Y, smoothstep(-7.4, -6.8, z))   # where the boardwalk meets the road
+	if z < -6.9:
+		# the coast road, and the tunnel through the headland
+		var hx := x - HEAD_X
+		if hx < Headland.PORTAL_X and absf(z - Headland.TUNNEL_Z) > Headland.TUNNEL_R - 0.25:
+			return Headland.ground(hx, z)
+		return 0.0
+	if x < 0.0:
+		var hp := Vector2(x - HEAD_X, z)
+		var g := Headland.ground(hp.x, hp.y)
+		# on the stone steps the treads are what she stands on, an even climb
+		var sd := Headland._seg_dist(hp, Headland.STAIR_FROM, Headland.STAIR_TO)
+		if sd.x < 0.5:
+			g = maxf(g, Headland._stair_level(sd.y))
+		return g
+	return Beach.ground(x - BEACH_X, z)
+
+## The foot and the top of the stone steps up the headland, in world coordinates: a
+## character tapping its way up or down the hill goes through them.
+static func stair_route(from: Vector3, to: Vector3) -> Array:
+	# along the centre line of the flight: a step out in front of its foot, and its top
+	var bottom := Vector3(HEAD_X + Headland.STAIR_FROM.x, 0, Headland.STAIR_FROM.y)
+	var top := Vector3(HEAD_X + Headland.STAIR_TO.x, 0, Headland.STAIR_TO.y)
+	var foot := bottom + (bottom - top).normalized() * 0.6
+	var up := walk_ground(to.x, to.z) - walk_ground(from.x, from.z)
+	var on_hill := func(p: Vector3) -> bool: return p.x < 0.0 and walk_ground(p.x, p.z) > 1.2
+	if up > 0.8 and on_hill.call(to) and not on_hill.call(from):
+		return [foot, top, to]
+	if up < -0.8 and on_hill.call(from) and not on_hill.call(to):
+		return [top, foot, to]
+	return [to]
+
+## Whether a point is taken by a wall, a building or the edge of the base.
+static func walk_blocked(x: float, z: float) -> bool:
+	if absf(x) > HALF - 0.25 or z > 8.8 or z < -8.85:
+		return true
+	# the sea wall between the road and the beach, open where the boardwalk comes up
+	var bx := x - BEACH_X
+	if z > -7.35 and z < -6.8 and x > HEAD_X + Headland.PORTAL_X and not (bx > -1.1 and bx < 0.3):
+		return true
+	if x >= 0.0:
+		if bx > -7.95 and bx < -2.25 and z > -5.95 and z < -1.65:
+			return true   # the beach hut
+		if bx > 2.45 and bx < 4.75 and z > -5.9 and z < -4.1:
+			return true   # the shower hut
+		if Vector2(bx - 7.3, z - 0.4).length() < 0.8:
+			return true   # the lifeguard tower
+		# small things on the sand: the cooler, the sand castle, parasol poles, the flag pole
+		for c: Vector3 in [Vector3(2.9, 1.6, 0.38), Vector3(0.9, 1.9, 0.45), Vector3(2.3, 0.65, 0.15), Vector3(4.7, -0.55, 0.15), Vector3(-4.8, 1.05, 0.15), Vector3(5.5, 1.95, 0.15), Vector3(-2.0, -1.4, 0.12)]:
+			if Vector2(bx - c.x, z - c.y).length() < c.z:
+				return true
+		return false
+	var hx := x - HEAD_X
+	if Vector2(hx - Headland.LIGHTHOUSE.x, z - Headland.LIGHTHOUSE.y).length() < 1.6:
+		return true
+	if Vector2(hx - Headland.BENCH.x, z - Headland.BENCH.y).length() < 0.45:
+		return true
+	return false
+
 ## The gulls fly over the beach half (they were built there); the flags sway on their own.
 static func animate(scene: Node3D, clock: float) -> void:
 	Beach.animate(scene, clock)

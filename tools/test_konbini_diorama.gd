@@ -164,6 +164,7 @@ func _run() -> void:
 	head.queue_free()
 	await process_frame
 	# the two joined on one plinth: one sea for both halves, no UI, the gulls fly
+	var CoastScript := load("res://scripts/konbini_coast.gd")
 	var coast: Node3D = load("res://scenes/coast_diorama.tscn").instantiate()
 	root.add_child(coast)
 	await process_frame
@@ -180,6 +181,18 @@ func _run() -> void:
 		return _fail("A clear day by the sea should have the summer air (heat haze, cicadas, waves)")
 	if not (cicadas.stream as AudioStreamOggVorbis).loop or not (waves.stream as AudioStreamOggVorbis).loop:
 		return _fail("The summer sounds should loop")
+	# a girl walks the coast: a tap target is reached, a wall stops her
+	var walker: Node3D = coast.walker
+	if walker == null or coast.rig.follow != walker:
+		return _fail("The coast should have a walking character the camera follows")
+	var walk_start := walker.position
+	walker.walk_to(walk_start + Vector3(2.0, 0.0, 2.0))
+	for i in 120:
+		walker._process(1.0 / 30.0)
+	if Vector2(walker.position.x, walker.position.z).distance_to(Vector2(walk_start.x + 2.0, walk_start.z + 2.0)) > 0.25:
+		return _fail("The character should walk to a tapped point on the sand")
+	if not CoastScript.walk_blocked(9.0 - 5.0, -3.0):
+		return _fail("The beach hut should block the way")
 	for i in 5:
 		coast._process(0.05)
 	print("coast: %d + %d primitives" % [coast.get_meta("primitive_count_Headland"), coast.get_meta("primitive_count_Beach")])

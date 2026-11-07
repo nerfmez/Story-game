@@ -19,6 +19,7 @@ const Beach := preload("res://scripts/konbini_beach.gd")
 const Headland := preload("res://scripts/konbini_headland.gd")
 const Coast := preload("res://scripts/konbini_coast.gd")
 const Summer := preload("res://scripts/konbini_summer.gd")
+const Walker := preload("res://scripts/konbini_walker.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -126,9 +127,50 @@ func _ready() -> void:
 		rig.max_distance = 62.0
 	var view: Array = views[0]
 	rig.set_view(view[0], view[1], view[2], view[3])
+	if layout == "coast":
+		_add_walker()
 	get_viewport().msaa_3d = Viewport.MSAA_4X
 	set_meta("primitive_count", kit.primitive_count)
 	_read_command_line()
+
+## A girl to walk around the coast: the camera follows her; WASD or a tap on the ground
+## moves her (scripts/konbini_walker.gd). R still returns to the opening overview, and
+## the next move or tap brings the view back to her.
+var walker: Node3D
+
+func _add_walker() -> void:
+	walker = Walker.new()
+	walker.name = "Walker"
+	walker.position = Vector3(Coast.BEACH_X - 0.4, 0, -0.8)
+	walker.rotation.y = PI * 0.15
+	add_child(walker)
+	walker.setup(rig, Coast.walk_ground, Coast.walk_blocked)
+	rig.follow = walker
+	rig.set_view(walker.position + Vector3(0, 0.9, 0), -20.0, 24.0, 11.0)
+	rig.tapped.connect(_on_tap)
+
+func _on_tap(at: Vector2) -> void:
+	if walker == null or rig.follow == null:
+		if walker != null:
+			rig.follow = walker
+		return
+	# march along the ray from the camera until it goes under the ground
+	var cam: Camera3D = rig.camera
+	var origin := cam.project_ray_origin(at)
+	var dir := cam.project_ray_normal(at)
+	var t := 0.5
+	while t < 140.0:
+		var p := origin + dir * t
+		if absf(p.x) > Coast.HALF or absf(p.z) > 9.0:
+			if t > 20.0 and p.y < -2.0:
+				return
+		elif p.y <= Coast.walk_ground(p.x, p.z):
+			var goal := Vector3(p.x, Coast.walk_ground(p.x, p.z), p.z)
+			var route: Array = Coast.stair_route(walker.position, goal)
+			walker.walk_to(goal, route.slice(0, route.size() - 1))
+			return
+		t += 0.06
+	return
 
 func _read_command_line() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -136,6 +178,8 @@ func _read_command_line() -> void:
 	var capture := ""
 	for i in args.size():
 		if args[i].begins_with("--view="):
+			if walker != null and not args.has("--follow"):
+				rig.follow = null   # a still preset view
 			show_view(int(args[i].get_slice("=", 1)))
 		elif args[i].begins_with("--wait="):
 			wait = float(args[i].get_slice("=", 1))

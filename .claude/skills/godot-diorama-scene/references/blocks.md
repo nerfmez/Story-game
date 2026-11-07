@@ -61,3 +61,15 @@ are the worked example. Follow it for the next block.
 - Render the overview, a view aimed right at the seam, and the top view. Look along the sand, the road, the
   wall and through the shallow water for any line, step or colour change.
 - Open the single blocks again: joined mode must not change them.
+
+## Walking a character through a diorama
+
+`scripts/konbini_walker.gd` (a kit-built girl with a walk cycle) walks the coast. The layout supplies two
+functions in world coordinates: `walk_ground(x, z)` (the terrain functions of each block shifted to its
+half, plus the real tread height on stairs, the road and tunnel floor, a ramp where the boardwalk meets
+the road) and `walk_blocked(x, z)` (walls, buildings, props, the base edge). She refuses steps steeper than
+about 1:1 and water deeper than her knees. The camera rig follows her (`follow`), taps without a drag are a
+`tapped` signal turned into a ground point by marching the camera ray until it goes under `walk_ground`,
+and a tap on the hilltop routes through the stairs (`stair_route`). On iPad there is no UI: tap to walk,
+drag to turn, pinch to zoom. Probe with a script that calls `walk_to` and steps `_process`, then look at a
+close render: the first close-up caught her standing inside the cooler.

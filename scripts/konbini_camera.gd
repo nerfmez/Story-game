@@ -12,6 +12,17 @@ const PAN_LIMIT := 8.5
 ## How far the view may pan (x, z) and zoom out; a longer diorama widens them.
 var pan_limit := Vector2(PAN_LIMIT, PAN_LIMIT)
 var max_distance := DISTANCE_LIMITS.y
+## A node to keep in view (a character); while set, the view follows it, panning is off
+## and WASD is left to the character.
+var follow: Node3D = null
+var follow_height := 0.9
+
+## A short tap or click without a drag, at a point on the screen.
+signal tapped(at: Vector2)
+var _press_at := Vector2.ZERO
+var _dragged := 0.0
+var _multi := false
+var _paused_follow: Node3D = null
 
 var camera: Camera3D
 var target := Vector3.ZERO
@@ -57,6 +68,8 @@ func orbit(relative: Vector2) -> void:
 	_goal_pitch = clampf(_goal_pitch + relative.y * 0.25, PITCH_LIMITS.x, PITCH_LIMITS.y)
 
 func pan(relative: Vector2) -> void:
+	if follow != null:
+		return
 	var y := deg_to_rad(_goal_yaw)
 	var right := Vector3(cos(y), 0, -sin(y))
 	var forward := Vector3(-sin(y), 0, -cos(y))
@@ -72,12 +85,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Touch is handled below; skip the mouse events Godot copies from it.
 	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
 		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_press_at = event.position
+			_dragged = 0.0
+		elif _dragged < 8.0:
+			tapped.emit(event.position)
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			zoom(0.9)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom(1.0 / 0.9)
 	elif event is InputEventMouseMotion:
+		_dragged += event.relative.length()
 		var left: bool = event.button_mask & MOUSE_BUTTON_MASK_LEFT != 0
 		var other: bool = event.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE) != 0
 		if other or (left and event.shift_pressed):
@@ -90,12 +110,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		zoom(1.0 + event.delta.y * 0.04)
 	elif event is InputEventScreenTouch:
 		if event.pressed:
+			if _touches.is_empty():
+				_press_at = event.position
+				_dragged = 0.0
+				_multi = false
 			_touches[event.index] = event.position
+			_multi = _multi or _touches.size() > 1
 		else:
 			_touches.erase(event.index)
+			if _touches.is_empty() and not _multi and _dragged < 12.0:
+				tapped.emit(event.position)
 		_reset_pinch()
 	elif event is InputEventScreenDrag:
 		_touches[event.index] = event.position
+		_dragged += event.relative.length()
 		if _touches.size() == 1:
 			orbit(event.relative)
 		elif _touches.size() >= 2:
@@ -110,7 +138,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_pinch_distance = spread
 			_pinch_center = center
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_R and not _home.is_empty():
+		_paused_follow = follow
+		follow = null
 		set_view(_home[0], _home[1], _home[2], _home[3], false)
+	elif event is InputEventKey and event.pressed and _paused_follow != null and event.keycode in [KEY_W, KEY_A, KEY_S, KEY_D]:
+		follow = _paused_follow
+		_paused_follow = null
 
 func _reset_pinch() -> void:
 	if _touches.size() >= 2:
@@ -130,7 +163,9 @@ func _process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_W): move.y -= 1.0
 	if Input.is_physical_key_pressed(KEY_S): move.y += 1.0
 	if turn != Vector2.ZERO: orbit(turn * delta * 300.0)
-	if move != Vector2.ZERO: pan(-move * delta * 500.0)
+	if move != Vector2.ZERO and follow == null: pan(-move * delta * 500.0)
+	if follow != null:
+		_goal_target = follow.position + Vector3(0, follow_height, 0)
 	if Input.is_physical_key_pressed(KEY_Q) or Input.is_physical_key_pressed(KEY_EQUAL) or Input.is_physical_key_pressed(KEY_KP_ADD):
 		zoom(1.0 - delta * 1.2)
 	if Input.is_physical_key_pressed(KEY_E) or Input.is_physical_key_pressed(KEY_MINUS) or Input.is_physical_key_pressed(KEY_KP_SUBTRACT):
