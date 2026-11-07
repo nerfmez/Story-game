@@ -1,0 +1,202 @@
+extends SceneTree
+## Run with Godot 4.3 --headless --path . --script tools/test_konbini_diorama.gd
+## Builds the konbini diorama and checks that it has no UI, that the camera
+## turns, zooms and pans within its limits, and that the small loops move.
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _fail(message: String) -> void:
+	push_error(message)
+	quit(1)
+
+func _run() -> void:
+	var scene: Node3D = load("res://scenes/konbini_diorama.tscn").instantiate()
+	root.add_child(scene)
+	await process_frame
+	if not scene.find_children("*", "Control", true, false).is_empty() or not scene.find_children("*", "CanvasLayer", true, false).is_empty():
+		return _fail("The diorama must not contain UI nodes")
+	var meshes := scene.find_children("*", "MeshInstance3D", true, false).size()
+	var primitives: int = scene.get_meta("primitive_count")
+	if primitives < 1500:
+		return _fail("Expected a detailed model, got %d primitives" % primitives)
+	print("konbini: %d primitives merged into %d mesh instances" % [primitives, meshes])
+	var rig = scene.rig
+	rig.set_view(Vector3.ZERO, 0.0, 30.0, 20.0)
+	rig.orbit(Vector2(100, 0))
+	if not is_equal_approx(rig._goal_yaw, -30.0):
+		return _fail("Dragging sideways should turn the camera")
+	rig.orbit(Vector2(0, 10000))
+	if not is_equal_approx(rig._goal_pitch, rig.PITCH_LIMITS.y):
+		return _fail("Camera must stop above the model")
+	rig.orbit(Vector2(0, -10000))
+	if not is_equal_approx(rig._goal_pitch, rig.PITCH_LIMITS.x):
+		return _fail("Camera must not go under the base")
+	rig.zoom(0.001)
+	if not is_equal_approx(rig._goal_distance, rig.DISTANCE_LIMITS.x):
+		return _fail("Zoom in limit")
+	rig.zoom(1000.0)
+	if not is_equal_approx(rig._goal_distance, rig.DISTANCE_LIMITS.y):
+		return _fail("Zoom out limit")
+	rig.pan(Vector2(-100000, 0))
+	if absf(rig._goal_target.x) > rig.PAN_LIMIT + 0.001 or rig._goal_target.length() < 1.0:
+		return _fail("Panning should move the look-at point and stay over the base")
+	# touch: one finger turns, two fingers pinch
+	rig.set_view(Vector3.ZERO, 0.0, 30.0, 20.0)
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = true
+	touch.position = Vector2(100, 100)
+	rig._unhandled_input(touch)
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(150, 100)
+	drag.relative = Vector2(50, 0)
+	rig._unhandled_input(drag)
+	if not is_equal_approx(rig._goal_yaw, -15.0):
+		return _fail("One-finger drag should turn the camera")
+	var second := InputEventScreenTouch.new()
+	second.index = 1
+	second.pressed = true
+	second.position = Vector2(250, 100)
+	rig._unhandled_input(second)
+	var spread := InputEventScreenDrag.new()
+	spread.index = 1
+	spread.position = Vector2(350, 100)
+	spread.relative = Vector2(100, 0)
+	rig._unhandled_input(spread)
+	if rig._goal_distance >= 20.0:
+		return _fail("Spreading two fingers should zoom in")
+	# the door, signs and signals keep moving
+	var door: Node3D = scene.door_panels[0]
+	var closed := door.position.x
+	var traffic: OmniLight3D = scene.lights["Traffic"]
+	var colour := traffic.light_color
+	var moved := false
+	var changed := false
+	for i in 400:
+		scene._process(0.05)
+		moved = moved or absf(door.position.x - closed) > 0.5
+		changed = changed or not traffic.light_color.is_equal_approx(colour)
+	if not moved:
+		return _fail("The automatic door never opened")
+	if not changed:
+		return _fail("The traffic light never changed")
+	for preset in scene.views.size():
+		scene.show_view(preset)
+	scene.queue_free()
+	await process_frame
+	# the Thai corner builds too, and its signal countdowns tick
+	var thai: Node3D = load("res://scenes/konbini_diorama_thai.tscn").instantiate()
+	root.add_child(thai)
+	await process_frame
+	if thai.country != "thailand" or thai.countdowns.size() != 2:
+		return _fail("The Thai corner should have two signal countdowns")
+	if not thai.find_children("*", "Control", true, false).is_empty():
+		return _fail("The Thai diorama must not contain UI nodes")
+	var shown: String = thai.countdowns[0].text
+	var ticked := false
+	for i in 40:
+		thai._process(0.05)
+		ticked = ticked or thai.countdowns[0].text != shown
+	if not ticked:
+		return _fail("The Thai countdown never changed")
+	print("thai: %d primitives" % thai.get_meta("primitive_count"))
+	thai.queue_free()
+	await process_frame
+	# the ramen shop under the viaduct on a snowy night: no UI, the door slides, lanterns sway, a train passes
+	var ramen: Node3D = load("res://scenes/ramen_diorama.tscn").instantiate()
+	root.add_child(ramen)
+	await process_frame
+	if ramen.layout != "viaduct" or ramen.weather_kind != "snow":
+		return _fail("The ramen scene should be the viaduct block in the snow")
+	if not ramen.find_children("*", "Control", true, false).is_empty():
+		return _fail("The ramen diorama must not contain UI nodes")
+	var sliding: Node3D = ramen.door_panels[1]
+	var shut := sliding.position.x
+	var lantern: Node3D = ramen.sway_nodes[1]
+	var train: Node3D = ramen.get_meta("train")
+	var slid := false
+	var swung := false
+	var passed := false
+	for i in 600:
+		ramen._process(0.05)
+		slid = slid or absf(sliding.position.x - shut) > 0.5
+		swung = swung or absf(lantern.rotation.z) > 0.02
+		passed = passed or absf(train.position.x) < 5.0
+	if not slid or not swung or not passed:
+		return _fail("The ramen door should slide, its lanterns sway and a train cross the viaduct")
+	print("ramen: %d primitives" % ramen.get_meta("primitive_count"))
+	ramen.queue_free()
+	await process_frame
+	# the beach on a summer afternoon: daylight with shadows, no rain, gulls flying
+	var beach: Node3D = load("res://scenes/beach_diorama.tscn").instantiate()
+	root.add_child(beach)
+	await process_frame
+	if beach.layout != "beach" or beach.time_of_day != "day" or beach.weather.rain_material != null:
+		return _fail("The beach should be a clear day with no rain")
+	if not beach.find_children("*", "Control", true, false).is_empty():
+		return _fail("The beach diorama must not contain UI nodes")
+	var gull: Node3D = beach.get_meta("gulls")[0]
+	var start_pos := gull.position
+	for i in 20:
+		beach._process(0.05)
+	if gull.position.distance_to(start_pos) < 0.2:
+		return _fail("The gulls should circle")
+	print("beach: %d primitives" % beach.get_meta("primitive_count"))
+	beach.queue_free()
+	await process_frame
+	# the headland left of the beach: the same clear day, and its right edge must meet
+	# the beach's left edge (same waterline and the same height of sand at the seam)
+	var head: Node3D = load("res://scenes/headland_diorama.tscn").instantiate()
+	root.add_child(head)
+	await process_frame
+	if head.layout != "headland" or head.weather.rain_material != null:
+		return _fail("The headland should be a clear day with no rain")
+	if not head.find_children("*", "Control", true, false).is_empty():
+		return _fail("The headland diorama must not contain UI nodes")
+	var Head := load("res://scripts/konbini_headland.gd")
+	var BeachScript := load("res://scripts/konbini_beach.gd")
+	for z in [-6.0, -2.0, 1.0, 2.5, 3.5, 5.0, 8.0]:
+		if absf(Head.ground(9.0, z) - BeachScript.ground(-9.0, z)) > 0.01:
+			return _fail("The headland and the beach do not meet at z = %.1f" % z)
+	print("headland: %d primitives" % head.get_meta("primitive_count"))
+	head.queue_free()
+	await process_frame
+	# the two joined on one plinth: one sea for both halves, no UI, the gulls fly
+	var CoastScript := load("res://scripts/konbini_coast.gd")
+	var coast: Node3D = load("res://scenes/coast_diorama.tscn").instantiate()
+	root.add_child(coast)
+	await process_frame
+	if not coast.find_children("*", "Control", true, false).is_empty():
+		return _fail("The coast diorama must not contain UI nodes")
+	if coast.find_children("Sea", "MeshInstance3D", true, false).size() != 1:
+		return _fail("The coast should have exactly one sea surface across both halves")
+	if coast.get_node_or_null("Headland") == null or coast.get_node_or_null("Beach") == null:
+		return _fail("The coast should hold the headland and the beach")
+	# a clear day: the summer air is on, with looping cicada and wave sounds
+	var cicadas: AudioStreamPlayer = coast.get_node_or_null("Cicadas")
+	var waves: AudioStreamPlayer = coast.get_node_or_null("Waves")
+	if not coast.summer or cicadas == null or waves == null:
+		return _fail("A clear day by the sea should have the summer air (heat haze, cicadas, waves)")
+	if not (cicadas.stream as AudioStreamOggVorbis).loop or not (waves.stream as AudioStreamOggVorbis).loop:
+		return _fail("The summer sounds should loop")
+	# a girl walks the coast: a tap target is reached, a wall stops her
+	var walker: Node3D = coast.walker
+	if walker == null or coast.rig.follow != walker:
+		return _fail("The coast should have a walking character the camera follows")
+	var walk_start := walker.position
+	walker.walk_to(walk_start + Vector3(2.0, 0.0, 2.0))
+	for i in 120:
+		walker._process(1.0 / 30.0)
+	if Vector2(walker.position.x, walker.position.z).distance_to(Vector2(walk_start.x + 2.0, walk_start.z + 2.0)) > 0.25:
+		return _fail("The character should walk to a tapped point on the sand")
+	if not CoastScript.walk_blocked(9.0 - 5.0, -3.0):
+		return _fail("The beach hut should block the way")
+	for i in 5:
+		coast._process(0.05)
+	print("coast: %d + %d primitives" % [coast.get_meta("primitive_count_Headland"), coast.get_meta("primitive_count_Beach")])
+	coast.queue_free()
+	await process_frame
+	print("PASS: konbini (Japan, Thailand), ramen, beach, headland and coast dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
+	quit(0)
