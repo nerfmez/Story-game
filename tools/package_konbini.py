@@ -45,7 +45,7 @@ def main():
             parser.error("No staged konbini project to archive")
         write_archive(target, project_dir)
         return
-    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "scenes/beach_diorama.tscn", "scenes/headland_diorama.tscn", "scenes/coast_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
+    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "scenes/beach_diorama.tscn", "scenes/headland_diorama.tscn", "scenes/coast_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt", "assets/audio/sea_waves.ogg", "assets/audio/cicadas.ogg", "assets/audio/CREDITS-diorama.md"]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "scripts").glob("konbini_*.gd"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader*"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "tools").glob("*konbini*.gd"))]

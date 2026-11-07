@@ -52,10 +52,12 @@ dictionary:
 
 - **Heat haze**: standing ribbons over the road and hot sand that refract the screen a little and fade to
   nothing at their edges (`shaders/konbini_heat.gdshader`).
-- **Sound**: cicadas, and the waves by the sea, synthesised once at load into looping `AudioStreamWAV`
-  clips (no sound files). The wave clip is exactly one 7 s wave and starts in step with the sea shader.
-  Do not feed an `AudioStreamGenerator` from script: the web build plays nothing from it. In a browser,
-  sound starts after the first touch.
+- **Sound**: free-licensed recordings of the sea and of cicadas from Wikimedia Commons, looping
+  (`assets/audio/sea_waves.ogg`, `cicadas.ogg`, credits in `assets/audio/CREDITS-diorama.md`). The user
+  could not hear the synthesised waves (a rumble around 100 Hz is lost on tablet speakers) and asked for
+  real recordings. Keep the licence and author in the credits file for every sound added; CC0 or CC BY
+  are easiest. Commons rate-limits shared IPs: use a descriptive User-Agent and back off; the `transcoded`
+  MP3/OGG copies download when the original is refused. In a browser, sound starts after the first touch.
 - **Motes**: soft additive specks of dust and pollen drifting and twinkling in the sun (a MultiMesh,
   `shaders/konbini_motes.gdshader`). The user wants these.
 - The user removed these, do not bring them back: drifting cloud shadows and dragonflies (insects).

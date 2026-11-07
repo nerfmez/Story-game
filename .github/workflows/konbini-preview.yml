@@ -14,6 +14,8 @@ on:
       - 'scenes/headland_diorama.tscn'
       - 'scenes/coast_diorama.tscn'
       - 'assets/fonts/NotoSansJP-*'
+      - 'assets/audio/sea_waves.ogg'
+      - 'assets/audio/cicadas.ogg'
       - 'docs/konbini-diorama/**'
       - '.github/workflows/konbini-preview.yml'
 
