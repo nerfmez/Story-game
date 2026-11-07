@@ -66,3 +66,13 @@ dictionary:
 - The user removed these, do not bring them back: drifting cloud shadows and dragonflies (insects).
   When the user asks to remove one thing, remove exactly that; I once took out the motes too and was told
   off for it.
+
+## A painted backscene (forced perspective)
+
+For a far view behind a diorama, do not model distance: stand thin painted flats on a shelf added to the
+back of the plinth (`scripts/konbini_backdrop.gd`, `shaders/konbini_flat.gdshader`), like a stage or a model
+railway backscene. Back to front: a sky board, clouds, mountains, wooded hills, a town. Each flat is a quad
+whose shader cuts out a silhouette with an ink edge and paints flat cel tones; the farther back, the shorter
+and the more it fades to the sky colour (`haze`). They stand only 0.3 m apart. The backs are plain plywood
+with struts, so the trick shows from the side, which is part of the charm. The coast scene has one, with a
+camera preset round the side.

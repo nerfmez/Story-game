@@ -13,6 +13,7 @@ const Kit := preload("res://scripts/konbini_kit.gd")
 const Exterior := preload("res://scripts/konbini_exterior.gd")
 const Beach := preload("res://scripts/konbini_beach.gd")
 const Headland := preload("res://scripts/konbini_headland.gd")
+const Backdrop := preload("res://scripts/konbini_backdrop.gd")
 
 const HALF := 18.0             # half the length of the coast
 const HEAD_X := -9.0           # where the headland block sits
@@ -32,6 +33,7 @@ const VIEWS := [
 	[Vector3(-2.5, 0.6, 2.5), -12.0, 26.0, 13.0],      # where the headland meets the beach
 	[Vector3(3.9, 1.5, -3.0), 14.0, 9.0, 9.5],         # the beach hut
 	[Vector3(-14.0, 2.3, 1.6), -40.0, 22.0, 9.0],      # the bench, looking along the coast
+	[Vector3(-14.0, 2.0, -10.0), -100.0, 18.0, 14.0],  # round the side: the backdrop is only thin boards
 ]
 
 static func build(kit: Kit, scene: Node3D) -> void:
@@ -40,6 +42,7 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	b.k = kit
 	b.scene = scene
 	_base(kit, scene)
+	Backdrop.build(kit, scene, HALF)
 	_road(kit, b)
 	scene.set_meta("joined", true)
 	_block(scene, "Headland", HEAD_X, Headland)
