@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--ramen", action="store_true", help="Open the ramen shop on a snowy night")
     parser.add_argument("--beach", action="store_true", help="Open the beach on a summer afternoon")
     parser.add_argument("--headland", action="store_true", help="Open the rocky headland with the lighthouse, left of the beach")
+    parser.add_argument("--coast", action="store_true", help="Open the headland and the beach joined into one diorama")
     parser.add_argument("--zip-only", action="store_true", help="Archive an already staged and tested project without copying it again")
     args = parser.parse_args()
     target = args.output.resolve()
@@ -43,7 +44,7 @@ def main():
             parser.error("No staged konbini project to archive")
         write_archive(target, project_dir)
         return
-    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "scenes/beach_diorama.tscn", "scenes/headland_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
+    paths = ["scenes/konbini_diorama.tscn", "scenes/konbini_diorama_thai.tscn", "scenes/ramen_diorama.tscn", "scenes/beach_diorama.tscn", "scenes/headland_diorama.tscn", "scenes/coast_diorama.tscn", "assets/fonts/NotoSansJP-Bold-subset.ttf", "assets/fonts/NotoSansJP-OFL.txt", "assets/fonts/Sarabun-Regular.ttf", "assets/fonts/Sarabun-Regular.ttf.import", "assets/fonts/OFL.txt"]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "scripts").glob("konbini_*.gd"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "shaders").glob("konbini_*.gdshader*"))]
     paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "tools").glob("*konbini*.gd"))]
@@ -51,7 +52,7 @@ def main():
         dest = project_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / name, dest)
-    scene = "headland_diorama.tscn" if args.headland else "beach_diorama.tscn" if args.beach else "ramen_diorama.tscn" if args.ramen else "konbini_diorama_thai.tscn" if args.thai else "konbini_diorama.tscn"
+    scene = "coast_diorama.tscn" if args.coast else "headland_diorama.tscn" if args.headland else "beach_diorama.tscn" if args.beach else "ramen_diorama.tscn" if args.ramen else "konbini_diorama_thai.tscn" if args.thai else "konbini_diorama.tscn"
     (project_dir / "project.godot").write_text(PROJECT.replace("{scene}", scene), encoding="utf-8")
     shutil.copyfile(ROOT / "docs/konbini-diorama/README.md", project_dir / "README.md")
     write_archive(target, project_dir)

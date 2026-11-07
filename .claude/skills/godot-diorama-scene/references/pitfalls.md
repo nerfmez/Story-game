@@ -82,3 +82,9 @@
     plateau, with equal risers, landings, side walls, and set in a cut.
   - A tunnel blocked by the terrain: a height field cannot have a hole, so build the bore (walls, vault,
     road, lamps) and discard the ground inside it in the shader. Look into every opening.
+- Joining blocks into one diorama (`scripts/konbini_coast.gd`): build each block in its own coordinates
+  under a shifted node (`joined` mode skips its plinth, road and the cut on the seam), move the nodes it
+  adds to the diorama under that node afterwards, and lay everything that must not show a seam once across
+  the whole length: plinth, road, wall and rail, sea and swash. Anything that works in world space needs
+  the shift: shore_offset, the rock list, the tunnel cut-out. Shaders that need a local centre (the tide
+  pool) should use model-space positions.

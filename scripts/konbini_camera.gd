@@ -9,6 +9,10 @@ const PITCH_LIMITS := Vector2(5.0, 85.0)
 const DISTANCE_LIMITS := Vector2(3.5, 42.0)
 const PAN_LIMIT := 8.5
 
+## How far the view may pan (x, z) and zoom out; a longer diorama widens them.
+var pan_limit := Vector2(PAN_LIMIT, PAN_LIMIT)
+var max_distance := DISTANCE_LIMITS.y
+
 var camera: Camera3D
 var target := Vector3.ZERO
 var yaw := 0.0
@@ -58,11 +62,11 @@ func pan(relative: Vector2) -> void:
 	var forward := Vector3(-sin(y), 0, -cos(y))
 	var scale := _goal_distance * 0.0016
 	_goal_target += (-right * relative.x + forward * relative.y) * scale
-	_goal_target.x = clampf(_goal_target.x, -PAN_LIMIT, PAN_LIMIT)
-	_goal_target.z = clampf(_goal_target.z, -PAN_LIMIT, PAN_LIMIT)
+	_goal_target.x = clampf(_goal_target.x, -pan_limit.x, pan_limit.x)
+	_goal_target.z = clampf(_goal_target.z, -pan_limit.y, pan_limit.y)
 
 func zoom(factor: float) -> void:
-	_goal_distance = clampf(_goal_distance * factor, DISTANCE_LIMITS.x, DISTANCE_LIMITS.y)
+	_goal_distance = clampf(_goal_distance * factor, DISTANCE_LIMITS.x, max_distance)
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Touch is handled below; skip the mouse events Godot copies from it.

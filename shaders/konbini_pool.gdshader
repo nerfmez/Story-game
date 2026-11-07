@@ -11,10 +11,10 @@ render_mode blend_mix, depth_draw_opaque, cull_back, unshaded;
 
 uniform vec3 shallow : source_color = vec3(0.45, 0.88, 0.84);
 uniform vec3 deep : source_color = vec3(0.16, 0.55, 0.66);
-uniform vec2 centre = vec2(0.0);
 uniform float radius = 0.6;
 
 varying vec3 world_pos;
+varying vec2 local_xz;   // from the centre of the pool (the mesh is centred on it)
 
 float cell_edge(vec2 p, float t) {
 	vec2 i = floor(p);
@@ -40,11 +40,12 @@ float cell_edge(vec2 p, float t) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local_xz = VERTEX.xz;
 }
 
 void fragment() {
 	// a bowl: shallow at the rim, deepest in the middle
-	float r = clamp(length(world_pos.xz - centre) / radius, 0.0, 1.0);
+	float r = clamp(length(local_xz) / radius, 0.0, 1.0);
 	float depth = 1.0 - r * r;
 	vec3 col = mix(shallow, deep, smoothstep(0.1, 0.9, depth));
 	// slow ripples crossing the still water

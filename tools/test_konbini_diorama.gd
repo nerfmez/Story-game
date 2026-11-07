@@ -163,5 +163,20 @@ func _run() -> void:
 	print("headland: %d primitives" % head.get_meta("primitive_count"))
 	head.queue_free()
 	await process_frame
-	print("PASS: konbini (Japan, Thailand), ramen, beach and headland dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
+	# the two joined on one plinth: one sea for both halves, no UI, the gulls fly
+	var coast: Node3D = load("res://scenes/coast_diorama.tscn").instantiate()
+	root.add_child(coast)
+	await process_frame
+	if not coast.find_children("*", "Control", true, false).is_empty():
+		return _fail("The coast diorama must not contain UI nodes")
+	if coast.find_children("Sea", "MeshInstance3D", true, false).size() != 1:
+		return _fail("The coast should have exactly one sea surface across both halves")
+	if coast.get_node_or_null("Headland") == null or coast.get_node_or_null("Beach") == null:
+		return _fail("The coast should hold the headland and the beach")
+	for i in 5:
+		coast._process(0.05)
+	print("coast: %d + %d primitives" % [coast.get_meta("primitive_count_Headland"), coast.get_meta("primitive_count_Beach")])
+	coast.queue_free()
+	await process_frame
+	print("PASS: konbini (Japan, Thailand), ramen, beach, headland and coast dioramas build without UI; camera, touch, doors, signals, countdown, lanterns, train and gulls work")
 	quit(0)

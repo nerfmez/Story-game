@@ -146,30 +146,37 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	var b := Exterior.new()
 	b.k = kit
 	b.scene = scene
-	b._base()
-	_ground(kit, b)
-	_sea(kit, scene)
+	var joined: bool = scene.get_meta("joined", false)
+	if not joined:
+		b._base()
+	_ground(kit, b, joined, scene.get_meta("block_x", 0.0))
+	_sea(kit, scene, not joined)
 	_tunnel(kit)
 	_lighthouse(kit)
 	_steps_and_viewpoint(kit)
 	_tide_pools(kit, scene)
 	_trees(kit, scene)
-	Beach._gulls(kit, scene)
+	if not joined:
+		Beach._gulls(kit, scene)
 
-static func _ground(k: Kit, b: RefCounted) -> void:
+## joined / block_x: built as the left half of the coast scene (scripts/konbini_coast.gd),
+## which lays the road once and leaves out the cut on the seam; block_x is where this
+## block sits in the world, for the tunnel cut-out the toon shader makes in world space.
+static func _ground(k: Kit, b: RefCounted, joined := false, block_x := 0.0) -> void:
 	k.material("asphalt", 3)
 	k.material("sand", 3)
 	k.flat_materials["sand"] = true
 	# (the tunnel uniforms let the shader cut the ground away inside the bore: a height
 	# field cannot have the hole, so the step it makes behind the portal is discarded)
-	k.material("rock", 7, {"rock_a": ROCK_A, "rock_b": ROCK_B, "stratum": STRATUM, "tunnel": Vector4(PORTAL_X, TUNNEL_Z, TUNNEL_R, TUNNEL_SPRING)})
+	k.material("rock", 7, {"rock_a": ROCK_A, "rock_b": ROCK_B, "stratum": STRATUM, "tunnel": Vector4(PORTAL_X + block_x, TUNNEL_Z, TUNNEL_R, TUNNEL_SPRING)})
 	k.flat_materials["rock"] = true
 	# the coast road from the beach, its wall and rail, up to the tunnel portal
-	k.slab(Vector3(PORTAL_X, -0.25, -9), Vector3(9, -0.02, -6.9), Color(0.42, 0.42, 0.47), {"line": 0.4})
-	k.slab(Vector3(PORTAL_X, -0.02, -9), Vector3(9, 0.0, -7.3), Color(0.36, 0.38, 0.45), {"mat": "asphalt", "gloss": 0.1})
-	k.quad(Vector3((PORTAL_X + 9.0) * 0.5, 0.004, -8.15), Vector2(9.0 - PORTAL_X, 0.1), Color(0.95, 0.95, 0.9))
-	k.slab(Vector3(PORTAL_X, -0.02, -7.3), Vector3(9, 0.55, -6.9), Color(0.78, 0.78, 0.8))
-	b._rail_run(Vector3(PORTAL_X + 0.4, 0.55, -7.1), Vector3(8.8, 0.55, -7.1))
+	if not joined:
+		k.slab(Vector3(PORTAL_X, -0.25, -9), Vector3(9, -0.02, -6.9), Color(0.42, 0.42, 0.47), {"line": 0.4})
+		k.slab(Vector3(PORTAL_X, -0.02, -9), Vector3(9, 0.0, -7.3), Color(0.36, 0.38, 0.45), {"mat": "asphalt", "gloss": 0.1})
+		k.quad(Vector3((PORTAL_X + 9.0) * 0.5, 0.004, -8.15), Vector2(9.0 - PORTAL_X, 0.1), Color(0.95, 0.95, 0.9))
+		k.slab(Vector3(PORTAL_X, -0.02, -7.3), Vector3(9, 0.55, -6.9), Color(0.78, 0.78, 0.8))
+		b._rail_run(Vector3(PORTAL_X + 0.4, 0.55, -7.1), Vector3(8.8, 0.55, -7.1))
 	# one height field for sand, hill, steps and shelf
 	k.grid(-9.0, -9.0, 9.0, 9.0, 160, 160, ground, _ground_color, {"mat": "rock"})
 	# the cut through the land and the sea at the sides and front of the base
@@ -178,8 +185,9 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 		cuts.append([Vector3(-9.0 + i * 0.1, 0, 9.0), Vector3(-9.0 + (i + 1) * 0.1, 0, 9.0)])
 	for i in 180:
 		cuts.append([Vector3(-9.0, 0, -9.0 + i * 0.1), Vector3(-9.0, 0, -9.0 + (i + 1) * 0.1)])
-	for i in 90:
-		cuts.append([Vector3(9.0, 0, i * 0.1), Vector3(9.0, 0, (i + 1) * 0.1)])
+	if not joined:
+		for i in 90:
+			cuts.append([Vector3(9.0, 0, i * 0.1), Vector3(9.0, 0, (i + 1) * 0.1)])
 	for c in cuts:
 		var a: Vector3 = c[0]
 		var e: Vector3 = c[1]
@@ -202,20 +210,29 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 
 ## The sea and swash of the beach, run on across the seam (shore_offset), with the
 ## shelf, the headland and the boulders as rocks the surf breaks around.
-static func _sea(k: Kit, scene: Node3D) -> void:
-	var boulders := [[Vector3(-1.1, 0.0, 5.3), Vector3(0.55, 0.4, 0.5)], [Vector3(-0.4, -0.05, 5.9), Vector3(0.35, 0.25, 0.32)], [Vector3(-8.3, 0.0, 6.2), Vector3(0.6, 0.45, 0.55)], [Vector3(-7.5, -0.05, 6.8), Vector3(0.4, 0.3, 0.35)]]
-	for r in boulders:
-		k.ball(r[0], r[1], ROCK_B, {"seg": 9, "gloss": 0.3})
+const BOULDERS := [[Vector3(-1.1, 0.0, 5.3), Vector3(0.55, 0.4, 0.5)], [Vector3(-0.4, -0.05, 5.9), Vector3(0.35, 0.25, 0.32)], [Vector3(-8.3, 0.0, 6.2), Vector3(0.6, 0.45, 0.55)], [Vector3(-7.5, -0.05, 6.8), Vector3(0.4, 0.3, 0.35)]]
+
+## The rocks the surf breaks around, each (centre x, z, radius x, z) at the waterline:
+## the boulders, and the shelf and the foot of the headland, a little inside the real
+## edge so the lapping foam sits right against the rock.
+static func surf_rocks() -> Array:
 	var rocks: Array = []
-	for r in boulders:
+	for r in BOULDERS:
 		var c: Vector3 = r[0]
-		var s: Vector3 = r[1]
-		rocks.append(Vector4(c.x, c.z, s.x * 0.95, s.z * 0.95))
-	# the shelf and the foot of the headland at the waterline, a little inside the
-	# real edge so the lapping foam sits right against the rock
+		var sz: Vector3 = r[1]
+		rocks.append(Vector4(c.x, c.z, sz.x * 0.95, sz.z * 0.95))
 	rocks.append(Vector4(-4.8, 3.6, 4.0, 2.05))
 	rocks.append(Vector4(-6.6, 0.9, 2.2, 1.8))
 	rocks.append(Vector4(-8.6, 2.6, 1.2, 1.6))
+	return rocks
+
+## planes: false when the coast scene lays one sea over both blocks instead.
+static func _sea(k: Kit, scene: Node3D, planes := true) -> void:
+	for r in BOULDERS:
+		k.ball(r[0], r[1], ROCK_B, {"seg": 9, "gloss": 0.3})
+	if not planes:
+		return
+	var rocks := surf_rocks()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(18, 8.7)
 	plane.subdivide_width = 90
@@ -423,7 +440,6 @@ static func _tide_pools(k: Kit, scene: Node3D) -> void:
 		plane.size = Vector2.ONE * pool.z * 2.4
 		var mat := ShaderMaterial.new()
 		mat.shader = POOL
-		mat.set_shader_parameter("centre", Vector2(pool.x, pool.y))
 		mat.set_shader_parameter("radius", pool.z)
 		var water := MeshInstance3D.new()
 		water.name = "TidePool"
