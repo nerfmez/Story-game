@@ -9,6 +9,7 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
 #include "res://shaders/konbini_beach.gdshaderinc"
+#include "res://shaders/konbini_clouds.gdshaderinc"
 
 uniform vec3 shallow : source_color = vec3(0.36, 0.86, 0.84);
 uniform vec3 deep : source_color = vec3(0.1, 0.4, 0.74);
@@ -209,5 +210,6 @@ void fragment() {
 
 void light() {
 	float lit = 0.6 + 0.4 * smoothstep(0.0, 0.08, dot(NORMAL, LIGHT));
+	lit *= 1.0 - 0.3 * cloud_cover(world_pos, TIME);   // cloud shadows sliding over the water
 	DIFFUSE_LIGHT += LIGHT_COLOR / PI * lit * ATTENUATION;
 }

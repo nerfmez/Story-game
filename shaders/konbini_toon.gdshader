@@ -26,6 +26,8 @@ uniform vec4 tunnel = vec4(-1000.0, 0.0, 0.0, 0.0);
 
 varying vec3 world_pos;
 
+#include "res://shaders/konbini_clouds.gdshaderinc"
+
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -103,6 +105,9 @@ void fragment() {
 
 void light() {
 	float e = dot(NORMAL, LIGHT) * ATTENUATION;
+	if (LIGHT_IS_DIRECTIONAL) {
+		e *= 1.0 - 0.8 * cloud_cover(world_pos, TIME);   // a cloud passing over the sun
+	}
 	float lit = smoothstep(0.02, 0.05, e) * 0.3 + smoothstep(0.18, 0.21, e) * 0.35 + smoothstep(0.5, 0.53, e) * 0.35;
 	DIFFUSE_LIGHT += LIGHT_COLOR / PI * lit;
 	float gloss = 1.0 - ROUGHNESS;

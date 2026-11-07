@@ -35,6 +35,13 @@ const BENCH := Vector2(-5.2, 0.6)
 const STAIR_FROM := Vector2(-1.0, -4.5)
 const STAIR_TO := Vector2(-4.0, -2.9)
 
+## Where the summer air goes on a clear day (scripts/konbini_summer.gd).
+const SUMMER := {
+	"area": Rect2(-9, -7, 18, 12),
+	"heat": [[Vector3(3.5, 0.0, -8.15), 10.5]],
+	"dragonflies": [Vector3(-4.5, 3.4, -1.0), Vector3(2.5, 1.2, -3.0)],
+}
+
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
 	[Vector3(-1.0, 1.0, 0.5), -28.0, 30.0, 28.0],      # the whole headland, the sea in front

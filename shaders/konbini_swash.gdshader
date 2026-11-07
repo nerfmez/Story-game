@@ -7,6 +7,7 @@ shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
 #include "res://shaders/konbini_beach.gdshaderinc"
+#include "res://shaders/konbini_clouds.gdshaderinc"
 
 uniform vec3 foam : source_color = vec3(0.98, 0.99, 1.0);
 uniform vec3 wet : source_color = vec3(0.5, 0.38, 0.26);
@@ -52,6 +53,6 @@ void fragment() {
 	if (out_col.a <= 0.002) {
 		discard;
 	}
-	ALBEDO = out_col.rgb;
+	ALBEDO = out_col.rgb * (1.0 - 0.18 * cloud_cover(world_pos, TIME));
 	ALPHA = out_col.a;
 }

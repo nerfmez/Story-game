@@ -18,6 +18,7 @@ const Viaduct := preload("res://scripts/konbini_viaduct.gd")
 const Beach := preload("res://scripts/konbini_beach.gd")
 const Headland := preload("res://scripts/konbini_headland.gd")
 const Coast := preload("res://scripts/konbini_coast.gd")
+const Summer := preload("res://scripts/konbini_summer.gd")
 const CameraRig := preload("res://scripts/konbini_camera.gd")
 const GLASS := preload("res://shaders/konbini_glass.gdshader")
 const STEAM := preload("res://shaders/konbini_steam.gdshader")
@@ -48,6 +49,7 @@ const DOOR_CYCLE := 9.0
 
 # filled in by the builders
 var countdowns: Array = []
+var summer := false   # the summer air is on (a clear day)
 var views: Array = CORNER_VIEWS
 var shelters: Array = Weather.SHELTERS
 var plate_text := "HOSHI MART  ·  RAINY NIGHT"
@@ -98,6 +100,14 @@ func _ready() -> void:
 		Exterior.build(kit, self)
 		Interior.build(kit, self)
 		_doors(kit)
+	# a clear day gets the summer air (cloud shadows, heat haze, motes, dragonflies,
+	# cicadas and waves), the daytime counterpart of rain and snow
+	summer = time_of_day == "day" and weather_kind == "clear"
+	if summer:
+		var spec: Dictionary = {"beach": Beach.SUMMER, "headland": Headland.SUMMER, "coast": Coast.SUMMER}.get(layout, {})
+		Summer.build(kit, self, spec)
+	else:
+		Summer.clear()
 	kit.finish()
 	if layout == "corner":
 		_shop_glass()
@@ -394,6 +404,8 @@ func _process(delta: float) -> void:
 		Headland.animate(self, _clock)
 	elif layout == "coast":
 		Coast.animate(self, _clock)
+	if summer:
+		Summer.animate(self, _clock)
 	for node in sway_nodes:
 		node.rotation.z = sin(_clock * float(node.get_meta("speed")) + float(node.get_meta("phase"))) * float(node.get_meta("amp"))
 	weather.face_camera(rig.camera)

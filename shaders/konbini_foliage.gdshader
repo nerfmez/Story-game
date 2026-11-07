@@ -30,6 +30,8 @@ varying float card;
 varying float seed;
 varying vec2 corner;
 
+#include "res://shaders/konbini_clouds.gdshaderinc"
+
 float hash1(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -97,6 +99,7 @@ void fragment() {
 	}
 	// spherized lighting in three flat tones, band edges wobbled like brush work
 	float l = dot(n_sphere, normalize(sun_dir));
+	l -= cloud_cover(world_pos, TIME) * 0.75;   // a cloud shadow passing over the tree
 	l += (noise2(world_pos.xz * 2.2 + world_pos.y * 1.7) - 0.5) * 0.35;
 	vec3 col = l > 0.32 ? light_col : (l > -0.12 ? mid_col : shadow_col);
 	// on the lit side, each clump gets its own brighter cap facing the sun, so the lit

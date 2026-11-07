@@ -18,6 +18,8 @@ varying vec3 n_world;
 varying vec3 world_pos;
 varying float shade;
 
+#include "res://shaders/konbini_clouds.gdshaderinc"
+
 float hash1(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -43,7 +45,7 @@ void fragment() {
 	// under the crown the trunk is in its shade, with a few dapples of light coming through
 	float dapple = noise2(vec2(around * 1.2 + world_pos.z, world_pos.y * 2.2)) - 0.5;
 	float in_shade = smoothstep(0.55, 0.85, shade + dapple * 0.45);
-	float l = dot(n, normalize(sun_dir)) + (streak - 0.5) * 0.25 - in_shade * 0.8;
+	float l = dot(n, normalize(sun_dir)) + (streak - 0.5) * 0.25 - in_shade * 0.8 - cloud_cover(world_pos, TIME) * 0.6;
 	vec3 col = l > 0.25 ? light_col : (l > -0.25 ? mid_col : shadow_col);
 	// a few long dark cracks of bark, only out of the full light
 	float crack = noise2(vec2(around * 5.0 + world_pos.z * 4.0, world_pos.y * 0.9 + around));

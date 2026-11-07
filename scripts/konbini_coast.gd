@@ -18,6 +18,13 @@ const HALF := 18.0             # half the length of the coast
 const HEAD_X := -9.0           # where the headland block sits
 const BEACH_X := 9.0           # where the beach block sits
 
+## Where the summer air goes on a clear day (scripts/konbini_summer.gd).
+const SUMMER := {
+	"area": Rect2(-18, -7, 36, 12),
+	"heat": [[Vector3(3.5, 0.0, -8.15), 28.5], [Vector3(13.5, 0.12, -2.5), 8.0]],
+	"dragonflies": [Vector3(-13.5, 3.4, -1.0), Vector3(8.0, 1.4, -1.5), Vector3(12.5, 1.2, -3.0)],
+}
+
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
 	[Vector3(0.0, 0.6, 0.8), -18.0, 30.0, 46.0],       # the whole coast

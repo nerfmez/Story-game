@@ -24,6 +24,13 @@ const TEAL := Color(0.3, 0.72, 0.74)
 const RED := Color(0.9, 0.25, 0.25)
 const INK := Color(0.08, 0.06, 0.06)
 
+## Where the summer air goes on a clear day (scripts/konbini_summer.gd).
+const SUMMER := {
+	"area": Rect2(-9, -6.5, 18, 12),
+	"heat": [[Vector3(0, 0.0, -8.15), 17.5], [Vector3(4.5, 0.12, -2.5), 8.0]],
+	"dragonflies": [Vector3(-1.0, 1.4, -1.5), Vector3(3.5, 1.2, -3.0)],
+}
+
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
 	[Vector3(0.0, 0.8, 0.5), -28.0, 30.0, 28.0],     # the whole beach, the sea in front

@@ -23,6 +23,13 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 limits/opengl/max_lights_per_object=16
 anti_aliasing/quality/msaa_3d=2
+
+[shader_globals]
+
+cloud_shadow={
+"type": "float",
+"value": 0.0
+}
 '''
 
 
