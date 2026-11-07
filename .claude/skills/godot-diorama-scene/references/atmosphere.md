@@ -108,3 +108,11 @@ images came with a lot of empty sky above the land, so trim the transparent top 
 range so its edges still join; trim clouds on all sides), and let the code take the number of repeats and
 a cloud's height from the image's proportions instead of fixed numbers. Painted mountains stand taller than
 the shader ones did, so check the clouds still clear them.
+
+Spacing the flats: the user asked for the layers to stand farther back and larger. Move a flat back by dz
+and scale it by (D + dz) / D, D being its old distance from the opening camera; also lower its foot along
+the line of sight, y = eye_y + (y_old - eye_y) * scale, or with a downward-looking camera the far layers
+float up as separate strips. From the opening view the picture stays the same, and orbiting now shows real
+parallax between the layers. The coast uses 0.4 / 3.2 / 7 m (hills / mountains / far peaks) and 9-10 m for
+the clouds. The row of low-relief trees and house fronts that hid the join was removed: the user asked
+what it was for, and with painted hills that fade into mist it only showed as a strip from above.

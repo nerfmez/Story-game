@@ -1,68 +1,60 @@
 extends RefCounted
 ## A backscene for the back of a diorama: thin painted flats standing one behind the
-## other on a shelf added to the plinth, like the scenery of a stage or a model
-## railway. From the front the town, the wooded hills, the mountains and the summer
-## clouds read as a landscape kilometres deep against the real sky; they stand only centimetres apart,
-## each one shorter, hazier and closer to the sky colour than the one in front
-## (forced perspective). From the side or above you see they are only boards.
+## other on the table behind the plinth, like the scenery of a stage or a model railway.
+## From the front the wooded hills, the mountains and the summer clouds read as a
+## landscape kilometres deep against the real sky; each is hazier and closer to the sky
+## colour than the one in front (forced perspective). From the side or above you see they
+## are only boards on feet.
 ## Painted by shaders/konbini_flat.gdshader, or by images in assets/backdrop/ (see PAINTED).
 
 const Kit := preload("res://scripts/konbini_kit.gd")
-const Exterior := preload("res://scripts/konbini_exterior.gd")
 const FLAT := preload("res://shaders/konbini_flat.gdshader")
 const Foliage := preload("res://scripts/konbini_foliage.gd")
 
-## Builds the shelf and the flats behind a plinth whose back edge is at z = back,
-## half_width wide on each side of x = 0.
-static func build(k: Kit, scene: Node3D, half_width: float, back := -9.45) -> void:
-	var w := half_width + 0.45
-	var shelf := 1.6
-	# the shelf: the plinth carried on backwards in the same wood and brass
-	k.slab(Vector3(-w, -1.0, back - shelf), Vector3(w, -0.92, back), Color(0.18, 0.11, 0.08), {"mat": "wood"})
-	k.slab(Vector3(-w + 0.07, -0.92, back - shelf + 0.07), Vector3(w - 0.07, -0.25, back), Exterior.WOOD, {"mat": "wood", "gloss": 0.25})
-	k.slab(Vector3(-w + 0.04, -0.33, back - shelf + 0.04), Vector3(w - 0.04, -0.29, back), Exterior.BRASS, {"gloss": 0.7, "line": 0.5})
-	k.slab(Vector3(-w + 0.07, -0.25, back - shelf + 0.07), Vector3(w - 0.07, -0.05, back), Color(0.42, 0.42, 0.47), {"line": 0.4})
-	var width := (w - 0.1) * 2.0
-	var sun := Foliage.sun_from(Vector3(-48, -32, 0))   # the day sun of konbini_diorama.gd
-	var z0 := back - shelf
-	# few layers, back to front, each fainter than the one in front (atmospheric
-	# perspective) and fading into a band of valley mist at its foot; the real sky shows
-	# behind. Colours: [lit, shade].
-	_flat(scene, "Cloud", 4, Vector3(-10.0, 4.6, z0 + 0.12), Vector2(11.0, 7.5), {"haze": 0.12, "seed": 4.0}, sun)
-	_flat(scene, "Cloud2", 4, Vector3(9.5, 5.2, z0 + 0.16), Vector2(6.5, 4.4), {"haze": 0.2, "seed": 9.0}, sun)
-	_flat(scene, "FarPeaks", 1, Vector3(0, -0.05, z0 + 0.3), Vector2(width, 6.2), {"haze": 0.62, "seed": 1.0, "feature": 9.0, "lit": Color(0.58, 0.68, 0.84), "shade": Color(0.42, 0.52, 0.74)}, sun)
-	_flat(scene, "Mountains", 1, Vector3(0, -0.05, z0 + 0.6), Vector2(width, 4.4), {"haze": 0.38, "seed": 2.0, "feature": 6.0, "lit": Color(0.5, 0.64, 0.74), "shade": Color(0.32, 0.45, 0.62)}, sun)
-	_flat(scene, "Hills", 1, Vector3(0, -0.05, z0 + 0.9), Vector2(width, 2.6), {"haze": 0.12, "seed": 3.0, "feature": 4.5, "roughness": 1.0, "lit": Color(0.5, 0.7, 0.42), "shade": Color(0.2, 0.42, 0.38)}, sun)
-	# struts behind the standing flats, and thin rods carrying the hung clouds
-	for x in range(-int(half_width), int(half_width) + 1, 6):
-		for zz in [0.3, 0.6, 0.9]:
-			k.box(Vector3(x, 0.25, z0 + zz - 0.08), Vector3(0.05, 0.6, 0.14), Color(0.55, 0.45, 0.35), {"line": 0.3})
-	for c in [[-10.0, 4.6, 0.12], [9.5, 5.2, 0.16]]:
-		k.rod(Vector3(c[0], -0.05, z0 + c[2] - 0.05), Vector3(c[0], c[1] + 1.0, z0 + c[2] - 0.05), 0.025, Color(0.55, 0.45, 0.35), {"line": 0.3})
-	# the join from 3D to 2D: a row of real, low-relief trees and a few house fronts
-	# along the front of the shelf hides where the painted hills stand on it
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 23
-	var x := -half_width + 0.6
-	var i := 0
-	while x < half_width - 0.5:
-		var at := Vector3(x, -0.05, back - shelf + 1.15 + rng.randf_range(-0.12, 0.12))
-		if i % 5 == 2:
-			_house_front(k, at, rng)
-		else:
-			Foliage.broadleaf(k, scene, at, rng.randf_range(0.32, 0.45), {"sun_dir": sun, "seed": 200 + i, "name": "BackTree%d" % i})
-		x += rng.randf_range(1.0, 1.6)
-		i += 1
+## Where the opening camera of the coast stands (distance 46 m, yaw -18, pitch 30): how far
+## in front of the look-at point along z, and how high. A flat moved back is scaled up by
+## the ratio of its distances from this eye, and lowered along the line of sight, so from
+## the opening view it covers the same part of the picture as before.
+const EYE := 38.7
+const EYE_Y := 23.6
 
-## A house front only 0.3 m deep (low relief): white walls, a coloured gable roof.
-static func _house_front(k: Kit, at: Vector3, rng: RandomNumberGenerator) -> void:
-	var wdt := rng.randf_range(0.8, 1.1)
-	var wall := rng.randf_range(0.55, 0.75)
-	var roof: Color = [Color(0.78, 0.33, 0.28), Color(0.3, 0.46, 0.68), Color(0.42, 0.45, 0.5)][rng.randi() % 3]
-	k.box(at + Vector3(0, wall * 0.5, 0), Vector3(wdt, wall, 0.3), Color(0.95, 0.93, 0.88))
-	k.prism(at + Vector3(0, wall + 0.16, 0), Vector3(wdt + 0.12, 0.32, 0.36), roof)
-	for s in [-0.22, 0.22]:
-		k.box(at + Vector3(s * wdt, wall * 0.6, 0.152), Vector3(0.14, 0.16, 0.01), Color(0.3, 0.42, 0.55), {"line": 0.0})
+## Builds the flats behind a plinth whose back edge is at z = back, half_width wide on each
+## side of x = 0. Each flat stands on a slim foot rail with braces behind it, like a stage
+## flat; the nearest stands on the table (y = -1, where the plinth stands). The farther back a flat stands, the
+## larger it is made, by the ratio of its distance from the opening camera, so it looks the
+## same size from the front but moves less as the camera turns: real parallax between the
+## layers, and a deeper view.
+static func build(k: Kit, scene: Node3D, half_width: float, back := -9.45) -> void:
+	var sun := Foliage.sun_from(Vector3(-48, -32, 0))   # the day sun of konbini_diorama.gd
+	var floor_y := -1.0
+	var base := EYE - back   # distance from the camera to the plinth's back edge
+	# [name, kind, distance behind the plinth, centre x, height of the foot above the
+	# table, width (clouds) and height as seen at the back edge, shader params]; back to front
+	var layers := [
+		["Cloud", 4, 10.0, -11.0, 6.0, 11.0, 7.5, {"haze": 0.12, "seed": 4.0}],
+		["Cloud2", 4, 9.0, 10.0, 6.6, 6.5, 4.4, {"haze": 0.2, "seed": 9.0}],
+		["FarPeaks", 1, 7.0, 0.0, 0.0, 0.0, 6.6, {"haze": 0.62, "seed": 1.0, "feature": 9.0, "lit": Color(0.58, 0.68, 0.84), "shade": Color(0.42, 0.52, 0.74)}],
+		["Mountains", 1, 3.2, 0.0, 0.0, 0.0, 5.0, {"haze": 0.38, "seed": 2.0, "feature": 6.0, "lit": Color(0.5, 0.64, 0.74), "shade": Color(0.32, 0.45, 0.62)}],
+		["Hills", 1, 0.4, 0.0, 0.0, 0.0, 3.4, {"haze": 0.12, "seed": 3.0, "feature": 4.5, "roughness": 1.0, "lit": Color(0.5, 0.7, 0.42), "shade": Color(0.2, 0.42, 0.38)}],
+	]
+	for l in layers:
+		var dz: float = l[2]
+		var s := (base + dz) / base
+		var z := back - dz
+		var w: float = l[5] if int(l[1]) == 4 else (half_width + 2.0) * 2.0
+		var size := Vector2(w, float(l[6])) * s
+		var foot := Vector3(float(l[3]) * s, EYE_Y + (floor_y + float(l[4]) - EYE_Y) * s, z)
+		size = _flat(scene, l[0], l[1], foot, size, l[7], sun)
+		if int(l[1]) == 4:
+			# a cloud hangs on a rod from the table
+			k.rod(Vector3(foot.x, minf(floor_y, foot.y), z - 0.08), Vector3(foot.x, foot.y + size.y * 0.5, z - 0.08), 0.03 * s, Color(0.55, 0.45, 0.35), {"line": 0.3})
+		else:
+			# the foot rail along the bottom and braces behind, every few metres
+			k.box(Vector3(foot.x, foot.y + 0.05, z - 0.06), Vector3(size.x, 0.1, 0.12), Color(0.45, 0.36, 0.28), {"line": 0.3})
+			var n := int(size.x / 6.0)
+			for i in n + 1:
+				var bx := foot.x - size.x * 0.5 + size.x * i / maxf(n, 1)
+				k.rod(Vector3(bx, foot.y, z - 0.9 * s), Vector3(bx, foot.y + minf(size.y * 0.45, 2.5), z - 0.07), 0.035, Color(0.55, 0.45, 0.35), {"line": 0.3})
 
 ## Painted images can replace the procedural painting of any flat: put a PNG with a
 ## transparent background at assets/backdrop/<file>.png (names in PAINTED, made for
@@ -75,7 +67,7 @@ const PAINTED := {
 	"Cloud": "cloud", "Cloud2": "cloud_small",
 }
 
-static func _flat(scene: Node3D, name: String, kind: int, foot: Vector3, size: Vector2, params: Dictionary, sun: Vector3) -> void:
+static func _flat(scene: Node3D, name: String, kind: int, foot: Vector3, size: Vector2, params: Dictionary, sun: Vector3) -> Vector2:
 	if PAINTED.has(name):
 		var path := "res://assets/backdrop/%s.png" % PAINTED[name]
 		if ResourceLoader.exists(path):
@@ -105,3 +97,4 @@ static func _flat(scene: Node3D, name: String, kind: int, foot: Vector3, size: V
 	mi.position = foot + Vector3(0, size.y * 0.5, 0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(mi)
+	return size
