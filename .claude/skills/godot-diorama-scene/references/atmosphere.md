@@ -56,5 +56,8 @@ dictionary:
   clips (no sound files). The wave clip is exactly one 7 s wave and starts in step with the sea shader.
   Do not feed an `AudioStreamGenerator` from script: the web build plays nothing from it. In a browser,
   sound starts after the first touch.
-- The user removed these, do not bring them back: drifting cloud shadows, dust/pollen motes and
-  dragonflies (they read as bugs flying about). Keep the clear-day layer quiet; the sea already moves.
+- **Motes**: soft additive specks of dust and pollen drifting and twinkling in the sun (a MultiMesh,
+  `shaders/konbini_motes.gdshader`). The user wants these.
+- The user removed these, do not bring them back: drifting cloud shadows and dragonflies (insects).
+  When the user asks to remove one thing, remove exactly that; I once took out the motes too and was told
+  off for it.

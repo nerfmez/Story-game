@@ -20,6 +20,7 @@ const BEACH_X := 9.0           # where the beach block sits
 
 ## Where the summer air goes on a clear day (scripts/konbini_summer.gd).
 const SUMMER := {
+	"area": Rect2(-18, -7, 36, 12),
 	"heat": [[Vector3(3.5, 0.0, -8.15), 28.5], [Vector3(13.5, 0.12, -2.5), 8.0]],
 }
 
