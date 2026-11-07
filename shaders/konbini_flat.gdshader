@@ -8,6 +8,9 @@ shader_type spatial;
 //  - layered valley mist: every range fades into a bright band of haze at its foot, so
 //    the layers separate cleanly and no board edge is seen against the next
 //  - no ink lines on far things; the skyline is the drawing
+//  - painted, not printed: poster-colour brush strokes that follow the slopes, dry-brush
+//    edges where the tones meet, a feathered skyline, mist laid in dabs, and a fine
+//    paper grain over everything (as anime backgrounds are painted)
 // The back of every board is plain plywood.
 //   kind 1 a range (mountains or wooded hills), 4 a summer cloud
 render_mode unshaded, cull_disabled, depth_draw_opaque, shadows_disabled;
@@ -39,6 +42,19 @@ float vnoise(vec2 p) {
 	return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
+// Brush strokes: noise stretched along a direction, so it reads as short strokes of
+// paint laid that way. Returns 0..1.
+float strokes(vec2 p, vec2 dir, float len, float width) {
+	vec2 d = normalize(dir);
+	vec2 q = vec2(dot(p, d) / len, dot(p, vec2(-d.y, d.x)) / width);
+	return vnoise(q) * 0.65 + vnoise(q * 2.1 + 5.3) * 0.35;
+}
+
+// paper grain: fine, slightly blotchy
+float grain(vec2 p) {
+	return vnoise(p * 38.0) * 0.6 + vnoise(p * 9.0 + 3.0) * 0.4;
+}
+
 // the skyline: overlapping rounded peaks of varied width and height, plus small notches
 // (or, for wooded hills, a soft scallop of tree crowns)
 float skyline(float x) {
@@ -63,7 +79,9 @@ float skyline(float x) {
 
 vec4 range_color(vec2 p) {
 	float e = 0.15;
-	float h = skyline(p.x);
+	// a feathered skyline: the brush leaves a slightly ragged, uneven edge
+	float rag = (vnoise(vec2(p.x * 9.0, 1.0)) - 0.5) * 0.06 + (vnoise(vec2(p.x * 26.0, 4.0)) - 0.5) * 0.025;
+	float h = skyline(p.x) + rag;
 	if (p.y > h) {
 		return vec4(0.0);
 	}
@@ -72,15 +90,26 @@ vec4 range_color(vec2 p) {
 	// break it up lower down
 	float fold = (vnoise(vec2(p.x / feature * 4.0, p.y * 0.35)) - 0.5) * 1.4 * (1.0 - roughness * 0.6);
 	vec3 n = normalize(vec3(-dh * 1.1 + fold, 0.5, 1.0));
-	float l = dot(n, normalize(sun_dir)) + (vnoise(p * 1.7) - 0.5) * 0.12;
+	// strokes run down the slope the way a painter drags the brush, and break the line
+	// between light and shade into a dry-brush edge
+	vec2 down = normalize(vec2(sign(dh + 1e-4) * 0.6, -1.0));
+	float st = strokes(p, down, 0.55, 0.08);
+	float l = dot(n, normalize(sun_dir)) + (st - 0.5) * 0.32;
 	vec3 c = l > 0.42 ? lit : shade;
+	// paint is never one flat colour: each stroke a touch lighter or darker, a little warmer
+	// or cooler
+	float v = strokes(p + 7.0, down, 0.4, 0.06) - 0.5;
+	c *= 1.0 + v * 0.1;
+	c += vec3(0.02, 0.0, -0.02) * v;
 	// atmospheric perspective: contrast collapses and both tones go toward the sky
 	c = mix(c, sky, haze);
-	// valley mist: a bright band of haze where the range meets the land in front
-	float m = 1.0 - smoothstep(0.0, size.y * 0.32 + 0.3, p.y + (vnoise(vec2(p.x * 0.35, 9.0)) - 0.5) * 0.5);
-	c = mix(c, mist, m * (0.55 + 0.3 * haze));
+	// valley mist laid in horizontal dabs, not a smooth gradient
+	float dab = strokes(p, vec2(1.0, 0.04), 0.9, 0.12);
+	float m = 1.0 - smoothstep(0.0, size.y * 0.32 + 0.3, p.y + (vnoise(vec2(p.x * 0.35, 9.0)) - 0.5) * 0.5 + (dab - 0.5) * 0.45);
+	m = floor(m * 3.0 + dab * 0.8) / 3.0;
+	c = mix(c, mist, clamp(m, 0.0, 1.0) * (0.55 + 0.3 * haze));
 	// a thin lighter rim along the lit parts of the skyline, as painters catch the sun
-	if (h - p.y < 0.05 && l > 0.42) {
+	if (h - p.y < 0.05 + v * 0.03 && l > 0.42) {
 		c = mix(c, mist, 0.35);
 	}
 	return vec4(c, 1.0);
@@ -117,8 +146,11 @@ vec4 cloud_color(vec2 p) {
 	if (best <= -1e3 || p.y < H * 0.13) {
 		return vec4(0.0);
 	}
-	float l = dot(n, normalize(sun_dir)) - smoothstep(H * 0.34, H * 0.13, p.y) * 0.7;
+	// strokes curl round each puff, roughly across the light
+	float st = strokes(p, vec2(n.y, -n.x) + vec2(0.01), 0.35, 0.07);
+	float l = dot(n, normalize(sun_dir)) - smoothstep(H * 0.34, H * 0.13, p.y) * 0.7 + (st - 0.5) * 0.3;
 	vec3 c = l > 0.5 ? vec3(1.0, 1.0, 0.98) : (l > 0.1 ? vec3(0.92, 0.95, 0.99) : vec3(0.74, 0.82, 0.94));
+	c *= 1.0 + (st - 0.5) * 0.05;
 	return vec4(mix(c, sky, haze), 1.0);
 }
 
@@ -132,6 +164,7 @@ void fragment() {
 		if (c.a < 0.5) {
 			discard;
 		}
-		ALBEDO = c.rgb;
+		// paper grain under the paint
+		ALBEDO = c.rgb * (0.965 + 0.06 * grain(p));
 	}
 }

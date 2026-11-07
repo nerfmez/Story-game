@@ -92,3 +92,7 @@ version follows:
 - **Let the real sky be the sky** (no sky board with an edge). Summer clouds can be flats hung on rods:
   puffs on a flat base, bright on top, blue-grey underneath.
 - Keep the horizon roughly at the eye height of the main camera views.
+- **Painted, not printed** (the user chose this over baking 3D mountains or using painted images): brush
+  strokes as noise stretched along the slope that also break the light/shade line into a dry-brush edge,
+  each stroke a touch lighter/darker and warmer/cooler, a feathered skyline, mist laid in stepped
+  horizontal dabs, strokes curling round cloud puffs, and a fine paper grain under everything.
