@@ -58,6 +58,9 @@ dictionary:
   real recordings. Keep the licence and author in the credits file for every sound added; CC0 or CC BY
   are easiest. Commons rate-limits shared IPs: use a descriptive User-Agent and back off; the `transcoded`
   MP3/OGG copies download when the original is refused. In a browser, sound starts after the first touch.
+  On iPad/iPhone, Web Audio is muted by the silent switch: the page made by `export_web.py` sets
+  `navigator.audioSession.type = "playback"` and unlocks audio on every touch (resume the contexts, play a
+  moment of silence through an `<audio>` element). The user heard nothing until that was in place.
 - **Motes**: soft additive specks of dust and pollen drifting and twinkling in the sun (a MultiMesh,
   `shaders/konbini_motes.gdshader`). The user wants these.
 - The user removed these, do not bring them back: drifting cloud shadows and dragonflies (insects).

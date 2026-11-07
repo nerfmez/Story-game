@@ -63,6 +63,38 @@ FETCH_PATCH = '''<script>
 		return realFetch(input, init);
 	};
 })();
+// Sound on phones and tablets. Browsers start Web Audio suspended until a gesture,
+// and iOS also mutes Web Audio while the ring switch is on silent. So: ask for the
+// "playback" audio session (iOS 17+, plays through the silent switch), keep every
+// AudioContext the engine makes, and on each touch, click or key resume them and
+// play a moment of silence through an <audio> element, which unlocks audio on older iOS.
+(function () {
+	try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+	const contexts = [];
+	["AudioContext", "webkitAudioContext"].forEach(function (name) {
+		const Real = window[name];
+		if (!Real) return;
+		const Wrapped = function (opts) { const c = new Real(opts); contexts.push(c); return c; };
+		Wrapped.prototype = Real.prototype;
+		window[name] = Wrapped;
+	});
+	const silent = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+	let tag = null;
+	function unlock() {
+		contexts.forEach(function (c) { if (c.state !== "running") c.resume(); });
+		if (!tag) {
+			tag = document.createElement("audio");
+			tag.setAttribute("playsinline", "");
+			tag.src = silent;
+			tag.loop = false;
+		}
+		const p = tag.play();
+		if (p && p.catch) p.catch(function () {});
+	}
+	["touchend", "pointerup", "mousedown", "keydown", "click"].forEach(function (ev) {
+		window.addEventListener(ev, unlock, { capture: true, passive: true });
+	});
+})();
 </script>'''
 
 
