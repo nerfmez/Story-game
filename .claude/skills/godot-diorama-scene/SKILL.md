@@ -1,6 +1,6 @@
 ---
 name: godot-diorama-scene
-description: Art direction and build method for cel-shaded "3D that looks 2D" anime diorama scenes in Godot 4.3 (the rainy-night konbini corner in this repo, Japan and Thailand versions), and how to publish them as a playable web link. It turns a one-line request ("ร้านราเมนตอนหิมะตก", "a small station at dusk") into a full art-direction brief and then into a scene of the same quality as the konbini. Use it whenever the user wants a new diorama, miniature or scene in this style for any subject, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), the sea, a beach or any water and waves, season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
+description: Art direction and build method for cel-shaded "3D that looks 2D" anime diorama scenes in Godot 4.3 (the rainy-night konbini corner in this repo, Japan and Thailand versions), and how to publish them as a playable web link. It turns a one-line request ("ร้านราเมนตอนหิมะตก", "a small station at dusk") into a full art-direction brief and then into a scene of the same quality as the konbini. Use it whenever the user wants a new diorama, miniature or scene in this style for any subject, or to change one that exists: another country or city, another shop or building, time of day, weather (rain, snow, fog, clear), the sea, a beach or any water and waves, a new block next to an existing one or several blocks joined into one, season, mood, colours, props, signs or text, camera views; also for "make it look more anime", "make it darker/warmer", "send me a link to play it", or adding an animated detail such as a door, sign flicker, traffic light or steam. Use it even when the user only describes the atmosphere they want and never says "diorama".
 ---
 
 # Godot cel-shaded diorama scenes
@@ -16,7 +16,9 @@ a session: it lists the mistakes that already happened once. Read `references/wa
 a sea, lake, river or any shore: it is the approved recipe for water (sloped sand under clear water, waves that
 roll in and break into foam, swash, wet sand, caustics, glints, surf on rocks) and the list of what the user
 rejected along the way. Read `references/foliage.md` for any tree, bush or hedge: anime trees are clumps
-with spherized normals covered in camera-facing leaf cards, never balls on a stick.
+with spherized normals covered in camera-facing leaf cards, never balls on a stick. Read
+`references/blocks.md` when the user asks for a block next to an existing one, or to join blocks into one
+diorama: the seam has to be exact, even in the sea.
 
 ## Plan first, then ask, then build
 
