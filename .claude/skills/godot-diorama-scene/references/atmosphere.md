@@ -102,3 +102,9 @@ in `konbini_backdrop.gd`) is used instead of the procedural painting, repeated a
 cannot make images; when the user wants painted art, hand off with a brief like
 `docs/konbini-diorama/chatgpt-backdrop-brief.md` (reference renders, a style message, one prompt per layer
 with size, transparency, seamless edges, light direction and palette, and fixes for common misses).
+
+The coast now uses painted images from ChatGPT (`assets/backdrop/`). Notes from bringing them in: the
+images came with a lot of empty sky above the land, so trim the transparent top (keep the full width of a
+range so its edges still join; trim clouds on all sides), and let the code take the number of repeats and
+a cloud's height from the image's proportions instead of fixed numbers. Painted mountains stand taller than
+the shader ones did, so check the clouds still clear them.

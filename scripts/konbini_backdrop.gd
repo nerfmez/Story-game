@@ -28,8 +28,8 @@ static func build(k: Kit, scene: Node3D, half_width: float, back := -9.45) -> vo
 	# few layers, back to front, each fainter than the one in front (atmospheric
 	# perspective) and fading into a band of valley mist at its foot; the real sky shows
 	# behind. Colours: [lit, shade].
-	_flat(scene, "Cloud", 4, Vector3(-10.0, 2.6, z0 + 0.12), Vector2(11.0, 7.5), {"haze": 0.12, "seed": 4.0}, sun)
-	_flat(scene, "Cloud2", 4, Vector3(11.5, 3.4, z0 + 0.16), Vector2(6.5, 4.4), {"haze": 0.2, "seed": 9.0}, sun)
+	_flat(scene, "Cloud", 4, Vector3(-10.0, 4.6, z0 + 0.12), Vector2(11.0, 7.5), {"haze": 0.12, "seed": 4.0}, sun)
+	_flat(scene, "Cloud2", 4, Vector3(9.5, 5.2, z0 + 0.16), Vector2(6.5, 4.4), {"haze": 0.2, "seed": 9.0}, sun)
 	_flat(scene, "FarPeaks", 1, Vector3(0, -0.05, z0 + 0.3), Vector2(width, 6.2), {"haze": 0.62, "seed": 1.0, "feature": 9.0, "lit": Color(0.58, 0.68, 0.84), "shade": Color(0.42, 0.52, 0.74)}, sun)
 	_flat(scene, "Mountains", 1, Vector3(0, -0.05, z0 + 0.6), Vector2(width, 4.4), {"haze": 0.38, "seed": 2.0, "feature": 6.0, "lit": Color(0.5, 0.64, 0.74), "shade": Color(0.32, 0.45, 0.62)}, sun)
 	_flat(scene, "Hills", 1, Vector3(0, -0.05, z0 + 0.9), Vector2(width, 2.6), {"haze": 0.12, "seed": 3.0, "feature": 4.5, "roughness": 1.0, "lit": Color(0.5, 0.7, 0.42), "shade": Color(0.2, 0.42, 0.38)}, sun)
@@ -37,7 +37,7 @@ static func build(k: Kit, scene: Node3D, half_width: float, back := -9.45) -> vo
 	for x in range(-int(half_width), int(half_width) + 1, 6):
 		for zz in [0.3, 0.6, 0.9]:
 			k.box(Vector3(x, 0.25, z0 + zz - 0.08), Vector3(0.05, 0.6, 0.14), Color(0.55, 0.45, 0.35), {"line": 0.3})
-	for c in [[-10.0, 2.6, 0.12], [11.5, 3.4, 0.16]]:
+	for c in [[-10.0, 4.6, 0.12], [9.5, 5.2, 0.16]]:
 		k.rod(Vector3(c[0], -0.05, z0 + c[2] - 0.05), Vector3(c[0], c[1] + 1.0, z0 + c[2] - 0.05), 0.025, Color(0.55, 0.45, 0.35), {"line": 0.3})
 	# the join from 3D to 2D: a row of real, low-relief trees and a few house fronts
 	# along the front of the shelf hides where the painted hills stand on it
@@ -66,21 +66,29 @@ static func _house_front(k: Kit, at: Vector3, rng: RandomNumberGenerator) -> voi
 
 ## Painted images can replace the procedural painting of any flat: put a PNG with a
 ## transparent background at assets/backdrop/<file>.png (names in PAINTED, made for
-## example with the brief in docs/konbini-diorama/chatgpt-backdrop-brief.md). The image is
-## repeated across the board `tiles` times, so it must join left to right.
+## example with the brief in docs/konbini-diorama/chatgpt-backdrop-brief.md). A range image
+## is repeated across the board, so it must join left to right; trim empty sky off the top.
+## The number of repeats is worked out from the image's proportions so it is not
+## stretched; a cloud keeps its width and takes its height from the image.
 const PAINTED := {
-	"FarPeaks": ["far_peaks", 3.0], "Mountains": ["mountains", 3.0], "Hills": ["hills", 5.0],
-	"Cloud": ["cloud", 1.0], "Cloud2": ["cloud_small", 1.0],
+	"FarPeaks": "far_peaks", "Mountains": "mountains", "Hills": "hills",
+	"Cloud": "cloud", "Cloud2": "cloud_small",
 }
 
 static func _flat(scene: Node3D, name: String, kind: int, foot: Vector3, size: Vector2, params: Dictionary, sun: Vector3) -> void:
 	if PAINTED.has(name):
-		var path := "res://assets/backdrop/%s.png" % PAINTED[name][0]
+		var path := "res://assets/backdrop/%s.png" % PAINTED[name]
 		if ResourceLoader.exists(path):
-			kind = 5
+			var tex: Texture2D = load(path)
+			var aspect := float(tex.get_width()) / tex.get_height()
 			params = params.duplicate()
-			params["painting"] = load(path)
-			params["tiles"] = PAINTED[name][1]
+			params["painting"] = tex
+			if kind == 4:
+				size.y = size.x / aspect
+				params["tiles"] = 1.0
+			else:
+				params["tiles"] = maxf(roundf(size.x / (size.y * aspect)), 1.0)
+			kind = 5
 	var quad := QuadMesh.new()
 	quad.size = size
 	var mat := ShaderMaterial.new()
