@@ -71,8 +71,14 @@ dictionary:
 
 For a far view behind a diorama, do not model distance: stand thin painted flats on a shelf added to the
 back of the plinth (`scripts/konbini_backdrop.gd`, `shaders/konbini_flat.gdshader`), like a stage or a model
-railway backscene. Back to front: a sky board, clouds, mountains, wooded hills, a town. Each flat is a quad
-whose shader cuts out a silhouette with an ink edge and paints flat cel tones; the farther back, the shorter
-and the more it fades to the sky colour (`haze`). They stand only 0.3 m apart. The backs are plain plywood
-with struts, so the trick shows from the side, which is part of the charm. The coast scene has one, with a
-camera preset round the side.
+railway backscene. Back to front: summer clouds hung on rods, mountains, wooded hills, a town. They stand
+only 0.35 m apart; the farther back, the more each fades toward the sky colour (`haze`). The backs are plain
+plywood with struts, so the trick shows from the side, which the user liked as a concept.
+
+The first version was rejected: "the concept is cool but the quality isn't there and it doesn't match the
+style". It used flat 2D silhouettes (a gradient sky board with a hard top edge, smooth ridgelines, boxes
+for houses, a cloud as one blob). What fixed it: paint every flat out of round masses with their own
+normals (cloud puffs, tree clumps, rounded mountain faces with gullies), light them with the scene's own sun
+(`sun_dir`) in the same four flat tones as the trees, mark overlaps with a darker band of the same hue
+instead of black ink, and let the real sky show behind (no sky board). Mountain peaks need rounded summits,
+uneven slopes and notched skylines, or they read as cones.
