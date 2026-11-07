@@ -20,6 +20,9 @@ uniform float clip_x = 1000.0;
 uniform vec3 rock_a : source_color = vec3(0.6, 0.52, 0.45);
 uniform vec3 rock_b : source_color = vec3(0.49, 0.43, 0.4);
 uniform float stratum = 0.42;
+// pattern 7: a tunnel bore running toward -x from a portal (portal x, centre z, radius,
+// height of the springing); ground inside it is cut away
+uniform vec4 tunnel = vec4(-1000.0, 0.0, 0.0, 0.0);
 
 varying vec3 world_pos;
 
@@ -50,6 +53,12 @@ void vertex() {
 void fragment() {
 	if (abs(world_pos.x) > clip_x) {
 		discard;
+	}
+	if (pattern == 7 && world_pos.x < tunnel.x) {
+		float dz = abs(world_pos.z - tunnel.y);
+		if (dz < tunnel.z && world_pos.y < tunnel.w + sqrt(max(tunnel.z * tunnel.z - dz * dz, 0.0))) {
+			discard;
+		}
 	}
 	vec3 albedo = COLOR.rgb;
 	float gloss = UV2.x;

@@ -72,3 +72,13 @@
   they lift the ground far from where they belong.
 - Camera presets inside or right against props (a bench filling the frame, the lighthouse gallery) happen
   easily on a hill: render every view after placing things.
+- Things the user called sub-standard on the headland, and the fix:
+  - A tide pool drawn as a flat disc in another style: use the sea's own water look in a shader on a
+    surface at water level, and let the rock around the hollow give the real outline.
+  - Fence posts scattered by ray-casting: put them on one even arc just back from the brow.
+  - A backrest with nothing holding it: the back legs run up and carry it. Check every part of furniture
+    is held by something.
+  - Stairs that end halfway up a slope, pasted onto it: the steps start on the sand and end on the
+    plateau, with equal risers, landings, side walls, and set in a cut.
+  - A tunnel blocked by the terrain: a height field cannot have a hole, so build the bore (walls, vault,
+    road, lamps) and discard the ground inside it in the shader. Look into every opening.

@@ -25,10 +25,15 @@ const GRASS := Color(0.5, 0.67, 0.37)
 const WHITE := Color(0.96, 0.96, 0.94)
 const WOOD := Color(0.6, 0.45, 0.32)
 const PORTAL_X := -2.0         # face of the tunnel portal
+const TUNNEL_Z := -7.97        # centre line of the bore, over the road
+const TUNNEL_R := 1.0          # half width of the bore, and the radius of its vault
+const TUNNEL_SPRING := 1.0     # height where the vault starts
 const LIGHTHOUSE := Vector2(-6.0, -2.6)
-const BENCH := Vector2(-3.6, 0.9)
-const STAIR_FROM := Vector2(0.8, -4.6)
-const STAIR_TO := Vector2(-2.9, -2.2)
+const POOLS := [Vector3(-6.4, 3.9, 0.62), Vector3(-4.1, 4.7, 0.72), Vector3(-2.9, 3.2, 0.5)]   # x, z, radius
+const POOL := preload("res://shaders/konbini_pool.gdshader")
+const BENCH := Vector2(-5.2, 0.6)
+const STAIR_FROM := Vector2(-1.0, -4.5)
+const STAIR_TO := Vector2(-4.0, -2.9)
 
 ## look-at point, yaw, pitch, distance
 const VIEWS := [
@@ -36,8 +41,8 @@ const VIEWS := [
 	[Vector3(-6.0, 3.6, -2.6), 35.0, 12.0, 9.0],       # the lighthouse
 	[Vector3(0.0, 0.0, 0.0), 30.0, 62.0, 30.0],        # from above
 	[Vector3(-4.8, 0.3, 4.2), -12.0, 28.0, 7.5],       # the tide pools
-	[Vector3(-1.2, 1.3, -3.6), 62.0, 16.0, 8.5],       # the steps up the hill
-	[Vector3(-2.2, 0.3, 5.5), -166.0, 32.0, 9.5],      # from behind the bench, out over the tide pools to sea
+	[Vector3(-2.4, 1.3, -3.7), 62.0, 16.0, 9.0],       # the steps up the hill
+	[Vector3(-5.0, 2.3, 1.6), -20.0, 24.0, 7.5],       # the bench and its fence, the tide pools and the sea beyond
 ]
 
 # --- the shape of the land -------------------------------------------------------
@@ -80,7 +85,7 @@ static func _shelf(x: float, z: float) -> float:
 	var e := Vector2((x + 4.8) / 4.3, (z - 3.6) / 2.3).length() + w * 0.25
 	# (drops well below the seabed outside, so it never lifts the sea floor elsewhere)
 	var h := lerpf(SEA_Y + 0.13, -0.6, smoothstep(0.86, 1.12, e))
-	for pool: Vector3 in [Vector3(-6.4, 3.9, 0.62), Vector3(-4.1, 4.7, 0.72), Vector3(-2.9, 3.2, 0.5)]:
+	for pool: Vector3 in POOLS:
 		var d := Vector2(x - pool.x, z - pool.y).length() / pool.z + w * 0.15
 		h = minf(h, lerpf(SEA_Y - 0.02, h, smoothstep(0.75, 1.0, d)))
 	return h
@@ -91,7 +96,7 @@ static func _stair_level(t: float) -> float:
 ## Height of the ground and what it is made of: 0 sand, 1 hill rock or grass, 2 shelf.
 static func ground_kind(x: float, z: float) -> Vector2:
 	var sand := Beach.ground_u(z - shore(x))
-	if z < -6.9 and x > PORTAL_X:
+	if z < -6.9 and x > PORTAL_X - 0.12:
 		sand = -0.05   # under the road
 	var hill := _hill(x, z)
 	var h := sand
@@ -111,7 +116,7 @@ static func ground_kind(x: float, z: float) -> Vector2:
 		h = shelf
 		kind = 2.0
 	# the road keeps its bed clear right up to the tunnel portal
-	if z < -6.9 and x > PORTAL_X:
+	if z < -6.9 and x > PORTAL_X - 0.12:
 		h = -0.05
 		kind = 0.0
 	return Vector2(h, kind)
@@ -147,7 +152,7 @@ static func build(kit: Kit, scene: Node3D) -> void:
 	_tunnel(kit)
 	_lighthouse(kit)
 	_steps_and_viewpoint(kit)
-	_tide_pools(kit)
+	_tide_pools(kit, scene)
 	_trees(kit, scene)
 	Beach._gulls(kit, scene)
 
@@ -155,7 +160,9 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 	k.material("asphalt", 3)
 	k.material("sand", 3)
 	k.flat_materials["sand"] = true
-	k.material("rock", 7, {"rock_a": ROCK_A, "rock_b": ROCK_B, "stratum": STRATUM})
+	# (the tunnel uniforms let the shader cut the ground away inside the bore: a height
+	# field cannot have the hole, so the step it makes behind the portal is discarded)
+	k.material("rock", 7, {"rock_a": ROCK_A, "rock_b": ROCK_B, "stratum": STRATUM, "tunnel": Vector4(PORTAL_X, TUNNEL_Z, TUNNEL_R, TUNNEL_SPRING)})
 	k.flat_materials["rock"] = true
 	# the coast road from the beach, its wall and rail, up to the tunnel portal
 	k.slab(Vector3(PORTAL_X, -0.25, -9), Vector3(9, -0.02, -6.9), Color(0.42, 0.42, 0.47), {"line": 0.4})
@@ -181,11 +188,13 @@ static func _ground(k: Kit, b: RefCounted) -> void:
 		var lo := Vector3(minf(a.x, e.x) - 0.005, 0, minf(a.z, e.z) - 0.005)
 		var hi := Vector3(maxf(a.x, e.x) + 0.005, 0, maxf(a.z, e.z) + 0.005)
 		var face := Color(0.66, 0.52, 0.36) if g < 0.25 else ROCK_B.darkened(0.12 if int(floorf(g / STRATUM)) % 2 == 0 else 0.2)
-		if mid.x < -8.9 and mid.z < -7.2 and mid.z > -9.0:
+		if mid.x < -8.9 and absf(mid.z - TUNNEL_Z) < TUNNEL_R + 0.01:
 			# the tunnel seen in section on the left edge: road bed, a dark bore, rock above
 			k.slab(Vector3(lo.x, -0.25, lo.z), Vector3(hi.x, 0.0, hi.z), Color(0.42, 0.42, 0.47), {"line": 0.0})
-			k.slab(Vector3(lo.x, 0.0, lo.z), Vector3(hi.x, 1.9, hi.z), Color(0.08, 0.08, 0.1), {"line": 0.0})
-			k.slab(Vector3(lo.x, 1.9, lo.z), Vector3(hi.x, g, hi.z), face, {"line": 0.0})
+			var top := maxf(_arch_top(mid.z), 0.0)
+			if top > 0.0:
+				k.slab(Vector3(lo.x, 0.0, lo.z), Vector3(hi.x, top, hi.z), Color(0.08, 0.08, 0.1), {"line": 0.0})
+			k.slab(Vector3(lo.x, top, lo.z), Vector3(hi.x, g, hi.z), face, {"line": 0.0})
 			continue
 		k.slab(Vector3(lo.x, -0.25, lo.z), Vector3(hi.x, g, hi.z), face, {"line": 0.0})
 		if g < SEA_Y - 0.01:
@@ -239,21 +248,57 @@ static func _sea(k: Kit, scene: Node3D) -> void:
 	swash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	scene.add_child(swash)
 
-## The road runs into the hill through an arched concrete portal.
+## The road runs into the hill through a tunnel: a concrete portal with a round arch
+## and a ring of darker voussoirs, and inside a vaulted bore with the road running on,
+## lamps along the vault, getting darker the deeper it goes.
 static func _tunnel(k: Kit) -> void:
 	var x := PORTAL_X
-	var concrete := Color(0.74, 0.73, 0.7)
-	# the face: two piers and a lintel wall around a dark arch, a cornice on top
-	k.box(Vector3(x - 0.2, 1.35, -9.2), Vector3(0.4, 2.7, 0.4), concrete)
-	k.box(Vector3(x - 0.2, 1.35, -6.75), Vector3(0.4, 2.7, 0.5), concrete)
-	k.box(Vector3(x - 0.2, 2.35, -8.0), Vector3(0.4, 0.7, 2.2), concrete)
-	k.box(Vector3(x - 0.45, 1.0, -8.0), Vector3(0.1, 2.0, 2.0), Color(0.07, 0.07, 0.09), {"line": 0.0})
-	for s in [-1.0, 1.0]:
-		k.prism(Vector3(x - 0.02, 1.88, -8.0 + s * 0.78), Vector3(0.44, 0.45, 0.45), concrete, {"rot": Vector3(0, 90, 0 if s < 0 else 180)})
-	k.box(Vector3(x - 0.2, 2.75, -8.0), Vector3(0.55, 0.12, 3.0), concrete.darkened(0.08))
-	k.box(Vector3(x - 0.2, 2.45, -8.0), Vector3(0.42, 0.24, 0.9), Color(0.25, 0.3, 0.45), {"line": 0.4})
-	# a lamp inside, glowing in the dark of the bore
-	k.box(Vector3(x - 0.6, 1.75, -8.0), Vector3(0.12, 0.06, 0.4), Color(1.0, 0.9, 0.65), {"emit": 1.2, "line": 0.0})
+	var concrete := Color(0.76, 0.75, 0.72)
+	var face_top := 3.0
+	# the face, sliced across the opening so the arch is a clean half circle
+	var z0 := maxf(TUNNEL_Z - TUNNEL_R - 0.55, -9.0)
+	var z1 := TUNNEL_Z + TUNNEL_R + 0.55
+	var slices := 90
+	for i in slices:
+		var za := lerpf(z0, z1, float(i) / slices)
+		var zb := lerpf(z0, z1, float(i + 1) / slices)
+		var zm := (za + zb) * 0.5
+		var arch := _arch_top(zm)
+		var from_y := 0.0 if arch < 0.0 else arch
+		k.slab(Vector3(x - 0.45, from_y, za), Vector3(x, face_top, zb), concrete, {"line": 0.0})
+		if arch >= 0.0:
+			# the voussoir ring just above the opening
+			k.slab(Vector3(x - 0.02, arch, za), Vector3(x + 0.03, arch + 0.16, zb), concrete.darkened(0.18), {"line": 0.0})
+	# a cornice along the top and a name plate above the arch
+	k.box(Vector3(x - 0.2, face_top + 0.06, (z0 + z1) * 0.5), Vector3(0.6, 0.12, z1 - z0 + 0.2), concrete.darkened(0.08))
+	k.box(Vector3(x + 0.03, TUNNEL_SPRING + TUNNEL_R + 0.45, TUNNEL_Z), Vector3(0.04, 0.24, 0.9), Color(0.25, 0.3, 0.45), {"line": 0.4})
+	# the bore: road, side walls and a vault of planks, darker in steps toward the back
+	var depth_steps := 5
+	for j in depth_steps:
+		var xa := lerpf(x - 0.45, -9.0, float(j) / depth_steps)
+		var xb := lerpf(x - 0.45, -9.0, float(j + 1) / depth_steps)
+		var shade := 0.55 - j * 0.1
+		var wall := Color(0.62, 0.62, 0.6) * shade
+		for s in [-1.0, 1.0]:
+			k.slab(Vector3(xb, 0.0, TUNNEL_Z + s * TUNNEL_R - 0.05), Vector3(xa, TUNNEL_SPRING, TUNNEL_Z + s * TUNNEL_R + 0.05), wall, {"line": 0.0})
+		var segs := 10
+		for q in segs:
+			var a0 := PI * q / segs
+			var a1 := PI * (q + 1) / segs
+			var am := (a0 + a1) * 0.5
+			var c := Vector3((xa + xb) * 0.5, TUNNEL_SPRING + sin(am) * TUNNEL_R, TUNNEL_Z - cos(am) * TUNNEL_R)
+			k.box(c, Vector3(xa - xb, 0.1, TUNNEL_R * (a1 - a0) * 1.05), wall * 0.95, {"basis": Basis(Vector3.RIGHT, -(am - PI * 0.5)), "line": 0.0})
+		k.slab(Vector3(xb, -0.02, TUNNEL_Z - TUNNEL_R), Vector3(xa, 0.0, TUNNEL_Z + TUNNEL_R), Color(0.36, 0.38, 0.45) * (shade + 0.35), {"line": 0.0})
+		k.quad(Vector3((xa + xb) * 0.5, 0.004, TUNNEL_Z), Vector2(xa - xb, 0.08), Color(0.95, 0.95, 0.9) * (shade + 0.3))
+		# a lamp on the vault in each stretch
+		k.box(Vector3((xa + xb) * 0.5, TUNNEL_SPRING + TUNNEL_R - 0.08, TUNNEL_Z), Vector3(0.4, 0.06, 0.12), Color(1.0, 0.88, 0.6), {"emit": 1.4, "line": 0.0})
+
+## Height of the tunnel arch at z across the opening (-1 outside it).
+static func _arch_top(z: float) -> float:
+	var d := absf(z - TUNNEL_Z)
+	if d >= TUNNEL_R:
+		return -1.0
+	return TUNNEL_SPRING + sqrt(TUNNEL_R * TUNNEL_R - d * d)
 
 ## A white lighthouse with a gallery, a lantern room and a red dome, on the hill top.
 static func _lighthouse(k: Kit) -> void:
@@ -278,58 +323,121 @@ static func _lighthouse(k: Kit) -> void:
 	for y in [1.2, 1.9]:
 		k.box(base + Vector3(0.42 - y * 0.03, y, 0.08), Vector3(0.05, 0.22, 0.14), Color(0.2, 0.25, 0.35), {"rot": Vector3(0, -12, 0), "line": 0.0})
 
-## Stone steps climbing from the sand to the hill top, with a rope rail on posts, and
-## at the top a bench looking out to sea behind a rope fence on the cliff edge.
+## A flight of stone steps from the sand to the hill top, set into a cut in the hill
+## between two low retaining walls, each tread level and each riser the same height,
+## with landings at the foot and the top and a rope rail on posts.
 static func _steps_and_viewpoint(k: Kit) -> void:
-	var stone := Color(0.72, 0.7, 0.66)
-	var dir := (STAIR_TO - STAIR_FROM)
-	var length := dir.length()
+	var stone := Color(0.74, 0.72, 0.68)
+	var wall := Color(0.6, 0.58, 0.55)
+	var dir := (STAIR_TO - STAIR_FROM).normalized()
+	var length := STAIR_FROM.distance_to(STAIR_TO)
 	var yaw := rad_to_deg(atan2(dir.x, dir.y))
-	var count := int(length / 0.32)
+	var basis := Basis(Vector3.UP, deg_to_rad(yaw))
+	var bottom := SAND_Y
+	var top := _stair_level(1.0)
+	var count := maxi(int(ceil((top - bottom) / 0.18)), 2)
+	var rise := (top - bottom) / count
+	var tread := length / count
+	var side := Vector2(dir.y, -dir.x)
 	for i in count:
 		var t := (i + 0.5) / count
 		var p := STAIR_FROM.lerp(STAIR_TO, t)
-		var top := _stair_level(t)
-		var bottom := minf(ground(p.x, p.y), top) - 0.3
-		k.box(Vector3(p.x, (top + bottom) * 0.5, p.y), Vector3(0.95, top - bottom, 0.34), stone.darkened(0.04 * (i % 2)), {"rot": Vector3(0, yaw, 0), "line": 0.6})
-	var side := Vector2(dir.y, -dir.x).normalized() * 0.55
+		var y := bottom + rise * (i + 1)
+		k.box(Vector3(p.x, (y + bottom - 0.3) * 0.5, p.y), Vector3(1.0, y - bottom + 0.3, tread), stone.darkened(0.05 * (i % 2)), {"basis": basis, "line": 0.7})
+	# landings at the foot and the top
+	var foot := STAIR_FROM - dir * 0.35
+	k.box(Vector3(foot.x, bottom - 0.05, foot.y), Vector3(1.4, 0.14, 0.7), stone, {"basis": basis})
+	var head := STAIR_TO + dir * 0.45
+	k.box(Vector3(head.x, top - 0.08, head.y), Vector3(1.4, 0.2, 0.9), stone, {"basis": basis})
+	# retaining walls along both sides of the cut, their tops stepping with the stairs
+	for sgn in [-1.0, 1.0]:
+		for i in count:
+			var t := (i + 0.5) / count
+			var p: Vector2 = STAIR_FROM.lerp(STAIR_TO, t) + side * 0.62 * sgn
+			var y := bottom + rise * (i + 1)
+			var g := ground(p.x, p.y)
+			var h := maxf(g + 0.05, y + 0.22)
+			k.box(Vector3(p.x, (h + bottom - 0.3) * 0.5, p.y), Vector3(0.24, h - bottom + 0.3, tread + 0.01), wall.darkened(0.04 * ((i + 1) % 2)), {"basis": basis, "line": 0.5})
+	# the rope rail on posts standing on the right-hand wall
 	var posts: Array = []
-	for i in 6:
-		var t := i / 5.0
-		var p := STAIR_FROM.lerp(STAIR_TO, t) + side
-		var y := _stair_level(t)
-		posts.append(Vector3(p.x, y + 0.75, p.y))
-		k.rod(Vector3(p.x, y - 0.1, p.y), Vector3(p.x, y + 0.8, p.y), 0.035, WOOD, {"seg": 6})
+	for i in range(0, count + 1, 3):
+		var t := clampf(float(i) / count, 0.04, 0.96)
+		var p: Vector2 = STAIR_FROM.lerp(STAIR_TO, t) + side * 0.62
+		var y := maxf(ground(p.x, p.y) + 0.05, bottom + rise * clampf(i + 1, 1, count) + 0.22)
+		posts.append(Vector3(p.x, y + 0.7, p.y))
+		k.rod(Vector3(p.x, y - 0.05, p.y), Vector3(p.x, y + 0.75, p.y), 0.035, WOOD, {"seg": 6})
 	for i in posts.size() - 1:
-		k.rod(posts[i], posts[i + 1], 0.015, Color(0.85, 0.78, 0.6), {"line": 0.0})
-	# the viewpoint
+		k.rod(posts[i], posts[i + 1], 0.016, Color(0.85, 0.78, 0.6), {"line": 0.0})
+	_viewpoint(k)
+
+## A bench looking out to sea, standing level on the hill top, and a rope fence that
+## follows the edge of the cliff in front of it.
+static func _viewpoint(k: Kit) -> void:
 	var b := Vector3(BENCH.x, ground(BENCH.x, BENCH.y), BENCH.y)
 	var face := -20.0   # the sitter looks out to sea, toward the beach
 	var basis := Basis(Vector3.UP, deg_to_rad(face))
-	for s in [-0.5, 0.5]:
-		k.box(b + basis * Vector3(s, 0.22, 0), Vector3(0.08, 0.44, 0.4), Color(0.4, 0.4, 0.42), {"basis": basis})
-	k.box(b + basis * Vector3(0, 0.46, 0), Vector3(1.3, 0.06, 0.42), WOOD, {"basis": basis})
-	k.box(b + basis * Vector3(0, 0.75, -0.2), Vector3(1.3, 0.3, 0.05), WOOD, {"basis": basis})
-	for i in 7:
-		var a := deg_to_rad(110.0 + i * 15.0)
-		var p := Vector2(BENCH.x, BENCH.y) + Vector2(cos(a), sin(a)) * 1.5
+	var seat_y := 0.46
+	# two end frames: a front leg and a back post that runs on up to carry the backrest
+	for s in [-0.55, 0.55]:
+		var front: Vector3 = b + basis * Vector3(s, 0, 0.16)
+		var back: Vector3 = b + basis * Vector3(s, 0, -0.18)
+		var gf := ground(front.x, front.z)
+		var gb := ground(back.x, back.z)
+		k.slab(Vector3(front.x - 0.04, gf - 0.08, front.z - 0.04), Vector3(front.x + 0.04, b.y + seat_y, front.z + 0.04), Color(0.38, 0.38, 0.4))
+		k.slab(Vector3(back.x - 0.04, gb - 0.08, back.z - 0.04), Vector3(back.x + 0.04, b.y + 0.98, back.z + 0.04), Color(0.38, 0.38, 0.4))
+		k.box(b + basis * Vector3(s, seat_y - 0.03, -0.01), Vector3(0.07, 0.06, 0.42), Color(0.38, 0.38, 0.4), {"basis": basis})
+	k.box(b + basis * Vector3(0, seat_y + 0.03, 0), Vector3(1.3, 0.06, 0.42), WOOD, {"basis": basis})
+	for y in [0.66, 0.86]:
+		k.box(b + basis * Vector3(0, y, -0.2), Vector3(1.3, 0.12, 0.04), WOOD, {"basis": basis})
+	# the fence: one even arc in front of the bench, just back from the brow of the cliff
+	# (the nearest point where the ground starts to fall away, along any of the rays)
+	var start := ground(BENCH.x, BENCH.y)
+	var brow := 4.0
+	for i in 13:
+		var a := deg_to_rad(-60.0 + i * 10.0 + face)
+		var out := Vector2(sin(a), cos(a))
+		var r := 0.8
+		while r < brow:
+			var q := Vector2(BENCH.x, BENCH.y) + out * r
+			if ground(q.x, q.y) < start - 0.35:
+				break
+			r += 0.05
+		brow = minf(brow, r)
+	var radius := maxf(brow - 0.15, 1.4)
+	var posts: Array = []
+	for i in 9:
+		var a := deg_to_rad(-72.0 + i * 18.0 + face)
+		var p := Vector2(BENCH.x, BENCH.y) + Vector2(sin(a), cos(a)) * radius
 		var y := ground(p.x, p.y)
-		k.rod(Vector3(p.x, y - 0.1, p.y), Vector3(p.x, y + 0.65, p.y), 0.035, WOOD, {"seg": 6})
-		if i > 0:
-			var q := Vector2(BENCH.x, BENCH.y) + Vector2(cos(a - deg_to_rad(15.0)), sin(a - deg_to_rad(15.0))) * 1.5
-			var qy := ground(q.x, q.y)
-			k.rod(Vector3(q.x, qy + 0.6, q.y), Vector3(p.x, y + 0.6, p.y), 0.014, Color(0.85, 0.78, 0.6), {"line": 0.0})
+		posts.append(Vector3(p.x, y + 0.62, p.y))
+		k.rod(Vector3(p.x, y - 0.1, p.y), Vector3(p.x, y + 0.68, p.y), 0.035, WOOD, {"seg": 6})
+	for i in posts.size() - 1:
+		k.rod(posts[i], posts[i + 1], 0.015, Color(0.85, 0.78, 0.6), {"line": 0.0})
 
-## Tide pools: still water in the hollows of the shelf, with weed, a starfish, shells
-## and a crab on the rock.
-static func _tide_pools(k: Kit) -> void:
-	for pool: Vector3 in [Vector3(-6.4, 3.9, 0.62), Vector3(-4.1, 4.7, 0.72), Vector3(-2.9, 3.2, 0.5)]:
-		k.cyl(Vector3(pool.x, SEA_Y + 0.085, pool.y), pool.z * 0.9, 0.01, Color(0.35, 0.7, 0.72), {"seg": 16, "gloss": 0.9, "line": 0.0})
+## Tide pools: sea water left in the hollows of the shelf, drawn with the same clear
+## water as the sea (shaders/konbini_pool.gdshader), with weed, a starfish, shells and
+## a crab on the rock.
+static func _tide_pools(k: Kit, scene: Node3D) -> void:
+	for pool: Vector3 in POOLS:
+		var plane := PlaneMesh.new()
+		plane.size = Vector2.ONE * pool.z * 2.4
+		var mat := ShaderMaterial.new()
+		mat.shader = POOL
+		mat.set_shader_parameter("centre", Vector2(pool.x, pool.y))
+		mat.set_shader_parameter("radius", pool.z)
+		var water := MeshInstance3D.new()
+		water.name = "TidePool"
+		water.mesh = plane
+		water.material_override = mat
+		water.position = Vector3(pool.x, SEA_Y + 0.09, pool.y)
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		scene.add_child(water)
 		for j in 3:
 			var a := j * 2.1 + pool.x
-			k.ball(Vector3(pool.x + cos(a) * pool.z * 0.5, SEA_Y + 0.07, pool.y + sin(a) * pool.z * 0.5), Vector3(0.09, 0.03, 0.07), Color(0.3, 0.5, 0.3), {"seg": 6, "line": 0.0})
-	# a starfish in the middle pool, shells and a crab on the shelf
-	var star := Vector3(-4.0, SEA_Y + 0.08, 4.6)
+			var w := Vector2(pool.x + cos(a) * pool.z * 0.55, pool.y + sin(a) * pool.z * 0.55)
+			k.ball(Vector3(w.x, ground(w.x, w.y) + 0.02, w.y), Vector3(0.08, 0.03, 0.06), Color(0.3, 0.5, 0.3), {"seg": 6, "line": 0.0})
+	# a starfish on the floor of the middle pool, shells and a crab on the shelf
+	var star := Vector3(-4.0, ground(-4.0, 4.6) + 0.015, 4.6)
 	for i in 5:
 		var a := i * TAU / 5.0
 		k.box(star + Vector3(cos(a), 0, sin(a)) * 0.07, Vector3(0.14, 0.02, 0.05), Color(0.95, 0.5, 0.3), {"rot": Vector3(0, -rad_to_deg(a), 0), "line": 0.4})
@@ -337,8 +445,8 @@ static func _tide_pools(k: Kit) -> void:
 		k.ball(Vector3(s.x, ground(s.x, s.y) + 0.02, s.y), Vector3(0.05, 0.03, 0.04), Color(0.95, 0.88, 0.8), {"seg": 6, "line": 0.4})
 	var crab := Vector3(-5.6, ground(-5.6, 4.6) + 0.04, 4.6)
 	k.ball(crab, Vector3(0.09, 0.04, 0.07), Color(0.85, 0.3, 0.2), {"seg": 8, "line": 0.5})
-	for s in [-1.0, 1.0]:
-		k.ball(crab + Vector3(s * 0.1, 0.0, 0.06), Vector3(0.03, 0.025, 0.025), Color(0.85, 0.3, 0.2), {"seg": 6, "line": 0.4})
+	for sx in [-1.0, 1.0]:
+		k.ball(crab + Vector3(sx * 0.1, 0.0, 0.06), Vector3(0.03, 0.025, 0.025), Color(0.85, 0.3, 0.2), {"seg": 6, "line": 0.4})
 
 ## Black pines on the hill and two more on the sand by the seam, a few round shrubs.
 static func _trees(k: Kit, scene: Node3D) -> void:
